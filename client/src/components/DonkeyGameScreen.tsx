@@ -12,7 +12,6 @@ import {
   Smile,
   MessageSquare,
   ChevronsLeft,
-  Gift,
   Settings,
   X,
   LogOut,
@@ -20,9 +19,6 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  User,
-  Bot,
-  WifiOff,
   Crown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -401,7 +397,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             {orderedPlayers.map((player) => {
               const isTurn = gameState.currentTurnPlayerId === player.id;
               const isSelf = player.displayIndex === 0;
-              const initials = player.name.slice(0, 2).toUpperCase();
 
               return (
                 <div
@@ -459,21 +454,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                         borderColor: !isTurn ? player.theme.accentHex : undefined
                       }}
                     >
-                      {/* Inner Profile Pic with background EXACTLY matching relevant player's theme color */}
+                      {/* Inner Profile Disc: Pure solid theme color! NO symbols, NO letters, NO text, NO profile images */}
                       <div
-                        className={`w-full h-full rounded-full overflow-hidden flex items-center justify-center border-2 border-white/90 shadow-inner ${player.theme.deckBackGradient}`}
+                        className={`w-full h-full rounded-full ${player.theme.deckBackGradient} border-2 border-white/90 shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),0_2px_6px_rgba(0,0,0,0.35)] relative overflow-hidden`}
                       >
-                        {player.avatar && player.avatar.startsWith('http') ? (
-                          <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div
-                            className={`w-full h-full flex items-center justify-center font-black ${
-                              player.theme.name === 'Yellow' || player.theme.name === 'Cyan' ? 'text-slate-950' : 'text-white'
-                            } text-xs sm:text-sm drop-shadow-sm select-none`}
-                          >
-                            {initials}
-                          </div>
-                        )}
+                        {/* 3D Gloss Sheen */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
+                        <div className="absolute top-1 left-1.5 w-3 h-1.5 rounded-full bg-white/60 blur-[0.5px] pointer-events-none" />
                       </div>
                     </div>
                   </div>
@@ -524,18 +511,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           {/* Subtle Top Table Felt Spotlight Glow */}
           <div className="absolute inset-x-8 top-0 h-20 bg-gradient-to-b from-cyan-400/30 via-blue-500/10 to-transparent rounded-t-[28px] pointer-events-none" />
 
-          {/* Table Center Floating Lead Suit Tag (When trick has started) */}
-          {gameState.leadSuit && (
-            <div className="relative z-10 mb-2 px-3 py-0.5 rounded-full bg-slate-950/85 border border-cyan-400/60 shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center gap-1.5 text-xs font-black text-amber-300">
-              <span className="text-[10px] uppercase tracking-wider text-cyan-200">Table Lead:</span>
-              <span className={`text-sm font-black ${
-                gameState.leadSuit === 'HEARTS' || gameState.leadSuit === 'DIAMONDS' ? 'text-red-400' : 'text-slate-100'
-              }`}>
-                {gameState.leadSuit === 'SPADES' ? '♠ Spades' : gameState.leadSuit === 'HEARTS' ? '♥ Hearts' : gameState.leadSuit === 'CLUBS' ? '♣ Clubs' : '♦ Diamonds'}
-              </span>
-            </div>
-          )}
-
           <div className="relative w-full flex items-center justify-center">
             {/* Left Arrow Button for Deck Slots */}
             {totalPlayers > 5 && (
@@ -569,18 +544,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
                 return (
                   <div key={`deck-slot-${player.id}`} className="flex flex-col items-center flex-shrink-0 relative">
-                    {/* Interactive 3D Bouncing "PLAYING" Pointer */}
-                    {isSlotTurn && (
-                      <div className="absolute -top-6 sm:-top-7 z-30 flex flex-col items-center animate-bounce pointer-events-none">
-                        <span className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.2 rounded-full border shadow-lg ${
-                          isTimeLow ? 'bg-red-600 text-white border-white animate-pulse' : 'bg-emerald-500 text-white border-white'
-                        }`}>
-                          PLAYING
-                        </span>
-                        <span className={`text-xs sm:text-sm font-black -mt-1 leading-none ${isTimeLow ? 'text-red-400' : 'text-emerald-400'}`}>▼</span>
-                      </div>
-                    )}
-
                     {/* The Card / Deck Slot Box */}
                     <div
                       className={`${dims.slotBox} rounded-xl border-2 transition-all duration-200 relative flex items-center justify-center shadow-lg ${
@@ -810,29 +773,30 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           title="Tap to Cheer!"
         >
           <div className="relative">
+            {/* Blinking Ripple Halo around Outer Profile when My Turn */}
+            {isMyTurn && (
+              <div
+                className={`absolute -inset-1.5 rounded-full animate-ping pointer-events-none opacity-75 ${
+                  isTimeLow ? 'bg-red-500' : 'bg-emerald-400'
+                }`}
+              />
+            )}
+
             <div
               className={`w-12 h-12 rounded-full p-0.5 transition-all duration-300 relative ${
                 isMyTurn
                   ? isTimeLow
-                    ? 'turn-halo-red ring-4 ring-red-500 bg-gradient-to-br from-red-500 via-rose-600 to-red-700 shadow-[0_0_28px_#ef4444] scale-105 animate-pulse'
-                    : 'turn-halo-green ring-4 ring-emerald-400 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_26px_#22c55e] scale-105'
-                  : 'ring-2 ring-amber-400 bg-amber-400 shadow-[0_4px_12px_rgba(0,0,0,0.5)]'
+                    ? 'animate-profile-blink-red ring-4 ring-red-500 shadow-[0_0_28px_#ef4444]'
+                    : 'animate-profile-blink-green ring-4 ring-emerald-400 shadow-[0_0_26px_#22c55e]'
+                  : 'ring-2 ring-amber-400 shadow-[0_4px_12px_rgba(250,204,21,0.5)]'
               }`}
             >
-              <div className="w-full h-full rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-white/90 shadow-inner">
-                {me?.avatar && me.avatar.startsWith('http') ? (
-                  <img src={me.avatar} alt={me.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-tr from-purple-900 via-indigo-800 to-purple-700 flex items-center justify-center font-black text-white text-xs">
-                    {me ? me.name.slice(0, 2).toUpperCase() : 'ME'}
-                  </div>
-                )}
+              {/* Inner Profile Disc: Pure Yellow Glossy Disc (No symbols, no text, no image) */}
+              <div className="w-full h-full rounded-full bg-gradient-to-b from-yellow-300 via-amber-400 to-yellow-500 border-2 border-white/90 shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),0_2px_6px_rgba(0,0,0,0.35)] relative overflow-hidden">
+                {/* 3D Gloss Sheen */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
+                <div className="absolute top-1 left-1.5 w-3.5 h-1.5 rounded-full bg-white/60 blur-[0.5px] pointer-events-none" />
               </div>
-            </div>
-
-            {/* Gift Icon Badge on Right of Profile */}
-            <div className="absolute -bottom-0.5 -right-1 w-4 h-4 rounded-full bg-slate-900 border border-white flex items-center justify-center text-white shadow-md z-15 group-hover:scale-110 transition-transform">
-              <Gift className="w-2.5 h-2.5 text-white fill-current" />
             </div>
           </div>
 

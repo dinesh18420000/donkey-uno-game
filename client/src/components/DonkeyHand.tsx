@@ -111,36 +111,18 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
 
   return (
     <div className="w-full max-w-2xl mx-auto px-2 pb-1 select-none">
-      {/* Hand Header Bar: Cards count, Lead Suit Info, Play Fast Pill, & View Mode Switcher */}
+      {/* Hand Header Bar: Cards count, Turn Status, & View Mode Switcher */}
       <div className="flex items-center justify-between px-1 mb-1 text-xs">
         <div className="flex items-center gap-2">
           <span className="font-black text-amber-300">
             Hand ({hand.length})
           </span>
-          {leadSuit && (
-            <span className="text-[10px] bg-slate-900/90 border border-cyan-400/40 px-2 py-0.5 rounded-full text-cyan-200 font-bold">
-              Lead: {leadSuit === 'SPADES' ? '♠ Spades' : leadSuit === 'HEARTS' ? '♥ Hearts' : leadSuit === 'CLUBS' ? '♣ Clubs' : '♦ Diamonds'}
-            </span>
-          )}
           {isMyTurn && (
             <span className="text-[10px] bg-emerald-500 text-white font-extrabold px-2 py-0.5 rounded-full animate-pulse shadow-md">
               YOUR TURN
             </span>
           )}
         </div>
-
-        {/* Floating Quick Action: Play Fast 💬 (From YouTube Video Reference) */}
-        <button
-          onClick={() => {
-            sounds.playCardSelect();
-            if (onQuickChat) onQuickChat('Play Fast! ⏱️');
-          }}
-          className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black text-[10px] sm:text-[11px] shadow-[0_2px_8px_rgba(250,204,21,0.5)] border border-white hover:scale-105 active:scale-95 transition-transform"
-          title="Prompt other players to play fast"
-        >
-          <span>Play Fast</span>
-          <span className="text-[11px]">💬</span>
-        </button>
 
         {/* View Toggle */}
         <div className="flex items-center gap-1 bg-black/50 p-0.5 rounded-xl border border-white/10">
@@ -210,16 +192,21 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                   .filter(c => c.suit === suit)
                   .sort((a, b) => a.rank - b.rank);
 
+                const isLeadActive = !!leadSuit;
                 const isColumnLead = leadSuit === suit;
+                // When lead suit is active and player has lead suit cards, other suits are shadowed
+                const shouldShadowThisSuit = isLeadActive && hasLeadSuit && !isColumnLead;
                 const canCut = isMyTurn && leadSuit && !hasLeadSuit && suitCards.length > 0;
                 const count = suitCards.length;
 
                 return (
                   <div
                     key={suit}
-                    className={`relative flex flex-col rounded-2xl p-1 transition-all border ${
-                      isColumnLead
-                        ? 'border-amber-400 bg-amber-400/10 ring-2 ring-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]'
+                    className={`relative flex flex-col rounded-2xl p-1 transition-all duration-300 border ${
+                      shouldShadowThisSuit
+                        ? 'opacity-25 grayscale-[70%] brightness-40 pointer-events-none border-white/5 bg-black/40'
+                        : isColumnLead
+                        ? 'border-amber-400 bg-amber-400/20 ring-4 ring-amber-400 shadow-[0_0_24px_rgba(250,204,21,0.8)] scale-102 z-20'
                         : canCut
                         ? 'border-rose-500 bg-rose-500/10 ring-2 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)] animate-pulse'
                         : 'border-white/10 bg-black/15'
@@ -245,11 +232,12 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                         suitCards.map((card, idx) => {
                           const isSelected = selectedCardId === card.id;
                           const isLastCard = idx === count - 1;
-                          // Exact equal distance spacing for every card
                           const topPos = idx * uniformStep;
                           const isShaking = shakingCardId === card.id;
                           const isRed = card.suit === 'HEARTS' || card.suit === 'DIAMONDS';
                           const rankColor = isRed ? 'text-[#ea1d2c]' : 'text-[#0f172a]';
+                          const isFirstTrickNotAce = isFirstTrick && !(card.suit === 'SPADES' && card.value === 'A');
+                          const isCardShadowed = shouldShadowThisSuit || isFirstTrickNotAce;
 
                           return (
                             <div
@@ -264,6 +252,12 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                                 zIndex: isSelected ? 100 : idx + 5
                               }}
                               className={`rounded-xl bg-white border border-slate-200/90 shadow-[0_4px_10px_rgba(0,0,0,0.32)] transition-all duration-150 select-none overflow-hidden cursor-pointer flex flex-col justify-between ${
+                                isCardShadowed
+                                  ? 'opacity-20 grayscale-[80%] brightness-40 shadow-none pointer-events-none cursor-not-allowed'
+                                  : isColumnLead && isMyTurn
+                                  ? 'ring-2 ring-amber-400 shadow-[0_0_16px_rgba(250,204,21,0.85)] brightness-105'
+                                  : ''
+                              } ${
                                 isSelected
                                   ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_16px_32px_rgba(250,204,21,0.9),0_8px_16px_rgba(0,0,0,0.5)] -translate-y-3.5 scale-105 z-50 border-amber-400'
                                   : 'hover:z-40 hover:-translate-y-1.5 hover:scale-102 active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:border-amber-400'

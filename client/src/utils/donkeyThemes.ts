@@ -125,33 +125,33 @@ export const DONKEY_10_DECK_THEMES: DonkeyDeckTheme[] = [
     accentHex: '#ea580c',
     numberColor: 'text-orange-300'
   },
-  // 9: Indigo / Blue (Player 9)
+  // 9: Lime (Player 9)
   {
     id: 9,
-    name: 'Indigo',
-    pillBg: 'bg-blue-700',
-    pillBorder: 'border-blue-300',
-    pillText: 'text-white font-bold',
-    deckBorder: 'border-blue-400',
-    deckBackGradient: 'bg-gradient-to-b from-blue-500 via-blue-700 to-indigo-900',
-    deckBackBorder: 'border-blue-300/90',
-    deckGlow: 'shadow-[0_0_18px_rgba(59,130,246,0.85)]',
-    accentHex: '#1d4ed8',
-    numberColor: 'text-blue-300'
+    name: 'Lime',
+    pillBg: 'bg-lime-500',
+    pillBorder: 'border-lime-200',
+    pillText: 'text-slate-950 font-black',
+    deckBorder: 'border-lime-400',
+    deckBackGradient: 'bg-gradient-to-b from-lime-300 via-lime-500 to-green-600',
+    deckBackBorder: 'border-lime-200/90',
+    deckGlow: 'shadow-[0_0_18px_rgba(132,204,22,0.85)]',
+    accentHex: '#84cc16',
+    numberColor: 'text-lime-300'
   },
-  // 10: Violet / Purple (Player 10)
+  // 10: Maroon (Player 10)
   {
     id: 10,
-    name: 'Violet',
-    pillBg: 'bg-purple-700',
-    pillBorder: 'border-purple-300',
+    name: 'Maroon',
+    pillBg: 'bg-rose-700',
+    pillBorder: 'border-rose-300',
     pillText: 'text-white font-bold',
-    deckBorder: 'border-purple-400',
-    deckBackGradient: 'bg-gradient-to-b from-purple-500 via-purple-700 to-violet-900',
-    deckBackBorder: 'border-purple-300/90',
-    deckGlow: 'shadow-[0_0_18px_rgba(147,51,234,0.85)]',
-    accentHex: '#7c3aed',
-    numberColor: 'text-purple-300'
+    deckBorder: 'border-rose-400',
+    deckBackGradient: 'bg-gradient-to-b from-rose-500 via-rose-700 to-red-950',
+    deckBackBorder: 'border-rose-300/90',
+    deckGlow: 'shadow-[0_0_18px_rgba(190,18,60,0.85)]',
+    accentHex: '#be123c',
+    numberColor: 'text-rose-300'
   }
 ];
 
