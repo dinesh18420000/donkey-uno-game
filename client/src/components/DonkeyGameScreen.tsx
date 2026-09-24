@@ -441,11 +441,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     title="Tap to Cheer!"
                   >
                     <div
-                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 transition-all duration-200 relative ${
+                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 transition-all duration-300 relative ${
                         isTurn
                           ? isTimeLow
-                            ? 'ring-3 ring-red-500 shadow-[0_0_14px_rgba(239,68,68,0.7)]'
-                            : 'ring-3 ring-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.7)]'
+                            ? 'animate-gentle-turn-red ring-2 ring-red-500'
+                            : 'animate-gentle-turn-green ring-2 ring-emerald-400'
                           : isSelf
                           ? 'ring-2 ring-amber-400 shadow-[0_2px_8px_rgba(250,204,21,0.5)]'
                           : 'ring-2 ring-white/60 shadow-[0_2px_6px_rgba(0,0,0,0.4)]'
@@ -764,11 +764,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         >
           <div className="relative">
             <div
-              className={`w-12 h-12 rounded-full p-0.5 transition-all duration-200 relative ${
+              className={`w-12 h-12 rounded-full p-0.5 transition-all duration-300 relative ${
                 isMyTurn
                   ? isTimeLow
-                    ? 'ring-3 ring-red-500 shadow-[0_0_16px_rgba(239,68,68,0.7)]'
-                    : 'ring-3 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.7)]'
+                    ? 'animate-gentle-turn-red ring-2 ring-red-500'
+                    : 'animate-gentle-turn-green ring-2 ring-emerald-400'
                   : 'ring-2 ring-amber-400 shadow-[0_3px_8px_rgba(250,204,21,0.4)]'
               }`}
             >
