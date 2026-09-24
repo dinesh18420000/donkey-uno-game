@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #1a0b2e;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+/* Mobile Safe Area Insets for Android Notification Bar & Navigation Bar */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top, 0px), 18px);
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 18px);
+}
+
+/* Hide scrollbar track on mobile & desktop */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glow effects */
+.glow-gold {
+  box-shadow: 0 0 15px rgba(250, 204, 21, 0.6);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.7);
+}
+
+/* Card slide-in and drop animations */
+@keyframes cardDrop {
+  0% {
+    transform: translateY(-40px) scale(0.8) rotate(15deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(var(--rot, 0deg));
+    opacity: 1;
+  }
+}
+
+.animate-card-drop {
+  animation: cardDrop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Pulse animation for active turn */
+@keyframes turnPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px #22c55e);
+  }
+  50% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 16px #4ade80);
+  }
+}
+
+.animate-turn-pulse {
+  animation: turnPulse 1.5s infinite;
+}

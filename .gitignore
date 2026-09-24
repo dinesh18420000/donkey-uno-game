@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build outputs
+dist/
+client/dist/
+server/dist/
+
+# Android build outputs
+client/android/.gradle/
+client/android/build/
+client/android/app/build/
+*.apk
+
+# Environment & local tools
+.env
+client/.env
+mingit/
+mingit.zip
+
+# Logs & temp
+*.log
+.DS_Store
+Thumbs.db

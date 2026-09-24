@@ -1,0 +1,18 @@
+{
+  "name": "donkey-master-and-uno-game",
+  "version": "1.0.0",
+  "description": "Multiplayer Card Game featuring Donkey Master and UNO Show 'Em No Mercy with Android APK build support",
+  "scripts": {
+    "server": "npm --prefix server run dev",
+    "server:start": "npm --prefix server start",
+    "server:build": "npm --prefix server run build",
+    "client": "npm --prefix client run dev",
+    "client:build": "npm --prefix client run build",
+    "client:sync": "npm --prefix client run build && npx --prefix client cap sync android",
+    "build": "npm run server:build && npm run client:build",
+    "start": "node server/dist/index.js"
+  },
+  "keywords": ["donkey-master", "uno-no-mercy", "multiplayer", "android-apk", "socketio"],
+  "author": "Thala Dinesh",
+  "license": "ISC"
+}
