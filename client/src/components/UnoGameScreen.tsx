@@ -80,11 +80,13 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
   } | null>(null);
   const [isDrawingAnimation, setIsDrawingAnimation] = useState<boolean>(false);
   const [isCardSlamming, setIsCardSlamming] = useState<boolean>(false);
+  const [isSwapAnimating, setIsSwapAnimating] = useState<boolean>(false);
+  const [swapBannerText, setSwapBannerText] = useState<string>('');
 
   const prevActiveCardIdRef = React.useRef<string | undefined>(gameState.activeUnoCard?.id);
   const prevLastActionRef = React.useRef<string>(gameState.lastAction || '');
 
-  // Detect card play vs card draw and trigger rich animations
+  // Detect card play vs card draw vs card swap and trigger rich animations
   useEffect(() => {
     const currentActiveId = gameState.activeUnoCard?.id;
     const currentAction = gameState.lastAction || '';
@@ -129,6 +131,23 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
         playerName: drawingPlayer ? drawingPlayer.name : 'Player',
         playerId: drawingPlayer?.id
       });
+    } else if (
+      currentAction !== prevLastActionRef.current &&
+      (currentAction.includes('SWAPPED HANDS') || currentAction.includes('ALL HANDS PASSED'))
+    ) {
+      // 3. Detect 7-SWAP or 0-PASS CARD SWAP
+      prevLastActionRef.current = currentAction;
+      setIsSwapAnimating(true);
+      setSwapBannerText(
+        currentAction.includes('ALL HANDS PASSED')
+          ? '🔄 ALL PLAYERS PASSED HANDS!'
+          : '🔁 HANDS SWAPPED BETWEEN PLAYERS!'
+      );
+      sounds.playCardDeal();
+      setTimeout(() => {
+        setIsSwapAnimating(false);
+        setSwapBannerText('');
+      }, 1900);
     } else {
       prevLastActionRef.current = currentAction;
     }
@@ -359,39 +378,6 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
         </button>
       </div>
 
-      {/* TOP OPPONENTS ROW */}
-      <div className="relative z-10 w-full px-2 pt-1">
-        <div className="flex items-center justify-center gap-3 sm:gap-6 overflow-x-auto py-1 no-scrollbar">
-          {opponents.map((opp, idx) => {
-            const colors: ('blue' | 'pink' | 'green' | 'yellow' | 'orange' | 'purple')[] = [
-              'blue', 'pink', 'green', 'yellow', 'orange', 'purple'
-            ];
-            const themeColor = colors[idx % colors.length];
-
-            return (
-              <div key={opp.id} className="relative flex flex-col items-center">
-                <PlayerAvatar
-                  player={opp}
-                  isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
-                  isBeforeMe={playerBeforeMe?.id === opp.id}
-                  isAfterMe={playerAfterMe?.id === opp.id}
-                  actionNotice={actionNotice?.playerId === opp.id ? { type: actionNotice.type, text: actionNotice.text } : null}
-                  colorTheme={themeColor}
-                  activeEmote={activeEmotes[opp.id]}
-                  turnExpiresAt={gameState.turnExpiresAt}
-                  turnDuration={gameState.turnDuration}
-                />
-                {opp.cardsCount >= 18 && !opp.isMercyEliminated && (
-                  <span className="text-[9px] font-black text-rose-400 bg-red-950/80 px-1 rounded border border-red-500 animate-pulse mt-0.5">
-                    ⚠️ {opp.cardsCount}/25 KO
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* TURN FLOW ORDER BAR: Who plays before you, active turn, who plays after you */}
       <div className="relative z-15 w-full max-w-sm mx-auto px-4 my-1">
         <div className="px-3 py-1.5 rounded-2xl bg-black/85 backdrop-blur-md border border-purple-500/50 shadow-xl flex items-center justify-between text-xs">
@@ -408,7 +394,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
 
           {/* Current Turn with Direction Icon */}
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs shadow-md animate-pulse">
-            <span className="text-sm font-black">{gameState.direction === -1 ? '↺ REV' : '↻ CW'}</span>
+            <span className="text-emerald-950 font-black">{gameState.direction === -1 ? '↺ REV' : '↻ CW'}</span>
             <span className="truncate max-w-[80px]">{isMyTurn ? "YOUR TURN!" : currentTurnPlayer?.name}</span>
             <span className="font-mono text-[10px]">({secondsRemaining}s)</span>
           </div>
@@ -426,96 +412,177 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
         </div>
       </div>
 
-      {/* CENTER PLAY AREA (Draw Pile + Discard Pile) */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center my-1 px-4 min-h-[140px]">
-        <div className="flex items-center gap-6 sm:gap-10">
-          {/* DRAW PILE WITH ANIMATION */}
-          <div className="relative">
-            <div
-              onClick={isMyTurn ? handleDrawCard : undefined}
-              className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-gradient-to-br from-slate-900 to-black border-2 border-slate-600 shadow-2xl flex flex-col items-center justify-center transition-all ${
-                isDrawingAnimation ? 'scale-110 ring-4 ring-cyan-400 shadow-cyan-400/80' : ''
-              } ${
-                isMyTurn
-                  ? 'cursor-pointer hover:scale-105 active:scale-95 ring-4 ring-yellow-400 animate-turn-pulse shadow-yellow-400/50'
-                  : 'opacity-70'
-              }`}
-            >
-              <span className="text-2xl sm:text-3xl font-black text-red-500 tracking-tighter">UNO</span>
-              <span className="text-[10px] text-slate-300 font-bold mt-1">DRAW</span>
-              {gameState.drawStackCount > 0 && isMyTurn && (
-                <div className="absolute -top-3 -right-3 bg-red-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full border-2 border-white animate-bounce shadow-xl">
-                  TAKE +{gameState.drawStackCount}
-                </div>
-              )}
+      {/* AUTHENTIC CIRCULAR CASINO GREEN FELT TABLE ARENA */}
+      <div className="relative z-10 mx-auto my-1 w-[96%] max-w-lg rounded-[2.5rem] sm:rounded-[3.2rem] bg-gradient-to-b from-[#0d5c2e] via-[#084220] to-[#042412] border-[5px] sm:border-[6px] border-[#451e11] ring-2 ring-amber-600/50 shadow-[inset_0_0_35px_rgba(0,0,0,0.85),0_12px_35px_rgba(0,0,0,0.7)] p-2 sm:p-3 overflow-hidden flex flex-col items-center justify-between min-h-[200px] sm:min-h-[230px]">
+        
+        {/* Revolving Central Neon-Green Turn Direction Arrow Track (Spins CW or CCW with game direction!) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-60">
+          <div
+            className={`w-40 h-40 sm:w-48 sm:h-48 rounded-full border-2 border-dashed border-emerald-400/50 flex items-center justify-center ${
+              gameState.direction === -1 ? 'animate-green-arrow-ccw' : 'animate-green-arrow-cw'
+            }`}
+          >
+            <div className="absolute -top-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e]">
+              {gameState.direction === -1 ? '◀' : '▶'}
             </div>
-
-            {/* Floating visual card leaving draw pile when someone draws */}
-            {isDrawingAnimation && (
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 border-2 border-white flex flex-col items-center justify-center text-white font-black text-xs pointer-events-none animate-bounce shadow-2xl z-30">
-                <span className="text-base">🎴</span>
-                <span className="text-[10px] tracking-wider">DRAW</span>
-              </div>
-            )}
-          </div>
-
-          {/* ACTIVE DISCARD PILE WITH SLAM ANIMATION */}
-          <div className={`relative transition-all duration-200 ${isCardSlamming ? 'scale-110 -rotate-3 ring-4 ring-amber-300 rounded-2xl shadow-yellow-400/80' : ''}`}>
-            {gameState.activeUnoCard ? (
-              <div className="relative">
-                <div
-                  className={`absolute -inset-3 rounded-3xl blur-lg opacity-80 ${
-                    gameState.activeUnoColor === 'red'
-                      ? 'bg-red-500'
-                      : gameState.activeUnoColor === 'blue'
-                      ? 'bg-blue-500'
-                      : gameState.activeUnoColor === 'green'
-                      ? 'bg-emerald-500'
-                      : 'bg-yellow-400'
-                  }`}
-                />
-                <UnoCardView card={gameState.activeUnoCard} isCompact={false} isValid={false} />
-              </div>
-            ) : null}
-
-            {/* Color Indicator Badge */}
-            <div className="mt-2.5 text-center">
-              <span
-                className={`text-xs font-black uppercase px-3 py-1 rounded-full border-2 border-white shadow-xl ${
-                  gameState.activeUnoColor === 'red'
-                    ? 'bg-red-600 text-white'
-                    : gameState.activeUnoColor === 'blue'
-                    ? 'bg-blue-600 text-white'
-                    : gameState.activeUnoColor === 'green'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-amber-400 text-slate-950'
-                }`}
-              >
-                COLOR: {gameState.activeUnoColor || 'ANY'}
-              </span>
+            <div className="absolute -bottom-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e]">
+              {gameState.direction === -1 ? '▶' : '◀'}
+            </div>
+            <div className="absolute -right-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e]">
+              {gameState.direction === -1 ? '▲' : '▼'}
+            </div>
+            <div className="absolute -left-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e]">
+              {gameState.direction === -1 ? '▼' : '▲'}
             </div>
           </div>
         </div>
 
-        {/* PROMINENT ANIMATED ACTION BANNER: Clearly shows DRAW vs PLAY */}
-        {actionNotice ? (
-          <div
-            className={`mt-2.5 px-4 py-1.5 rounded-full border-2 text-xs sm:text-sm font-black shadow-2xl flex items-center gap-2 animate-bounce ${
-              actionNotice.type === 'draw'
-                ? 'bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 text-white border-cyan-300 shadow-cyan-500/50'
-                : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 border-white shadow-yellow-400/60'
-            }`}
-          >
-            <span className="text-base">{actionNotice.type === 'draw' ? '📥' : '🎯'}</span>
-            <span>
-              <strong>{actionNotice.playerName}</strong> {actionNotice.text}
-            </span>
+        {/* TOP OPPONENTS ROW SEATED AT TABLE RIM */}
+        <div className="relative z-10 w-full px-1">
+          <div className="flex items-center justify-center gap-3 sm:gap-6 overflow-x-auto py-1 no-scrollbar">
+            {opponents.map((opp, idx) => {
+              const colors: ('blue' | 'pink' | 'green' | 'yellow' | 'orange' | 'purple')[] = [
+                'blue', 'pink', 'green', 'yellow', 'orange', 'purple'
+              ];
+              const themeColor = colors[idx % colors.length];
+
+              return (
+                <div key={opp.id} className="relative flex flex-col items-center">
+                  <PlayerAvatar
+                    player={opp}
+                    isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
+                    isBeforeMe={playerBeforeMe?.id === opp.id}
+                    isAfterMe={playerAfterMe?.id === opp.id}
+                    actionNotice={actionNotice?.playerId === opp.id ? { type: actionNotice.type, text: actionNotice.text } : null}
+                    colorTheme={themeColor}
+                    activeEmote={activeEmotes[opp.id]}
+                    turnExpiresAt={gameState.turnExpiresAt}
+                    turnDuration={gameState.turnDuration}
+                  />
+                  {opp.cardsCount >= 18 && !opp.isMercyEliminated && (
+                    <span className="text-[9px] font-black text-rose-400 bg-red-950/80 px-1 rounded border border-red-500 animate-pulse mt-0.5">
+                      ⚠️ {opp.cardsCount}/25 KO
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        ) : gameState.lastAction ? (
-          <div className="mt-2.5 px-4 py-1 rounded-full bg-slate-950/90 border border-purple-500/40 text-purple-200 text-xs font-bold shadow-xl text-center max-w-sm truncate">
-            {gameState.lastAction}
+        </div>
+
+        {/* CENTER PLAY AREA: DRAW PILE + ACTIVE DISCARD PILE */}
+        <div className="relative z-10 flex flex-col items-center justify-center my-1 px-4 w-full">
+          <div className="flex items-center gap-6 sm:gap-10">
+            {/* DRAW PILE WITH ANIMATION */}
+            <div className="relative">
+              <div
+                onClick={isMyTurn ? handleDrawCard : undefined}
+                className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-gradient-to-br from-slate-900 to-black border-2 border-slate-600 shadow-2xl flex flex-col items-center justify-center transition-all ${
+                  isDrawingAnimation ? 'scale-110 ring-4 ring-cyan-400 shadow-cyan-400/80' : ''
+                } ${
+                  isMyTurn
+                    ? 'cursor-pointer hover:scale-105 active:scale-95 ring-4 ring-yellow-400 animate-turn-pulse shadow-yellow-400/50'
+                    : 'opacity-70'
+                }`}
+              >
+                <span className="text-2xl sm:text-3xl font-black text-red-500 tracking-tighter">UNO</span>
+                <span className="text-[10px] text-slate-300 font-bold mt-1">DRAW</span>
+                {gameState.drawStackCount > 0 && isMyTurn && (
+                  <div className="absolute -top-3 -right-3 bg-red-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full border-2 border-white animate-bounce shadow-xl">
+                    TAKE +{gameState.drawStackCount}
+                  </div>
+                )}
+              </div>
+
+              {/* Floating visual card leaving draw pile when someone draws */}
+              {isDrawingAnimation && (
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 border-2 border-white flex flex-col items-center justify-center text-white font-black text-xs pointer-events-none animate-bounce shadow-2xl z-30">
+                  <span className="text-base">🎴</span>
+                  <span className="text-[10px] tracking-wider">DRAW</span>
+                </div>
+              )}
+            </div>
+
+            {/* ACTIVE DISCARD PILE WITH DEAL-TO-TABLE ANIMATION */}
+            <div className={`relative transition-all duration-200 ${isCardSlamming ? 'scale-110 -rotate-3 ring-4 ring-amber-300 rounded-2xl shadow-yellow-400/80' : ''}`}>
+              {gameState.activeUnoCard ? (
+                <div key={gameState.activeUnoCard.id} className="relative animate-deal-to-table">
+                  <div
+                    className={`absolute -inset-3 rounded-3xl blur-lg opacity-80 ${
+                      gameState.activeUnoColor === 'red'
+                        ? 'bg-red-500'
+                        : gameState.activeUnoColor === 'blue'
+                        ? 'bg-blue-500'
+                        : gameState.activeUnoColor === 'green'
+                        ? 'bg-emerald-500'
+                        : 'bg-yellow-400'
+                    }`}
+                  />
+                  <UnoCardView card={gameState.activeUnoCard} isCompact={false} isValid={false} />
+                </div>
+              ) : null}
+
+              {/* Color Indicator Badge */}
+              <div className="mt-2 text-center">
+                <span
+                  className={`text-xs font-black uppercase px-3 py-0.5 rounded-full border-2 border-white shadow-xl ${
+                    gameState.activeUnoColor === 'red'
+                      ? 'bg-red-600 text-white'
+                      : gameState.activeUnoColor === 'blue'
+                      ? 'bg-blue-600 text-white'
+                      : gameState.activeUnoColor === 'green'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-amber-400 text-slate-950'
+                  }`}
+                >
+                  COLOR: {gameState.activeUnoColor || 'ANY'}
+                </span>
+              </div>
+            </div>
           </div>
-        ) : null}
+
+          {/* DYNAMIC CARD SWAP ANIMATION OVERLAY (Cards flying player-to-player) */}
+          {isSwapAnimating && (
+            <div className="absolute inset-0 z-40 flex flex-col items-center justify-center pointer-events-none bg-black/60 backdrop-blur-[2px] rounded-3xl">
+              <div className="relative w-full max-w-xs h-24 flex items-center justify-center">
+                {/* Flight Card A: Left to Right */}
+                <div className="absolute animate-swap-a-to-b w-14 h-20 rounded-xl bg-gradient-to-br from-red-600 via-rose-500 to-amber-500 border-2 border-white shadow-2xl flex flex-col items-center justify-center text-white font-black text-xs">
+                  <span className="text-lg">🔁</span>
+                  <span className="text-[10px]">HAND</span>
+                </div>
+                {/* Flight Card B: Right to Left */}
+                <div className="absolute animate-swap-b-to-a w-14 h-20 rounded-xl bg-gradient-to-br from-blue-600 via-cyan-500 to-emerald-500 border-2 border-white shadow-2xl flex flex-col items-center justify-center text-white font-black text-xs">
+                  <span className="text-lg">🎴</span>
+                  <span className="text-[10px]">SWAP</span>
+                </div>
+              </div>
+              <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs sm:text-sm border-2 border-white shadow-2xl flex items-center gap-2 animate-bounce">
+                <span className="text-base">🔁</span>
+                <span>{swapBannerText || 'HANDS SWAPPED!'}</span>
+              </div>
+            </div>
+          )}
+
+          {/* PROMINENT ANIMATED ACTION BANNER: Clearly shows DRAW vs PLAY */}
+          {actionNotice && !isSwapAnimating ? (
+            <div
+              className={`mt-2 px-4 py-1 rounded-full border-2 text-xs sm:text-sm font-black shadow-2xl flex items-center gap-2 animate-bounce ${
+                actionNotice.type === 'draw'
+                  ? 'bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 text-white border-cyan-300 shadow-cyan-500/50'
+                  : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 border-white shadow-yellow-400/60'
+              }`}
+            >
+              <span className="text-base">{actionNotice.type === 'draw' ? '📥' : '🎯'}</span>
+              <span>
+                <strong>{actionNotice.playerName}</strong> {actionNotice.text}
+              </span>
+            </div>
+          ) : gameState.lastAction && !isSwapAnimating ? (
+            <div className="mt-2 px-4 py-0.5 rounded-full bg-slate-950/90 border border-purple-500/40 text-purple-200 text-xs font-bold shadow-xl text-center max-w-sm truncate">
+              {gameState.lastAction}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* MERCY DANGER METER */}

@@ -69,14 +69,138 @@
 @keyframes turnPulse {
   0%, 100% {
     transform: scale(1);
-    filter: drop-shadow(0 0 8px #22c55e);
+    filter: drop-shadow(0 0 10px #facc15);
   }
   50% {
     transform: scale(1.06);
-    filter: drop-shadow(0 0 16px #4ade80);
+    filter: drop-shadow(0 0 22px #eab308);
   }
 }
 
 .animate-turn-pulse {
-  animation: turnPulse 1.5s infinite;
+  animation: turnPulse 1.4s infinite;
+}
+
+/* Yellow Round Profile Halo Glow for Active Turn */
+@keyframes yellowHalo {
+  0%, 100% {
+    box-shadow: 0 0 0 4px #facc15, 0 0 20px #eab308;
+  }
+  50% {
+    box-shadow: 0 0 0 6px #fde047, 0 0 35px #ca8a04;
+  }
+}
+
+.turn-halo-yellow {
+  animation: yellowHalo 1.3s ease-in-out infinite;
+}
+
+/* Card deal animation from hand/deck to center table */
+@keyframes dealToTable {
+  0% {
+    transform: translateY(70px) scale(0.6) rotate(-10deg);
+    opacity: 0.2;
+  }
+  70% {
+    transform: translateY(-8px) scale(1.08) rotate(3deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-deal-to-table {
+  animation: dealToTable 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards;
+}
+
+/* Donkey Cut Animation: cards gather and sweep to victim */
+@keyframes cutSweepToVictim {
+  0% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1.15) translateY(-10px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.2) translateY(-120px);
+    opacity: 0;
+  }
+}
+
+.animate-cut-sweep {
+  animation: cutSweepToVictim 0.75s ease-in-out forwards;
+}
+
+/* UNO Swap Cards Animation (Player to Player Flight) */
+@keyframes swapFlightAtoB {
+  0% {
+    transform: translate(-120px, 0) scale(0.6) rotate(-20deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(0, -20px) scale(1.1) rotate(0deg);
+  }
+  100% {
+    transform: translate(120px, 0) scale(0.6) rotate(20deg);
+    opacity: 0;
+  }
+}
+
+@keyframes swapFlightBtoA {
+  0% {
+    transform: translate(120px, 0) scale(0.6) rotate(20deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(0, 20px) scale(1.1) rotate(0deg);
+  }
+  100% {
+    transform: translate(-120px, 0) scale(0.6) rotate(-20deg);
+    opacity: 0;
+  }
+}
+
+.animate-swap-a-to-b {
+  animation: swapFlightAtoB 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-swap-b-to-a {
+  animation: swapFlightBtoA 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Continuous Circular Green Arrow Rotation */
+@keyframes spinCW {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinCCW {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-green-arrow-cw {
+  animation: spinCW 8s linear infinite;
+}
+
+.animate-green-arrow-ccw {
+  animation: spinCCW 8s linear infinite;
 }

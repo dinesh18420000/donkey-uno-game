@@ -116,9 +116,7 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         <div
           className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full p-1 transition-all ${
             isCurrentTurn
-              ? secondsRemaining <= 5
-                ? 'ring-4 ring-red-500 bg-red-600 shadow-[0_0_20px_#ef4444] animate-pulse'
-                : 'ring-4 ring-yellow-400 bg-gradient-to-br from-yellow-300 to-amber-600 shadow-[0_0_20px_#facc15]'
+              ? 'turn-halo-yellow ring-4 sm:ring-[5px] ring-yellow-400 bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 shadow-[0_0_30px_#facc15] scale-110'
               : theme.glow
           }`}
         >
