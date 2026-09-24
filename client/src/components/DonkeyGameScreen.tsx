@@ -26,6 +26,7 @@ import {
   Crown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { CardSuitIcon } from './CardSuitIcon';
 
 interface DonkeyGameScreenProps {
   gameState: ClientGameState;
@@ -55,8 +56,8 @@ const QUICK_CHAT_MESSAGES = [
 interface CenterSlotDims {
   slotBox: string;
   rankText: string;
-  suitCornerText: string;
-  centerSuitText: string;
+  cornerSuitSize: number;
+  centerSuitSize: number;
   innerCircleSize: string;
   slotNumberText: string;
 }
@@ -66,8 +67,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-24 sm:w-28 h-36 sm:h-42 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]',
       rankText: 'text-base sm:text-lg',
-      suitCornerText: 'text-sm sm:text-base',
-      centerSuitText: 'text-5xl sm:text-6xl',
+      cornerSuitSize: 16,
+      centerSuitSize: 52,
       innerCircleSize: 'w-7 h-7',
       slotNumberText: 'text-sm sm:text-base font-black',
     };
@@ -76,8 +77,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-20 sm:w-24 h-32 sm:h-38 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]',
       rankText: 'text-sm sm:text-base',
-      suitCornerText: 'text-xs sm:text-sm',
-      centerSuitText: 'text-4xl sm:text-5xl',
+      cornerSuitSize: 14,
+      centerSuitSize: 44,
       innerCircleSize: 'w-6 h-6',
       slotNumberText: 'text-xs sm:text-sm font-black',
     };
@@ -86,8 +87,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-[72px] sm:w-[84px] h-[108px] sm:h-[126px] shadow-[0_10px_22px_-3px_rgba(0,0,0,0.65),0_4px_6px_rgba(0,0,0,0.4)]',
       rankText: 'text-xs sm:text-sm',
-      suitCornerText: 'text-xs sm:text-sm',
-      centerSuitText: 'text-3xl sm:text-4xl',
+      cornerSuitSize: 13,
+      centerSuitSize: 38,
       innerCircleSize: 'w-5 h-5',
       slotNumberText: 'text-xs sm:text-sm font-bold',
     };
@@ -96,8 +97,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-14 sm:w-16 h-22 sm:h-24 shadow-[0_8px_16px_-2px_rgba(0,0,0,0.55)]',
       rankText: 'text-xs',
-      suitCornerText: 'text-[11px] sm:text-xs',
-      centerSuitText: 'text-2xl sm:text-3xl',
+      cornerSuitSize: 11,
+      centerSuitSize: 28,
       innerCircleSize: 'w-4 h-4',
       slotNumberText: 'text-xs font-bold',
     };
@@ -106,8 +107,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-12 sm:w-13 h-18 sm:h-20 shadow-[0_6px_12px_rgba(0,0,0,0.5)]',
       rankText: 'text-[10px] sm:text-xs',
-      suitCornerText: 'text-[10px] sm:text-[11px]',
-      centerSuitText: 'text-xl sm:text-2xl',
+      cornerSuitSize: 10,
+      centerSuitSize: 22,
       innerCircleSize: 'w-3 h-3',
       slotNumberText: 'text-[11px] font-bold',
     };
@@ -115,8 +116,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   return {
     slotBox: 'w-10 sm:w-11 h-15 sm:h-17 shadow-[0_5px_10px_rgba(0,0,0,0.5)]',
     rankText: 'text-[9px] sm:text-[10px]',
-    suitCornerText: 'text-[9px] sm:text-[10px]',
-    centerSuitText: 'text-lg sm:text-xl',
+    cornerSuitSize: 8,
+    centerSuitSize: 18,
     innerCircleSize: 'w-2.5 h-2.5',
     slotNumberText: 'text-[10px] font-bold',
   };
@@ -606,44 +607,36 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                       }`}
                     >
                       {playedCard ? (
-                        /* FACE-UP PLAYED CARD (3D Realistic Card with Crisp Embossing & Specular Sheen) */
-                        <div className={`w-full h-full rounded-xl bg-gradient-to-b from-white via-[#fcfdfe] to-[#edf2f7] border-t-2 border-t-white border-l border-l-white/90 border-r-2 border-r-slate-300 border-b-2 border-b-slate-400 flex flex-col justify-between p-1.5 select-none shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden relative ${
+                        /* FACE-UP PLAYED CARD (Exact Donkey Master Match) */
+                        <div className={`w-full h-full rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1 sm:p-1.5 select-none shadow-[0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden relative ${
                           isViewerSlot ? 'animate-deal-bottom' : 'animate-deal-top'
                         }`}>
-                          {/* Specular 3D Gloss Highlight */}
-                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
-
-                          {/* Top-Left Rank & Suit */}
-                          <div className="flex flex-col items-start leading-none relative z-10 filter drop-shadow-sm">
-                            <span className={`${dims.rankText} font-black ${
-                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
+                          {/* Top Header Row: Left = Bold Rank, Right = Small Vector Suit */}
+                          <div className="flex items-center justify-between w-full leading-none relative z-10 px-0.5">
+                            <span className={`${dims.rankText} font-black tracking-tight ${
+                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
                             }`}>
                               {playedCard.value}
                             </span>
-                            <span className={`${dims.suitCornerText} font-black ${
-                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
-                            }`}>
-                              {playedCard.suit === 'SPADES' ? '♠' : playedCard.suit === 'HEARTS' ? '♥' : playedCard.suit === 'CLUBS' ? '♣' : '♦'}
-                            </span>
+                            <CardSuitIcon suit={playedCard.suit} size={dims.cornerSuitSize} />
                           </div>
 
-                          {/* Centered Large Suit Emblem with 3D drop-shadow */}
-                          <div className="w-full flex items-center justify-center my-auto relative z-10">
-                            <span className={`${dims.centerSuitText} font-black filter drop-shadow-md leading-none ${
-                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
-                            }`}>
-                              {playedCard.suit === 'SPADES' ? '♠' : playedCard.suit === 'HEARTS' ? '♥' : playedCard.suit === 'CLUBS' ? '♣' : '♦'}
-                            </span>
+                          {/* Centered Large 3D Glossy Suit Emblem */}
+                          <div className="w-full flex-1 flex items-center justify-center my-auto relative z-10">
+                            <CardSuitIcon suit={playedCard.suit} size={dims.centerSuitSize} glossy={true} />
                           </div>
 
-                          {/* Bottom-Right Inverted Rank */}
-                          <div className="flex flex-col items-end leading-none rotate-180 relative z-10 filter drop-shadow-sm">
-                            <span className={`${dims.suitCornerText} font-black ${
-                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
-                            }`}>
-                              {playedCard.value}
-                            </span>
-                          </div>
+                          {/* Bottom Inverted Header Row (Only shown if card has enough height) */}
+                          {totalPlayers <= 6 && (
+                            <div className="flex items-center justify-between w-full leading-none rotate-180 relative z-10 px-0.5">
+                              <span className={`${dims.rankText} font-black tracking-tight ${
+                                playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                              }`}>
+                                {playedCard.value}
+                              </span>
+                              <CardSuitIcon suit={playedCard.suit} size={dims.cornerSuitSize} />
+                            </div>
+                          )}
                         </div>
                       ) : (
                         /* FACE-DOWN GLOSSY 3D COLORED CARD BACK */

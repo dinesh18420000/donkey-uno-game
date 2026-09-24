@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { DonkeyCard, Suit } from '../types';
 import { DonkeyCardView } from './DonkeyCardView';
+import { CardSuitIcon } from './CardSuitIcon';
 import { Columns, LayoutGrid } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
@@ -18,36 +19,36 @@ interface DonkeyHandProps {
 
 const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderSlot: string; bgSlot: string }[] = [
   {
-    suit: 'SPADES',
-    label: 'Spades',
-    symbol: '♠',
+    suit: 'CLUBS',
+    label: 'Clubs',
+    symbol: '♣',
     color: 'text-slate-950',
-    borderSlot: 'border-cyan-500/40',
-    bgSlot: 'bg-[#071d42]/75'
+    borderSlot: 'border-white/15',
+    bgSlot: 'bg-black/20'
   },
   {
     suit: 'HEARTS',
     label: 'Hearts',
     symbol: '♥',
-    color: 'text-red-600',
-    borderSlot: 'border-red-500/50',
-    bgSlot: 'bg-[#071d42]/75'
+    color: 'text-rose-600',
+    borderSlot: 'border-white/15',
+    bgSlot: 'bg-black/20'
   },
   {
-    suit: 'CLUBS',
-    label: 'Clubs',
-    symbol: '♣',
+    suit: 'SPADES',
+    label: 'Spades',
+    symbol: '♠',
     color: 'text-slate-950',
-    borderSlot: 'border-emerald-500/50',
-    bgSlot: 'bg-[#071d42]/75'
+    borderSlot: 'border-white/15',
+    bgSlot: 'bg-black/20'
   },
   {
     suit: 'DIAMONDS',
     label: 'Diamonds',
     symbol: '♦',
-    color: 'text-red-600',
-    borderSlot: 'border-amber-500/50',
-    bgSlot: 'bg-[#071d42]/75'
+    color: 'text-rose-600',
+    borderSlot: 'border-white/15',
+    bgSlot: 'bg-black/20'
   }
 ];
 
@@ -196,14 +197,14 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
         (() => {
           // Compute max card count across all 4 suits to ensure UNIFORM equal distance across all columns
           const maxSuitCards = Math.max(1, ...SUITS.map(({ suit }) => hand.filter(c => c.suit === suit).length));
-          const CARD_HEIGHT = 56;
-          // Fixed uniform step distance for EVERY card in EVERY column
-          const uniformStep = maxSuitCards > 6 ? Math.max(15, Math.floor((172 - CARD_HEIGHT) / (maxSuitCards - 1))) : 20;
-          const containerHeight = Math.max(130, Math.min(176, (maxSuitCards - 1) * uniformStep + CARD_HEIGHT));
+          const CARD_HEIGHT = 86;
+          // Fixed uniform step distance for EVERY card in EVERY column (strictly equal)
+          const uniformStep = maxSuitCards > 5 ? Math.max(18, Math.floor((195 - CARD_HEIGHT) / (maxSuitCards - 1))) : 24;
+          const containerHeight = Math.max(140, Math.min(205, (maxSuitCards - 1) * uniformStep + CARD_HEIGHT));
 
           return (
-            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 items-end">
-              {SUITS.map(({ suit, symbol, color, borderSlot, bgSlot }) => {
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5 items-end">
+              {SUITS.map(({ suit, label, color }) => {
                 // Sort ascending: 2, 3 ... 10, J, Q, K, A
                 const suitCards = hand
                   .filter(c => c.suit === suit)
@@ -216,29 +217,26 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                 return (
                   <div
                     key={suit}
-                    className={`relative flex flex-col rounded-2xl p-1 sm:p-1.5 transition-all border-2 backdrop-blur-md shadow-[inset_0_2px_8px_rgba(0,0,0,0.6),0_6px_16px_rgba(0,0,0,0.4)] ${bgSlot} ${borderSlot} ${
-                      isColumnLead ? 'ring-4 ring-amber-400 shadow-[0_0_20px_rgba(250,204,21,0.85)]' : ''
-                    } ${canCut ? 'ring-4 ring-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.85)] animate-pulse' : ''}`}
+                    className={`relative flex flex-col rounded-2xl p-1 transition-all border ${
+                      isColumnLead
+                        ? 'border-amber-400 bg-amber-400/10 ring-2 ring-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]'
+                        : canCut
+                        ? 'border-rose-500 bg-rose-500/10 ring-2 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)] animate-pulse'
+                        : 'border-white/10 bg-black/15'
+                    }`}
                   >
-                    {/* Vertical luminous casino light strip behind column */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-cyan-400/20 via-blue-500/10 to-transparent rounded-2xl pointer-events-none" />
-
-                    {/* Top Header of the Column: Symbol & Card Count with 3D Pill */}
-                    <div className="flex items-center justify-between px-1 mb-1 text-xs font-black text-white">
-                      <span className={`text-xl sm:text-2xl font-black ${color === 'text-red-600' ? 'text-red-400' : 'text-slate-100'} filter drop-shadow`}>
-                        {symbol}
-                      </span>
-                      <span className="bg-gradient-to-b from-slate-900 to-black px-2 py-0.2 rounded-full text-[10px] sm:text-[11px] text-amber-300 font-mono font-black border border-white/20 shadow-inner">
+                    {/* Subtle Column Header: Small Suit Icon & Count Badge */}
+                    <div className="flex items-center justify-between px-1 mb-1 text-xs">
+                      <div className="flex items-center gap-1">
+                        <CardSuitIcon suit={suit} size={14} />
+                        <span className="text-[11px] font-bold text-slate-200 hidden sm:inline">{label}</span>
+                      </div>
+                      <span className="bg-black/60 px-1.5 py-0.2 rounded-full text-[10px] text-amber-300 font-mono font-black border border-white/20">
                         {count}
                       </span>
                     </div>
 
-                    {/* Faint Suit Watermark Outline in slot background */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 overflow-hidden">
-                      <span className={`text-7xl sm:text-8xl font-black select-none ${color}`}>{symbol}</span>
-                    </div>
-
-                    {/* Cascade Stack Container (Uniform height & equal card distances) */}
+                    {/* Cascade Stack Container (Uniform height & strictly equal card distances) */}
                     <div
                       className="relative w-full overflow-visible z-10"
                       style={{ height: `${containerHeight}px` }}
@@ -250,6 +248,8 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                           // Exact equal distance spacing for every card
                           const topPos = idx * uniformStep;
                           const isShaking = shakingCardId === card.id;
+                          const isRed = card.suit === 'HEARTS' || card.suit === 'DIAMONDS';
+                          const rankColor = isRed ? 'text-[#ea1d2c]' : 'text-[#0f172a]';
 
                           return (
                             <div
@@ -263,41 +263,38 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                                 height: `${CARD_HEIGHT}px`,
                                 zIndex: isSelected ? 100 : idx + 5
                               }}
-                              className={`rounded-xl bg-gradient-to-b from-white via-[#fcfdfe] to-[#edf2f7] border-t-2 border-t-white border-l border-l-white/90 border-r-2 border-r-slate-300 border-b-2 border-b-slate-400 shadow-[0_4px_10px_rgba(0,0,0,0.35)] transition-all duration-150 select-none overflow-hidden cursor-pointer ${
+                              className={`rounded-xl bg-white border border-slate-200/90 shadow-[0_4px_10px_rgba(0,0,0,0.32)] transition-all duration-150 select-none overflow-hidden cursor-pointer flex flex-col justify-between ${
                                 isSelected
                                   ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_16px_32px_rgba(250,204,21,0.9),0_8px_16px_rgba(0,0,0,0.5)] -translate-y-3.5 scale-105 z-50 border-amber-400'
-                                  : 'hover:z-40 hover:-translate-y-1.5 hover:scale-102 active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] border-slate-300 hover:border-amber-400'
+                                  : 'hover:z-40 hover:-translate-y-1.5 hover:scale-102 active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:border-amber-400'
                               } ${
                                 isShaking
                                   ? 'animate-card-shake ring-4 ring-red-500 bg-red-50'
                                   : ''
                               }`}
                             >
-                              {/* 3D Gloss Sheen */}
-                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
-
-                              {/* Card Header Strip: LARGE, BOLD & EQUAL SPACING */}
-                              <div className="h-7 px-1.5 sm:px-2 flex items-center justify-between bg-gradient-to-b from-white via-white to-slate-100/90 border-b border-slate-200/80 relative z-10">
-                                <div className={`flex items-center gap-1.5 ${color} leading-none filter drop-shadow-sm`}>
-                                  <span className="text-sm sm:text-base font-black tracking-tight">{card.value}</span>
-                                  <span className="text-base sm:text-lg font-black leading-none">{symbol}</span>
-                                </div>
+                              {/* Card Header Strip: Bold Rank on Left, Small Suit Icon on Right (Exact Donkey Master Match) */}
+                              <div className="h-6 sm:h-7 px-1.5 sm:px-2 pt-0.5 flex items-center justify-between leading-none relative z-10">
+                                <span className={`text-base sm:text-lg font-black tracking-tight ${rankColor}`}>
+                                  {card.value}
+                                </span>
+                                <CardSuitIcon suit={card.suit} size={14} />
                               </div>
 
-                              {/* On the bottom-most card of the stack, display the prominent large suit emblem */}
+                              {/* Center of Bottom Card: Giant 3D Glossy Suit Emblem (Exact Donkey Master Match) */}
                               {isLastCard && (
-                                <div className={`w-full flex items-center justify-center ${color} relative z-10 mt-1`}>
-                                  <span className="text-2xl sm:text-3xl filter drop-shadow leading-none font-black">{symbol}</span>
+                                <div className="w-full flex-1 flex items-center justify-center pt-0.5 pb-1 relative z-10">
+                                  <CardSuitIcon suit={card.suit} size={46} glossy={true} />
                                 </div>
                               )}
                             </div>
                           );
                         })
                       ) : (
-                        /* Empty Suit Placeholder with faint watermark */
-                        <div className="w-full h-full flex flex-col items-center justify-center text-white/30 border-2 border-dashed border-white/20 rounded-xl relative shadow-inner">
-                          <span className="text-4xl opacity-50 filter drop-shadow font-black">{symbol}</span>
-                          <span className="text-[10px] font-bold mt-1 uppercase opacity-50 tracking-wider">Empty</span>
+                        /* Empty Suit Placeholder with subtle dashed border and faint 3D suit icon */
+                        <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-white/20 rounded-xl relative">
+                          <CardSuitIcon suit={suit} size={36} className="opacity-30" />
+                          <span className="text-[10px] font-bold mt-1 uppercase text-white/40 tracking-wider">Empty</span>
                         </div>
                       )}
                     </div>
