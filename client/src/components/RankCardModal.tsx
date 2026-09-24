@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, RotateCcw, LogOut, Crown, Skull, Award, CheckCircle2, Bot, Home } from 'lucide-react';
+import { Trophy, RotateCcw, LogOut, Crown, Skull, Award, CheckCircle2, Bot, Home, Loader2 } from 'lucide-react';
 import type { ClientGameState, GameType } from '../types';
 import { socketService } from '../services/socket';
 
@@ -261,15 +261,22 @@ export const RankCardModal: React.FC<RankCardModalProps> = ({
               </button>
             </>
           ) : (
-            /* Normal users: options hidden, only waiting indicator shown */
-            <div className="py-3.5 px-4 rounded-2xl bg-purple-950/70 border border-purple-400/40 text-center flex flex-col items-center justify-center gap-1.5 animate-pulse">
-              <div className="flex items-center gap-2 text-amber-300 font-black text-xs">
-                <RotateCcw className="w-4 h-4 animate-spin text-amber-300" />
-                <span>Waiting for Room Host to choose next action...</span>
+            /* Non-host users: Waiting for the Host with loading symbol and exit button */
+            <div className="flex flex-col gap-2">
+              <div className="py-3 px-4 rounded-2xl bg-purple-950/70 border border-purple-400/40 text-center flex items-center justify-center gap-2.5 shadow-inner">
+                <Loader2 className="w-4 h-4 animate-spin text-amber-300 flex-shrink-0" />
+                <span className="text-amber-300 font-black text-xs sm:text-sm tracking-wide">
+                  Waiting for the Host
+                </span>
               </div>
-              <span className="text-[11px] text-purple-200">
-                The host will decide whether to Replay or return Back to Room.
-              </span>
+
+              <button
+                onClick={onExit}
+                className="w-full py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-slate-700 hover:text-white"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Exit</span>
+              </button>
             </div>
           )}
         </div>
