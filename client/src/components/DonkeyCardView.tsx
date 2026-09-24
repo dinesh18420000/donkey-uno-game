@@ -31,10 +31,10 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
       >
         <div className="flex items-center justify-between w-full leading-none relative z-10 px-0.5">
           <span className={`text-base font-black ${textColor}`}>{card.value}</span>
-          <CardSuitIcon suit={card.suit} size={13} />
+          <CardSuitIcon suit={card.suit} size={15} />
         </div>
         <div className="w-full flex items-center justify-center my-auto relative z-10">
-          <CardSuitIcon suit={card.suit} size={32} glossy={true} />
+          <CardSuitIcon suit={card.suit} size={38} glossy={true} />
         </div>
       </div>
     );
@@ -60,20 +60,20 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
         <span className={`text-xl sm:text-2xl font-black tracking-tight ${textColor}`}>
           {card.value}
         </span>
-        <CardSuitIcon suit={card.suit} size={18} />
+        <CardSuitIcon suit={card.suit} size={20} />
       </div>
 
       {/* Center: Huge 3D Glossy Suit Emblem */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         {isAceOfSpades ? (
           <div className="flex flex-col items-center justify-center">
-            <CardSuitIcon suit="SPADES" size={54} glossy={true} />
+            <CardSuitIcon suit="SPADES" size={62} glossy={true} />
             <span className="text-[7px] font-black uppercase tracking-widest text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-full shadow-sm mt-0.5">
               LEAD
             </span>
           </div>
         ) : (
-          <CardSuitIcon suit={card.suit} size={54} glossy={true} />
+          <CardSuitIcon suit={card.suit} size={62} glossy={true} />
         )}
       </div>
 
@@ -82,7 +82,7 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
         <span className={`text-xl sm:text-2xl font-black tracking-tight ${textColor}`}>
           {card.value}
         </span>
-        <CardSuitIcon suit={card.suit} size={18} />
+        <CardSuitIcon suit={card.suit} size={20} />
       </div>
     </div>
   );

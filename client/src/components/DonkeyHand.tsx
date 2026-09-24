@@ -19,9 +19,9 @@ interface DonkeyHandProps {
 
 const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderSlot: string; bgSlot: string }[] = [
   {
-    suit: 'CLUBS',
-    label: 'Clubs',
-    symbol: '♣',
+    suit: 'SPADES',
+    label: 'Spades',
+    symbol: '♠',
     color: 'text-slate-950',
     borderSlot: 'border-white/15',
     bgSlot: 'bg-black/20'
@@ -35,9 +35,9 @@ const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderS
     bgSlot: 'bg-black/20'
   },
   {
-    suit: 'SPADES',
-    label: 'Spades',
-    symbol: '♠',
+    suit: 'CLUBS',
+    label: 'Clubs',
+    symbol: '♣',
     color: 'text-slate-950',
     borderSlot: 'border-white/15',
     bgSlot: 'bg-black/20'
@@ -197,10 +197,10 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
         (() => {
           // Compute max card count across all 4 suits to ensure UNIFORM equal distance across all columns
           const maxSuitCards = Math.max(1, ...SUITS.map(({ suit }) => hand.filter(c => c.suit === suit).length));
-          const CARD_HEIGHT = 86;
+          const CARD_HEIGHT = 90;
           // Fixed uniform step distance for EVERY card in EVERY column (strictly equal)
-          const uniformStep = maxSuitCards > 5 ? Math.max(18, Math.floor((195 - CARD_HEIGHT) / (maxSuitCards - 1))) : 24;
-          const containerHeight = Math.max(140, Math.min(205, (maxSuitCards - 1) * uniformStep + CARD_HEIGHT));
+          const uniformStep = maxSuitCards > 5 ? Math.max(18, Math.floor((198 - CARD_HEIGHT) / (maxSuitCards - 1))) : 25;
+          const containerHeight = Math.max(145, Math.min(210, (maxSuitCards - 1) * uniformStep + CARD_HEIGHT));
 
           return (
             <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5 items-end">
@@ -228,7 +228,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                     {/* Subtle Column Header: Small Suit Icon & Count Badge */}
                     <div className="flex items-center justify-between px-1 mb-1 text-xs">
                       <div className="flex items-center gap-1">
-                        <CardSuitIcon suit={suit} size={14} />
+                        <CardSuitIcon suit={suit} size={16} />
                         <span className="text-[11px] font-bold text-slate-200 hidden sm:inline">{label}</span>
                       </div>
                       <span className="bg-black/60 px-1.5 py-0.2 rounded-full text-[10px] text-amber-300 font-mono font-black border border-white/20">
@@ -278,13 +278,13 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                                 <span className={`text-base sm:text-lg font-black tracking-tight ${rankColor}`}>
                                   {card.value}
                                 </span>
-                                <CardSuitIcon suit={card.suit} size={14} />
+                                <CardSuitIcon suit={card.suit} size={17} />
                               </div>
 
                               {/* Center of Bottom Card: Giant 3D Glossy Suit Emblem (Exact Donkey Master Match) */}
                               {isLastCard && (
                                 <div className="w-full flex-1 flex items-center justify-center pt-0.5 pb-1 relative z-10">
-                                  <CardSuitIcon suit={card.suit} size={46} glossy={true} />
+                                  <CardSuitIcon suit={card.suit} size={54} glossy={true} />
                                 </div>
                               )}
                             </div>
@@ -293,7 +293,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                       ) : (
                         /* Empty Suit Placeholder with subtle dashed border and faint 3D suit icon */
                         <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-white/20 rounded-xl relative">
-                          <CardSuitIcon suit={suit} size={36} className="opacity-30" />
+                          <CardSuitIcon suit={suit} size={44} className="opacity-30" />
                           <span className="text-[10px] font-bold mt-1 uppercase text-white/40 tracking-wider">Empty</span>
                         </div>
                       )}
