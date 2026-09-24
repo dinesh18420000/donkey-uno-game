@@ -28,10 +28,22 @@ class SocketService {
     const savedAvatar = localStorage.getItem('donkey_uno_avatar');
     if (savedAvatar) this.avatar = savedAvatar;
 
-    const savedServer = localStorage.getItem('donkey_uno_server_url');
+    let savedServer = localStorage.getItem('donkey_uno_server_url');
+
+    // Auto-clean stale localhost or dead LAN URLs from previous local dev testing
+    if (savedServer && (savedServer.includes('localhost') || savedServer.includes('127.0.0.1') || savedServer.includes('192.168.'))) {
+      const isLocalHostBrowser = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      if (!isLocalHostBrowser) {
+        localStorage.removeItem('donkey_uno_server_url');
+        savedServer = null;
+      }
+    }
+
+    // If running in browser (e.g. Safari on Apple device or Chrome on PC), default to current origin if hosted online
+    const isBrowserWeb = typeof window !== 'undefined' && window.location.protocol.startsWith('http') && !window.location.hostname.includes('localhost');
+
     const envServer = (import.meta as any).env?.VITE_SERVER_URL;
-    // Default to saved server, env server, or live 24/7 cloud URL on Render
-    this.serverUrl = savedServer || envServer || 'https://donkey-uno-server.onrender.com';
+    this.serverUrl = savedServer || (isBrowserWeb ? window.location.origin : (envServer || 'https://donkey-uno-server.onrender.com'));
   }
 
   public setServerUrl(url: string) {
@@ -57,19 +69,28 @@ class SocketService {
   public connect(): Socket {
     if (this.socket && this.socket.connected) return this.socket;
 
-    this.socket = io(this.serverUrl, {
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000
-    });
+    if (!this.socket) {
+      this.socket = io(this.serverUrl, {
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 20,
+        reconnectionDelay: 1000,
+        timeout: 10000
+      });
 
-    this.socket.on('connect', () => {
-      console.log('✅ Connected to game server:', this.socket?.id);
-    });
+      this.socket.on('connect', () => {
+        console.log('✅ Connected to game server:', this.socket?.id);
+      });
 
-    this.socket.on('disconnect', (reason) => {
-      console.warn('⚠️ Disconnected from server:', reason);
-    });
+      this.socket.on('disconnect', (reason) => {
+        console.warn('⚠️ Disconnected from server:', reason);
+      });
+
+      this.socket.on('connect_error', (error) => {
+        console.warn('❌ Server connection error:', error.message);
+      });
+    } else if (!this.socket.connected) {
+      this.socket.connect();
+    }
 
     return this.socket;
   }
@@ -151,16 +172,31 @@ class SocketService {
     gameType: GameType,
     callback: (res: { success: boolean; roomCode?: string; error?: string }) => void
   ) {
-    this.connect().emit('joinFamilyRoom', {
+    const socket = this.connect();
+    let responded = false;
+    const timeout = setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        callback({
+          success: false,
+          error: 'Connection timeout. The cloud server may be waking up from sleep (~20s). Please tap Join again in a moment!'
+        });
+      }
+    }, 12000);
+
+    socket.emit('joinFamilyRoom', {
       playerId: this.playerId,
       playerName: this.playerName,
       avatar: this.avatar,
       gameType
     }, (res: any) => {
-      if (res.success && res.roomCode) {
+      if (responded) return;
+      responded = true;
+      clearTimeout(timeout);
+      if (res?.success && res?.roomCode) {
         localStorage.setItem('donkey_uno_active_room', res.roomCode);
       }
-      callback(res);
+      callback(res || { success: false, error: 'No response received from game server.' });
     });
   }
 

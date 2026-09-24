@@ -257,10 +257,11 @@ export class RoomManager {
     avatar: string,
     socketId: string,
     gameType: GameType = 'donkey'
-  ): { success: boolean; roomCode: string } {
+  ): { success: boolean; roomCode: string; error?: string } {
     const familyCode = 'FAMILY';
     let room = this.rooms.get(familyCode);
 
+    // 1. If room doesn't exist, create it cleanly
     if (!room) {
       room = this.createRoom(playerId, playerName, avatar, gameType, 10, socketId);
       this.rooms.delete(room.code);
@@ -271,8 +272,94 @@ export class RoomManager {
       return { success: true, roomCode: familyCode };
     }
 
-    const joinResult = this.joinRoom(familyCode, playerId, playerName, avatar, socketId);
-    return { success: joinResult.success, roomCode: familyCode };
+    // 2. If room was in game_over or has no active connected humans, reset for fresh play
+    const activeHumans = room.players.filter(p => !p.isBot && !p.isDisconnected && p.socketId);
+    if (room.status === 'game_over' || activeHumans.length === 0) {
+      if (this.turnTimers.has(familyCode)) {
+        clearTimeout(this.turnTimers.get(familyCode)!);
+        this.turnTimers.delete(familyCode);
+      }
+      room.status = 'waiting';
+      room.roundNumber = 1;
+      room.currentTrick = [];
+      room.drawStackCount = 0;
+      room.leadSuit = undefined;
+      room.gameType = gameType;
+      // Remove all bots from old game
+      room.players = room.players.filter(p => !p.isBot);
+      // Reset remaining human players
+      room.players.forEach(p => {
+        p.rank = undefined;
+        p.isDonkey = false;
+        p.isMercyEliminated = false;
+        p.cardsCount = 0;
+        p.hand = [];
+      });
+      // Make this player host
+      room.hostId = playerId;
+      room.players.forEach(p => { p.isHost = (p.id === playerId); });
+    }
+
+    // 3. Check if player already exists in room (reconnection)
+    const existingPlayer = room.players.find(p => p.id === playerId);
+    if (existingPlayer) {
+      existingPlayer.socketId = socketId;
+      existingPlayer.isDisconnected = false;
+      existingPlayer.isBot = false;
+      existingPlayer.name = playerName || existingPlayer.name.replace(' (Bot)', '');
+      existingPlayer.avatar = avatar || existingPlayer.avatar;
+      this.socketToPlayerMap.set(socketId, { roomCode: familyCode, playerId });
+      this.broadcastState(room);
+      return { success: true, roomCode: familyCode };
+    }
+
+    // 4. If game is currently playing, allow joining as Spectator
+    if (room.status === 'playing') {
+      if (room.players.length >= room.maxPlayers) {
+        return { success: false, roomCode: familyCode, error: 'Family table is full (10 players max).' };
+      }
+      const spectator: Player = {
+        id: playerId,
+        name: playerName || `Player ${room.players.length + 1}`,
+        avatar: avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=P${room.players.length + 1}`,
+        socketId,
+        isHost: false,
+        isBot: false,
+        isDisconnected: false,
+        cardsCount: 0,
+        hand: []
+      };
+      room.players.push(spectator);
+      this.socketToPlayerMap.set(socketId, { roomCode: familyCode, playerId });
+      room.lastAction = `${spectator.name} joined as a spectator!`;
+      this.broadcastState(room);
+      return { success: true, roomCode: familyCode };
+    }
+
+    // 5. Room is 'waiting': Join normally
+    if (room.players.length >= room.maxPlayers) {
+      return { success: false, roomCode: familyCode, error: 'Family table is full (10 players max).' };
+    }
+
+    const newPlayer: Player = {
+      id: playerId,
+      name: playerName || `Player ${room.players.length + 1}`,
+      avatar: avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=P${room.players.length + 1}`,
+      socketId,
+      isHost: room.players.length === 0 || room.hostId === playerId,
+      isBot: false,
+      isDisconnected: false,
+      cardsCount: 0,
+      hand: []
+    };
+    if (room.players.length === 0) {
+      room.hostId = playerId;
+    }
+    room.players.push(newPlayer);
+    this.socketToPlayerMap.set(socketId, { roomCode: familyCode, playerId });
+    room.lastAction = `${newPlayer.name} joined the family table!`;
+    this.broadcastState(room);
+    return { success: true, roomCode: familyCode };
   }
 
   public handleDisconnect(socketId: string): void {

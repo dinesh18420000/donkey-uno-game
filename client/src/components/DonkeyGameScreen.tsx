@@ -4,6 +4,7 @@ import { socketService } from '../services/socket';
 import { PlayerAvatar } from './PlayerAvatar';
 import { DonkeyHand } from './DonkeyHand';
 import { DonkeyCardView } from './DonkeyCardView';
+import { RankCardModal } from './RankCardModal';
 import { sounds } from '../utils/audio';
 import {
   Volume2,
@@ -342,44 +343,72 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           )}
         </div>
 
-        {/* Current User Profile Center Avatar */}
-        {me && (
-          <div className="flex flex-col items-center">
-            <PlayerAvatar
-              player={me}
-              isCurrentTurn={isMyTurn}
-              isSelf={true}
-              colorTheme="orange"
-              activeEmote={activeEmotes[myId]}
-              turnExpiresAt={gameState.turnExpiresAt}
-              turnDuration={gameState.turnDuration}
-            />
+        {/* If Spectating / Cleared Hand */}
+        {hasPlayerCleared ? (
+          <div className="flex-1 flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-purple-900/60 border border-purple-400/40 backdrop-blur-md shadow-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl animate-pulse">👀</span>
+              <div className="text-left">
+                <div className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                  <span>SPECTATING MATCH</span>
+                  <span className="text-[10px] bg-emerald-500/80 text-white px-1.5 py-0.2 rounded-full">
+                    Rank #{me?.rank} (Safe)
+                  </span>
+                </div>
+                <div className="text-[10px] text-purple-200">
+                  Watching live until all players finish...
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowExitConfirm(true)}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition-all"
+            >
+              Exit
+            </button>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Current User Profile Center Avatar */}
+            {me && (
+              <div className="flex flex-col items-center">
+                <PlayerAvatar
+                  player={me}
+                  isCurrentTurn={isMyTurn}
+                  isSelf={true}
+                  colorTheme="orange"
+                  activeEmote={activeEmotes[myId]}
+                  turnExpiresAt={gameState.turnExpiresAt}
+                  turnDuration={gameState.turnDuration}
+                />
+              </div>
+            )}
 
-        {/* Large "DEAL" Action Button */}
-        <button
-          onClick={() => {
-            if (isMyTurn && selectedCard) {
-              handlePlayCard(selectedCard);
-            }
-          }}
-          disabled={!isMyTurn || !selectedCard}
-          className={`px-6 py-2.5 rounded-full font-black text-sm sm:text-base shadow-2xl transition-all flex items-center gap-1.5 ${
-            isMyTurn && selectedCard
-              ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 ring-4 ring-yellow-300 active:scale-95 shadow-yellow-400/80 cursor-pointer animate-pulse'
-              : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-          }`}
-        >
-          <Sparkles className="w-4 h-4 fill-current" />
-          <span>
-            {isMyTurn
-              ? selectedCard
-                ? `DEAL ${selectedCard.value}${selectedCard.suit === 'SPADES' ? '♠' : selectedCard.suit === 'HEARTS' ? '♥' : selectedCard.suit === 'CLUBS' ? '♣' : '♦'}`
-                : 'DEAL'
-              : 'DEAL'}
-          </span>
-        </button>
+            {/* Large "DEAL" Action Button */}
+            <button
+              onClick={() => {
+                if (isMyTurn && selectedCard) {
+                  handlePlayCard(selectedCard);
+                }
+              }}
+              disabled={!isMyTurn || !selectedCard}
+              className={`px-6 py-2.5 rounded-full font-black text-sm sm:text-base shadow-2xl transition-all flex items-center gap-1.5 ${
+                isMyTurn && selectedCard
+                  ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 ring-4 ring-yellow-300 active:scale-95 shadow-yellow-400/80 cursor-pointer animate-pulse'
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 fill-current" />
+              <span>
+                {isMyTurn
+                  ? selectedCard
+                    ? `DEAL ${selectedCard.value}${selectedCard.suit === 'SPADES' ? '♠' : selectedCard.suit === 'HEARTS' ? '♥' : selectedCard.suit === 'CLUBS' ? '♣' : '♦'}`
+                    : 'DEAL'
+                  : 'DEAL'}
+              </span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* WATCH OR EXIT MODAL (When player finishes their cards) */}
@@ -489,52 +518,15 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         </div>
       )}
 
-      {/* GAME OVER & REPLAY PROMPT MODAL */}
+      {/* GAME OVER & FINAL RANKINGS MODAL */}
       {isGameOver && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-purple-900 to-slate-950 border-2 border-amber-400 text-center shadow-2xl">
-            <div className="text-6xl mb-2 animate-bounce">🫏</div>
-            <h2 className="text-2xl font-black text-amber-300">GAME COMPLETED!</h2>
-            {donkeyPlayer ? (
-              <div className="my-3 p-3 rounded-2xl bg-red-950/80 border border-red-500 text-white">
-                <p className="text-xs uppercase text-red-300 font-bold">Crown of Shame</p>
-                <p className="text-xl font-black text-amber-300 mt-1">
-                  {donkeyPlayer.name} is the DONKEY!
-                </p>
-              </div>
-            ) : null}
-
-            {/* Replay Option for Host */}
-            {isHost ? (
-              <div className="mt-3">
-                <p className="text-sm font-bold text-amber-200 mb-3">
-                  Do you want to replay the game again?
-                </p>
-                <button
-                  onClick={() => socketService.replayGame(gameState.roomCode)}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-base shadow-xl active:scale-95 flex items-center justify-center gap-2 mb-2"
-                >
-                  <RotateCcw className="w-5 h-5" />
-                  <span>REPLAY GAME (NEW MATCH)</span>
-                </button>
-              </div>
-            ) : (
-              <div className="my-3 py-2 px-3 rounded-xl bg-purple-950/60 border border-purple-400/30 text-xs text-purple-200 animate-pulse font-bold">
-                Waiting for Host to replay the game...
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                if (onExitToLobby) onExitToLobby();
-                else socketService.leaveRoom();
-              }}
-              className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs active:scale-95"
-            >
-              Exit to Lobby
-            </button>
-          </div>
-        </div>
+        <RankCardModal
+          gameState={gameState}
+          onReplay={() => socketService.replayGame(gameState.roomCode)}
+          onExit={handleConfirmExit}
+          isHost={isHost}
+          myId={myId}
+        />
       )}
     </div>
   );

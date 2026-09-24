@@ -3,6 +3,7 @@ import type { ClientGameState, UnoCard, UnoColor } from '../types';
 import { socketService } from '../services/socket';
 import { PlayerAvatar } from './PlayerAvatar';
 import { UnoCardView } from './UnoCardView';
+import { RankCardModal } from './RankCardModal';
 import { sounds } from '../utils/audio';
 import {
   Volume2,
@@ -575,51 +576,15 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
         </div>
       )}
 
-      {/* GAME OVER MODAL WITH REPLAY OPTION */}
+      {/* GAME OVER & FINAL RANKINGS MODAL */}
       {isGameOver && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-rose-950 to-slate-950 border-2 border-amber-400 text-center shadow-2xl">
-            <div className="text-6xl mb-2 animate-bounce">🏆</div>
-            <h2 className="text-2xl font-black text-amber-300">VICTORY!</h2>
-            {winner ? (
-              <div className="my-3 p-3 rounded-2xl bg-amber-400/20 border border-amber-400 text-white">
-                <p className="text-xl font-black text-amber-300">
-                  {winner.name} SURVIVED & WON!
-                </p>
-              </div>
-            ) : null}
-
-            {/* Replay Prompt for Host */}
-            {gameState.hostId === myId ? (
-              <div className="mt-3">
-                <p className="text-sm font-bold text-amber-200 mb-3">
-                  Do you want to replay the game again?
-                </p>
-                <button
-                  onClick={() => socketService.replayGame(gameState.roomCode)}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-base shadow-xl active:scale-95 flex items-center justify-center gap-2 mb-2"
-                >
-                  <RotateCcw className="w-5 h-5" />
-                  <span>REPLAY GAME (NEW MATCH)</span>
-                </button>
-              </div>
-            ) : (
-              <div className="my-3 py-2 px-3 rounded-xl bg-rose-950/60 border border-rose-400/30 text-xs text-rose-200 animate-pulse font-bold">
-                Waiting for Host to replay the game...
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                if (onExitToLobby) onExitToLobby();
-                else socketService.leaveRoom();
-              }}
-              className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs active:scale-95"
-            >
-              Back to Lobby
-            </button>
-          </div>
-        </div>
+        <RankCardModal
+          gameState={gameState}
+          onReplay={() => socketService.replayGame(gameState.roomCode)}
+          onExit={handleConfirmExit}
+          isHost={gameState.hostId === myId}
+          myId={myId}
+        />
       )}
     </div>
   );

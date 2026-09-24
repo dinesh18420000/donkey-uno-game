@@ -50,6 +50,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
     cardsCount: number;
   } | null>(null);
   const [showActiveGameModal, setShowActiveGameModal] = useState<boolean>(false);
+  const [isJoiningFamily, setIsJoiningFamily] = useState<boolean>(false);
 
   // Check for unfinished active games when on Home Screen
   useEffect(() => {
@@ -84,7 +85,9 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
   // Open Family Table (No room code needed!)
   const handleJoinFamilyTable = () => {
     setErrorMessage('');
+    setIsJoiningFamily(true);
     socketService.joinFamilyRoom(selectedGameType, res => {
+      setIsJoiningFamily(false);
       if (!res.success) {
         setErrorMessage(res.error || 'Failed to connect to Family Table.');
       }
@@ -409,10 +412,24 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
       <div className="w-full max-w-md flex flex-col gap-2 pt-2">
         <button
           onClick={handleJoinFamilyTable}
-          className="w-full py-4 rounded-3xl bg-gradient-to-r from-emerald-400 via-green-400 to-emerald-500 text-slate-950 font-black text-base sm:text-lg shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-2 border-2 border-white/60 ring-4 ring-emerald-400/30"
+          disabled={isJoiningFamily}
+          className={`w-full py-4 rounded-3xl font-black text-base sm:text-lg shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-2 border-2 border-white/60 ring-4 ring-emerald-400/30 ${
+            isJoiningFamily
+              ? 'bg-emerald-700 text-white cursor-wait opacity-90'
+              : 'bg-gradient-to-r from-emerald-400 via-green-400 to-emerald-500 text-slate-950 hover:shadow-emerald-400/50'
+          }`}
         >
-          <Home className="w-6 h-6 fill-current" />
-          <span>JOIN FAMILY & FRIENDS TABLE</span>
+          {isJoiningFamily ? (
+            <>
+              <RefreshCw className="w-5 h-5 animate-spin" />
+              <span>CONNECTING TO TABLE...</span>
+            </>
+          ) : (
+            <>
+              <Home className="w-6 h-6 fill-current" />
+              <span>JOIN FAMILY & FRIENDS TABLE</span>
+            </>
+          )}
         </button>
         <p className="text-[11px] text-center text-emerald-300 font-extrabold -mt-0.5">
           ⭐ No code needed! Instant 1-tap join for your family & friends circle (Up to 10).

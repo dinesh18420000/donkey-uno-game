@@ -2,6 +2,8 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 import { RoomManager } from './roomManager.js';
 
 const app = express();
@@ -21,6 +23,33 @@ const roomManager = new RoomManager(io);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Emergency reset for family room if ever needed
+app.get('/api/reset-family', (req, res) => {
+  roomManager.leaveRoom('FAMILY', 'all', '');
+  res.json({ status: 'reset_ok' });
+});
+
+// Serve web client statically so Apple/iOS/Mac/PC users can play directly in browser
+const publicDir = fs.existsSync(path.join(__dirname, '../public'))
+  ? path.join(__dirname, '../public')
+  : path.join(__dirname, '../../client/dist');
+
+if (fs.existsSync(publicDir)) {
+  console.log(`🌐 Serving web client from: ${publicDir}`);
+  app.use(express.static(publicDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    const indexPath = path.join(publicDir, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      next();
+    }
+  });
+}
 
 io.on('connection', socket => {
   console.log(`[Socket] Client connected: ${socket.id}`);
@@ -126,8 +155,12 @@ io.on('connection', socket => {
   socket.on('joinFamilyRoom', ({ playerId, playerName, avatar, gameType }, callback) => {
     try {
       const result = roomManager.joinFamilyRoom(playerId, playerName, avatar, socket.id, gameType);
-      socket.join(result.roomCode);
-      callback?.({ success: true, roomCode: result.roomCode });
+      if (result.success) {
+        socket.join(result.roomCode);
+        callback?.({ success: true, roomCode: result.roomCode });
+      } else {
+        callback?.({ success: false, error: result.error });
+      }
     } catch (err: any) {
       callback?.({ success: false, error: err.message });
     }
