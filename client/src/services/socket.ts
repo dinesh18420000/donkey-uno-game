@@ -272,6 +272,10 @@ class SocketService {
     });
   }
 
+  public sendQuickChat(roomCode: string, message: string) {
+    this.sendEmote(roomCode, message);
+  }
+
   public leaveRoom(callback?: () => void) {
     const activeRoom = localStorage.getItem('donkey_uno_active_room');
     if (activeRoom && this.socket && this.socket.connected) {

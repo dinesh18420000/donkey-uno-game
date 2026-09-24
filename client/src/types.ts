@@ -83,6 +83,7 @@ export interface PlayerPublic {
   rank?: number;
   isDonkey?: boolean;
   isMercyEliminated?: boolean;
+  isSpectator?: boolean;
 }
 
 export type GameType = 'donkey' | 'uno_no_mercy';

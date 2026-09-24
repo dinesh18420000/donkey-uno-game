@@ -22,11 +22,14 @@ export const RankCardModal: React.FC<RankCardModalProps> = ({
 }) => {
   const isDonkeyGame = gameState.gameType === 'donkey';
 
+  // Exclude spectators/viewers: Viewer-only users cannot be listed on the rank card!
+  const actualPlayers = gameState.players.filter(p => !p.isSpectator);
+
   // Sort players for leaderboard:
   // 1. Players with rank ascending (Rank 1, 2, 3...)
   // 2. Players without rank, sorted by cardsCount ascending
   // 3. Donkey player / Mercy-eliminated at the very bottom
-  const sortedPlayers = [...gameState.players].sort((a, b) => {
+  const sortedPlayers = [...actualPlayers].sort((a, b) => {
     if (a.isDonkey) return 1;
     if (b.isDonkey) return -1;
     if (a.isMercyEliminated && !b.isMercyEliminated) return 1;

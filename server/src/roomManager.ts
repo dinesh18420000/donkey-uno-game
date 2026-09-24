@@ -390,6 +390,7 @@ export class RoomManager {
         isHost: false,
         isBot: false,
         isDisconnected: false,
+        isSpectator: true,
         cardsCount: 0,
         hand: []
       };
@@ -457,10 +458,10 @@ export class RoomManager {
     player.isDisconnected = true;
     room.lastAction = `⚠️ ${player.name} lost connection! Bot took over.`;
 
-    // Check if any human players are still connected in the room
-    const activeHumans = room.players.filter(p => !p.isBot && !p.isDisconnected);
-    if (activeHumans.length === 0) {
-      // All humans left/disconnected! Immediately stop the game and cancel turn timers
+    // Check if any human players (non-bot, non-disconnected, non-spectator) are still playing
+    const activeHumanPlayers = room.players.filter(p => !p.isBot && !p.isDisconnected && !p.isSpectator);
+    if (activeHumanPlayers.length === 0) {
+      // All human players left/disconnected! Immediately stop the game and cancel turn timers
       if (this.turnTimers.has(room.code)) {
         clearTimeout(this.turnTimers.get(room.code)!);
         this.turnTimers.delete(room.code);
@@ -468,7 +469,13 @@ export class RoomManager {
       room.status = 'game_over';
       room.lastAction = '🛑 Game stopped: All human players have left the game.';
       console.log(`[Room ${room.code}] Game stopped: All human players have left.`);
-      this.broadcastState(room);
+
+      // Notify all users/viewers to return to lobby (no bots-only viewing)
+      this.io.to(room.code).emit('gameTerminated', {
+        reason: 'All players left the game. Returning to lobby...'
+      });
+      this.io.to(room.code).emit('returnToLobby');
+      this.rooms.delete(room.code);
       return;
     }
 
@@ -530,9 +537,9 @@ export class RoomManager {
       }
     }
 
-    // Check if any active human players remain
-    const activeHumans = room.players.filter(p => !p.isBot && !p.isDisconnected);
-    if (activeHumans.length === 0) {
+    // Check if any active human players remain (non-bot, non-disconnected, non-spectator)
+    const activeHumanPlayers = room.players.filter(p => !p.isBot && !p.isDisconnected && !p.isSpectator);
+    if (activeHumanPlayers.length === 0) {
       if (this.turnTimers.has(room.code)) {
         clearTimeout(this.turnTimers.get(room.code)!);
         this.turnTimers.delete(room.code);
@@ -540,6 +547,12 @@ export class RoomManager {
       room.status = 'game_over';
       room.lastAction = '🛑 Game stopped: All human players have left.';
       console.log(`[Room ${room.code}] Game stopped: All humans left.`);
+
+      // Notify all users/viewers to return to lobby (no bots-only viewing)
+      this.io.to(room.code).emit('gameTerminated', {
+        reason: 'All players left the game. Returning to lobby...'
+      });
+      this.io.to(room.code).emit('returnToLobby');
       this.rooms.delete(room.code);
       return;
     }
@@ -896,7 +909,8 @@ export class RoomManager {
           cardsCount: p.cardsCount,
           rank: p.rank,
           isDonkey: p.isDonkey,
-          isMercyEliminated: p.isMercyEliminated
+          isMercyEliminated: p.isMercyEliminated,
+          isSpectator: p.isSpectator || false
         })),
         currentTurnPlayerId: currentActivePlayer ? currentActivePlayer.id : '',
         direction: room.direction,

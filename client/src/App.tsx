@@ -34,9 +34,22 @@ export function App() {
       }
     };
 
+    const handleGameTerminated = (data: { reason?: string }) => {
+      alert(data?.reason || '🛑 All players have left the game. Returning to lobby.');
+      setShowReconnectingBanner(false);
+      setGameState(null);
+    };
+
+    const handleReturnToLobby = () => {
+      setShowReconnectingBanner(false);
+      setGameState(null);
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('gameState', handleGameState);
+    socket.on('gameTerminated', handleGameTerminated);
+    socket.on('returnToLobby', handleReturnToLobby);
 
     // Initial check
     if (socket.connected) {
@@ -47,6 +60,8 @@ export function App() {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('gameState', handleGameState);
+      socket.off('gameTerminated', handleGameTerminated);
+      socket.off('returnToLobby', handleReturnToLobby);
     };
   }, []);
 

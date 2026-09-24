@@ -54,6 +54,7 @@ export interface Player {
   rank?: number; // 1 for 1st place, etc.
   isDonkey?: boolean;
   isMercyEliminated?: boolean;
+  isSpectator?: boolean;
 }
 
 export type GameType = 'donkey' | 'uno_no_mercy';
