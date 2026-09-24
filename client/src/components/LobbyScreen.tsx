@@ -14,6 +14,7 @@ import {
   Home,
   Key,
   RefreshCw,
+  Crown,
   X
 } from 'lucide-react';
 
@@ -302,12 +303,24 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
                 </div>
 
                 {isHost && p.id !== gameState.hostId && (
-                  <button
-                    onClick={() => socketService.removePlayer(gameState.roomCode, p.id)}
-                    className="absolute top-1 right-1 p-1 text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="absolute top-1 right-1 flex items-center gap-1">
+                    {!p.isBot && (
+                      <button
+                        onClick={() => socketService.transferHost(gameState.roomCode, p.id)}
+                        className="p-1 text-amber-400 hover:text-amber-300 active:scale-95 transition-transform"
+                        title="Transfer Host to this player"
+                      >
+                        <Crown className="w-3.5 h-3.5 fill-current" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => socketService.removePlayer(gameState.roomCode, p.id)}
+                      className="p-1 text-red-400 hover:text-red-300 active:scale-95 transition-transform"
+                      title="Kick player"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

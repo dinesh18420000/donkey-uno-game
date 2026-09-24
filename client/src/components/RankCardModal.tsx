@@ -1,10 +1,12 @@
 import React from 'react';
-import { Trophy, RotateCcw, LogOut, Crown, Skull, Award, CheckCircle2, Bot } from 'lucide-react';
+import { Trophy, RotateCcw, LogOut, Crown, Skull, Award, CheckCircle2, Bot, Home } from 'lucide-react';
 import type { ClientGameState, GameType } from '../types';
+import { socketService } from '../services/socket';
 
 interface RankCardModalProps {
   gameState: ClientGameState;
   onReplay: () => void;
+  onBackToRoom: () => void;
   onExit: () => void;
   isHost: boolean;
   myId: string;
@@ -13,6 +15,7 @@ interface RankCardModalProps {
 export const RankCardModal: React.FC<RankCardModalProps> = ({
   gameState,
   onReplay,
+  onBackToRoom,
   onExit,
   isHost,
   myId
@@ -182,8 +185,18 @@ export const RankCardModal: React.FC<RankCardModalProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-purple-300 font-medium">
-                      {player.isHost ? '👑 Room Host' : 'Player'}
+                    <div className="text-[10px] text-purple-300 font-medium flex items-center gap-1.5 mt-0.5">
+                      <span>{player.isHost ? '👑 Room Host' : 'Player'}</span>
+                      {isHost && !player.isBot && !isMe && (
+                        <button
+                          onClick={() => socketService.transferHost(gameState.roomCode, player.id)}
+                          className="px-1.5 py-0.5 rounded bg-amber-400/20 hover:bg-amber-400 text-amber-300 hover:text-slate-950 border border-amber-400/50 text-[9px] font-black flex items-center gap-0.5 active:scale-95 transition-all shadow-sm"
+                          title="Transfer Room Host rights to this player"
+                        >
+                          <Crown className="w-2.5 h-2.5 fill-current" />
+                          <span>Make Host</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -215,30 +228,50 @@ export const RankCardModal: React.FC<RankCardModalProps> = ({
           })}
         </div>
 
-        {/* BOTTOM ACTION BUTTONS */}
-        <div className="p-4 bg-black/60 border-t border-purple-500/30 flex flex-col gap-2">
+        {/* BOTTOM ACTION BUTTONS: ONLY HOST HAS ACTION CONTROLS */}
+        <div className="p-4 bg-black/70 border-t border-purple-500/30 flex flex-col gap-2.5">
           {isHost ? (
-            <button
-              onClick={onReplay}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-base shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ring-4 ring-yellow-300/40"
-            >
-              <RotateCcw className="w-5 h-5 stroke-[2.5]" />
-              <span>REPLAY MATCH (DEAL NEW CARDS)</span>
-            </button>
+            <>
+              {/* Host primary controls: Replay or Back to Room */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={onReplay}
+                  className="py-3 px-3 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ring-2 ring-yellow-300/50 hover:brightness-105"
+                >
+                  <RotateCcw className="w-4 h-4 stroke-[2.5]" />
+                  <span>REPLAY MATCH</span>
+                </button>
+
+                <button
+                  onClick={onBackToRoom}
+                  className="py-3 px-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs sm:text-sm shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ring-2 ring-purple-400/40"
+                >
+                  <Home className="w-4 h-4" />
+                  <span>BACK TO ROOM</span>
+                </button>
+              </div>
+
+              {/* Host exit button */}
+              <button
+                onClick={onExit}
+                className="w-full py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-slate-700"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Exit Table</span>
+              </button>
+            </>
           ) : (
-            <div className="py-2.5 px-3 rounded-2xl bg-purple-950/70 border border-purple-400/40 text-center text-xs font-bold text-purple-200 flex items-center justify-center gap-2 animate-pulse">
-              <RotateCcw className="w-4 h-4 animate-spin text-amber-300" />
-              <span>Waiting for Host to start the next match...</span>
+            /* Normal users: options hidden, only waiting indicator shown */
+            <div className="py-3.5 px-4 rounded-2xl bg-purple-950/70 border border-purple-400/40 text-center flex flex-col items-center justify-center gap-1.5 animate-pulse">
+              <div className="flex items-center gap-2 text-amber-300 font-black text-xs">
+                <RotateCcw className="w-4 h-4 animate-spin text-amber-300" />
+                <span>Waiting for Room Host to choose next action...</span>
+              </div>
+              <span className="text-[11px] text-purple-200">
+                The host will decide whether to Replay or return Back to Room.
+              </span>
             </div>
           )}
-
-          <button
-            onClick={onExit}
-            className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-slate-700"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Exit to Home Screen</span>
-          </button>
         </div>
 
       </div>

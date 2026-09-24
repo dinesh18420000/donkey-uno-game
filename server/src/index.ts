@@ -157,6 +157,16 @@ io.on('connection', socket => {
     roomManager.replayGame(roomCode, hostPlayerId);
   });
 
+  // Return room to lobby
+  socket.on('returnToLobby', ({ roomCode, hostPlayerId }) => {
+    roomManager.returnToLobby(roomCode, hostPlayerId);
+  });
+
+  // Transfer host privileges
+  socket.on('transferHost', ({ roomCode, hostPlayerId, newHostPlayerId }) => {
+    roomManager.transferHost(roomCode, hostPlayerId, newHostPlayerId);
+  });
+
   // Open Family Table (No room code needed)
   socket.on('joinFamilyRoom', ({ playerId, playerName, avatar, gameType }, callback) => {
     try {

@@ -251,6 +251,64 @@ export class RoomManager {
     return true;
   }
 
+  // Return everyone in room back to the Lobby
+  public returnToLobby(roomCode: string, hostPlayerId: string): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room || room.hostId !== hostPlayerId) return false;
+
+    // Cancel active turn timers
+    if (this.turnTimers.has(room.code)) {
+      clearTimeout(this.turnTimers.get(room.code)!);
+      this.turnTimers.delete(room.code);
+    }
+
+    room.status = 'waiting';
+    room.roundNumber = 1;
+    room.currentTrick = [];
+    room.drawStackCount = 0;
+    room.activeUnoCard = undefined;
+    room.activeUnoColor = undefined;
+    room.leadSuit = undefined;
+    room.turnExpiresAt = 0;
+    room.lastAction = '🏠 Host returned everyone back to the room lobby!';
+
+    // Reset player ranks, hands, and game flags
+    room.players.forEach(p => {
+      p.rank = undefined;
+      p.isDonkey = false;
+      p.isMercyEliminated = false;
+      p.cardsCount = 0;
+      p.hand = [];
+    });
+
+    console.log(`[Room ${room.code}] Returned to lobby by host ${hostPlayerId}`);
+    this.broadcastState(room);
+    return true;
+  }
+
+  // Transfer host rights from current host to another human player
+  public transferHost(roomCode: string, currentHostPlayerId: string, newHostPlayerId: string): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room || room.hostId !== currentHostPlayerId) return false;
+
+    // Target must exist, be in the room, and not be a bot
+    const targetPlayer = room.players.find(p => p.id === newHostPlayerId && !p.isBot);
+    if (!targetPlayer) return false;
+
+    const oldHost = room.players.find(p => p.id === currentHostPlayerId);
+    room.hostId = newHostPlayerId;
+
+    room.players.forEach(p => {
+      p.isHost = p.id === newHostPlayerId;
+    });
+
+    room.lastAction = `👑 ${oldHost ? oldHost.name : 'Host'} transferred Room Host rights to ${targetPlayer.name}!`;
+    console.log(`[Room ${room.code}] Host transferred from ${currentHostPlayerId} to ${newHostPlayerId}`);
+
+    this.broadcastState(room);
+    return true;
+  }
+
   public joinFamilyRoom(
     playerId: string,
     playerName: string,

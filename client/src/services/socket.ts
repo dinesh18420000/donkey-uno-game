@@ -204,6 +204,18 @@ class SocketService {
     this.connect().emit('replayGame', { roomCode, hostPlayerId: this.playerId });
   }
 
+  public returnToLobby(roomCode: string) {
+    this.connect().emit('returnToLobby', { roomCode, hostPlayerId: this.playerId });
+  }
+
+  public transferHost(roomCode: string, newHostPlayerId: string) {
+    this.connect().emit('transferHost', {
+      roomCode,
+      hostPlayerId: this.playerId,
+      newHostPlayerId
+    });
+  }
+
   public addBot(roomCode: string) {
     this.connect().emit('addBot', { roomCode, hostPlayerId: this.playerId });
   }

@@ -789,6 +789,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
         <RankCardModal
           gameState={gameState}
           onReplay={() => socketService.replayGame(gameState.roomCode)}
+          onBackToRoom={() => socketService.returnToLobby(gameState.roomCode)}
           onExit={handleConfirmExit}
           isHost={gameState.hostId === myId}
           myId={myId}

@@ -543,8 +543,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         <RankCardModal
           gameState={gameState}
           onReplay={() => socketService.replayGame(gameState.roomCode)}
+          onBackToRoom={() => socketService.returnToLobby(gameState.roomCode)}
           onExit={handleConfirmExit}
-          isHost={isHost}
+          isHost={gameState.hostId === myId}
           myId={myId}
         />
       )}
