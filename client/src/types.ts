@@ -41,6 +41,37 @@ export function isUnoCard(card: any): card is UnoCard {
   return card && 'color' in card && 'type' in card;
 }
 
+export function getDrawCardPenalty(type: UnoCardType): number {
+  switch (type) {
+    case 'draw2': return 2;
+    case 'draw4': return 4;
+    case 'wild_reverse_draw4': return 4;
+    case 'wild_draw6': return 6;
+    case 'wild_draw10': return 10;
+    default: return 0;
+  }
+}
+
+export function canPlayUnoCard(
+  card: UnoCard,
+  activeCard: UnoCard,
+  activeColor: UnoColor,
+  drawStackCount: number
+): boolean {
+  if (drawStackCount > 0) {
+    const currentPenalty = getDrawCardPenalty(activeCard.type);
+    const cardPenalty = getDrawCardPenalty(card.type);
+    return cardPenalty > 0 && cardPenalty >= currentPenalty;
+  }
+
+  if (card.color === 'wild') return true;
+  if (card.color === activeColor) return true;
+  if (card.type === 'number' && activeCard.type === 'number' && card.value === activeCard.value) return true;
+  if (card.type !== 'number' && card.type === activeCard.type) return true;
+
+  return false;
+}
+
 export interface PlayerPublic {
   id: string;
   name: string;

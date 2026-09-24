@@ -102,8 +102,8 @@ export function canPlayUnoCard(
   if (drawStackCount > 0) {
     const currentPenalty = getDrawCardPenalty(activeCard.type);
     const cardPenalty = getDrawCardPenalty(card.type);
-    // In No Mercy, you can stack equal or higher draw cards
-    return cardPenalty >= currentPenalty;
+    // In No Mercy, you can only stack draw cards of equal or higher penalty!
+    return cardPenalty > 0 && cardPenalty >= currentPenalty;
   }
 
   // Wild cards can always be played

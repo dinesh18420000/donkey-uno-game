@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ClientGameState, UnoCard, UnoColor } from '../types';
+import { canPlayUnoCard } from '../types';
 import { socketService } from '../services/socket';
 import { PlayerAvatar } from './PlayerAvatar';
 import { UnoCardView } from './UnoCardView';
@@ -141,8 +142,16 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     setSoundEnabled(!soundEnabled);
   };
 
+  // Check if a specific card in hand is valid to play right now
+  const isCardValid = (card: UnoCard): boolean => {
+    if (!isMyTurn) return false;
+    if (!gameState.activeUnoCard) return true;
+    return canPlayUnoCard(card, gameState.activeUnoCard, gameState.activeUnoColor || 'red', gameState.drawStackCount);
+  };
+
   const handleCardClick = (card: UnoCard) => {
     if (!isMyTurn) return;
+    if (!isCardValid(card)) return; // Block tapping invalid/grayed-out cards
     // Selecting card on tap
     if (selectedCard?.id === card.id) {
       // Tapped selected card again -> deal it
@@ -454,6 +463,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                 key={card.id}
                 card={card}
                 isSelected={selectedCard?.id === card.id}
+                isValid={isCardValid(card)}
                 onClick={() => handleCardClick(card)}
               />
             ))}
@@ -503,6 +513,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                   <UnoCardView
                     card={card}
                     isSelected={selectedCard?.id === card.id}
+                    isValid={isCardValid(card)}
                     onClick={() => handleCardClick(card)}
                   />
                 </div>

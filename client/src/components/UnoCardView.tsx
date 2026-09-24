@@ -191,9 +191,13 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
     return (
       <div
         onClick={isValid ? onClick : undefined}
-        className={`w-12 h-16 rounded-xl ${theme.bg} border-2 border-white/80 shadow-lg p-1 flex flex-col items-center justify-between select-none ${
+        className={`w-12 h-16 rounded-xl ${theme.bg} border-2 shadow-lg p-1 flex flex-col items-center justify-between select-none ${
           isSelected ? '-translate-y-2 ring-4 ring-yellow-400' : ''
-        } ${isValid ? 'cursor-pointer active:scale-95' : 'opacity-40 cursor-not-allowed'}`}
+        } ${
+          isValid
+            ? 'cursor-pointer active:scale-95 border-white/80'
+            : 'opacity-30 grayscale-[85%] brightness-75 border-slate-600/60 cursor-not-allowed shadow-none pointer-events-none'
+        }`}
       >
         <span className={`text-[11px] font-black leading-none ${theme.cornerText}`}>{cornerSym}</span>
         <div className="flex items-center justify-center">{renderCenterContent()}</div>
@@ -205,14 +209,14 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
   return (
     <div
       onClick={isValid ? onClick : undefined}
-      className={`relative w-14 h-20 sm:w-16 sm:h-24 md:w-20 md:h-28 rounded-2xl ${theme.bg} border-[2.5px] border-white/95 shadow-xl p-1.5 flex flex-col justify-between select-none transition-all duration-150 overflow-hidden ${
+      className={`relative w-14 h-20 sm:w-16 sm:h-24 md:w-20 md:h-28 rounded-2xl ${theme.bg} border-[2.5px] shadow-xl p-1.5 flex flex-col justify-between select-none transition-all duration-150 overflow-hidden ${
         isSelected
-          ? '-translate-y-4 ring-4 ring-yellow-400 shadow-yellow-400/80 shadow-2xl z-40'
+          ? '-translate-y-4 ring-4 ring-yellow-400 shadow-yellow-400/80 shadow-2xl z-40 border-amber-300'
           : ''
       } ${
         isValid
-          ? 'cursor-pointer hover:-translate-y-1.5 active:scale-95 hover:shadow-2xl'
-          : 'opacity-40 grayscale-[40%] cursor-not-allowed'
+          ? 'cursor-pointer hover:-translate-y-1.5 active:scale-95 hover:shadow-2xl border-white/95'
+          : 'opacity-30 grayscale-[85%] brightness-75 border-slate-600/60 cursor-not-allowed shadow-none pointer-events-none'
       }`}
     >
       {/* Gloss reflection overlay */}
