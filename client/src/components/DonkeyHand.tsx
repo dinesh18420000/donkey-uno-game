@@ -13,6 +13,7 @@ interface DonkeyHandProps {
   onSelectCard: (card: DonkeyCard) => void;
   onPlayCard: (card: DonkeyCard) => void;
   onInvalidMove?: (error: { message: string; card: DonkeyCard; symbol: string }) => void;
+  onQuickChat?: (msg: string) => void;
 }
 
 const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderSlot: string; bgSlot: string }[] = [
@@ -21,8 +22,8 @@ const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderS
     label: 'Spades',
     symbol: '♠',
     color: 'text-slate-950',
-    borderSlot: 'border-slate-500/50',
-    bgSlot: 'bg-purple-950/40'
+    borderSlot: 'border-cyan-500/40',
+    bgSlot: 'bg-[#071d42]/75'
   },
   {
     suit: 'HEARTS',
@@ -30,7 +31,7 @@ const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderS
     symbol: '♥',
     color: 'text-red-600',
     borderSlot: 'border-red-500/50',
-    bgSlot: 'bg-purple-950/40'
+    bgSlot: 'bg-[#071d42]/75'
   },
   {
     suit: 'CLUBS',
@@ -38,7 +39,7 @@ const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderS
     symbol: '♣',
     color: 'text-slate-950',
     borderSlot: 'border-emerald-500/50',
-    bgSlot: 'bg-purple-950/40'
+    bgSlot: 'bg-[#071d42]/75'
   },
   {
     suit: 'DIAMONDS',
@@ -46,7 +47,7 @@ const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderS
     symbol: '♦',
     color: 'text-red-600',
     borderSlot: 'border-amber-500/50',
-    bgSlot: 'bg-purple-950/40'
+    bgSlot: 'bg-[#071d42]/75'
   }
 ];
 
@@ -58,7 +59,8 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
   selectedCardId,
   onSelectCard,
   onPlayCard,
-  onInvalidMove
+  onInvalidMove,
+  onQuickChat
 }) => {
   const [viewMode, setViewMode] = useState<'columns' | 'grid'>('columns');
   const [shakingCardId, setShakingCardId] = useState<string | null>(null);
@@ -108,14 +110,14 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
 
   return (
     <div className="w-full max-w-2xl mx-auto px-2 pb-1 select-none">
-      {/* Hand Header Bar: Cards count, Lead Suit Info & View Mode Switcher */}
+      {/* Hand Header Bar: Cards count, Lead Suit Info, Play Fast Pill, & View Mode Switcher */}
       <div className="flex items-center justify-between px-1 mb-1 text-xs">
         <div className="flex items-center gap-2">
           <span className="font-black text-amber-300">
-            Hand ({hand.length} cards)
+            Hand ({hand.length})
           </span>
           {leadSuit && (
-            <span className="text-[10px] bg-slate-900/90 border border-amber-400/40 px-2 py-0.5 rounded-full text-amber-200 font-bold">
+            <span className="text-[10px] bg-slate-900/90 border border-cyan-400/40 px-2 py-0.5 rounded-full text-cyan-200 font-bold">
               Lead: {leadSuit === 'SPADES' ? '♠ Spades' : leadSuit === 'HEARTS' ? '♥ Hearts' : leadSuit === 'CLUBS' ? '♣ Clubs' : '♦ Diamonds'}
             </span>
           )}
@@ -126,6 +128,19 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
           )}
         </div>
 
+        {/* Floating Quick Action: Play Fast 💬 (From YouTube Video Reference) */}
+        <button
+          onClick={() => {
+            sounds.playCardSelect();
+            if (onQuickChat) onQuickChat('Play Fast! ⏱️');
+          }}
+          className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black text-[10px] sm:text-[11px] shadow-[0_2px_8px_rgba(250,204,21,0.5)] border border-white hover:scale-105 active:scale-95 transition-transform"
+          title="Prompt other players to play fast"
+        >
+          <span>Play Fast</span>
+          <span className="text-[11px]">💬</span>
+        </button>
+
         {/* View Toggle */}
         <div className="flex items-center gap-1 bg-black/50 p-0.5 rounded-xl border border-white/10">
           <button
@@ -133,7 +148,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
             className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all ${
               viewMode === 'columns'
                 ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                : 'text-purple-200 hover:text-white'
+                : 'text-cyan-200 hover:text-white'
             }`}
             title="Suit Columns View"
           >
@@ -145,7 +160,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
             className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all ${
               viewMode === 'grid'
                 ? 'bg-amber-400 text-slate-950 shadow-md font-extrabold'
-                : 'text-purple-200 hover:text-white'
+                : 'text-cyan-200 hover:text-white'
             }`}
             title="Grid View (Show All Cards)"
           >
@@ -157,7 +172,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
 
       {viewMode === 'grid' ? (
         /* GRID VIEW: Wraps every card into clear rows with zero overlap! */
-        <div className="w-full max-h-56 sm:max-h-64 overflow-y-auto p-2 rounded-2xl bg-black/40 border border-purple-500/30 backdrop-blur-md no-scrollbar">
+        <div className="w-full max-h-56 sm:max-h-64 overflow-y-auto p-2 rounded-2xl bg-black/40 border border-cyan-500/30 backdrop-blur-md no-scrollbar">
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
             {[...hand]
               .sort((a, b) => {
@@ -201,6 +216,9 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                   isColumnLead ? 'ring-4 ring-amber-400 shadow-[0_0_20px_rgba(250,204,21,0.85)]' : ''
                 } ${canCut ? 'ring-4 ring-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.85)] animate-pulse' : ''}`}
               >
+                {/* Vertical luminous casino light strip behind column */}
+                <div className="absolute inset-0 bg-gradient-to-t from-cyan-400/20 via-blue-500/10 to-transparent rounded-2xl pointer-events-none" />
+
                 {/* Top Header of the Column: Symbol & Card Count with 3D Pill */}
                 <div className="flex items-center justify-between px-1 mb-1 text-xs font-black text-white">
                   <span className={`text-base font-black ${color === 'text-red-600' ? 'text-red-400' : 'text-slate-100'} filter drop-shadow`}>

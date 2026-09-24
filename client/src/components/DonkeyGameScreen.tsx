@@ -316,12 +316,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#240338] via-[#35064f] to-[#1a0229] text-white select-none">
+    <div className="casino-blue-table relative w-full h-full flex flex-col justify-between overflow-hidden text-white select-none">
       
 
       {/* 2. SAFE / FINISHED WINNERS BANNER (When players win/rank out) */}
       {finishedWinners.length > 0 && !isGameOver && (
-        <div className="relative z-15 w-full px-3 py-1 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar bg-black/40 backdrop-blur-sm border-b border-purple-500/20">
+        <div className="relative z-15 w-full px-3 py-1 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar bg-black/40 backdrop-blur-sm border-b border-cyan-500/30">
           <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 flex-shrink-0">
             <span>🏆</span>
             <span>Safe:</span>
@@ -354,7 +354,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           {totalPlayers > 5 && (
             <button
               onClick={() => scrollAvatars('left')}
-              className="absolute -left-1 z-30 w-7 h-7 rounded-full bg-purple-950/90 border border-purple-400/80 text-amber-300 flex items-center justify-center shadow-lg active:scale-90"
+              className="absolute -left-1 z-30 w-7 h-7 rounded-full bg-blue-950/90 border border-cyan-400/80 text-amber-300 flex items-center justify-center shadow-lg active:scale-90"
               title="Scroll Left"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -488,7 +488,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           {totalPlayers > 5 && (
             <button
               onClick={() => scrollAvatars('right')}
-              className="absolute -right-1 z-30 w-7 h-7 rounded-full bg-purple-950/90 border border-purple-400/80 text-amber-300 flex items-center justify-center shadow-lg active:scale-90"
+              className="absolute -right-1 z-30 w-7 h-7 rounded-full bg-blue-950/90 border border-cyan-400/80 text-amber-300 flex items-center justify-center shadow-lg active:scale-90"
               title="Scroll Right"
             >
               <ChevronRight className="w-4 h-4" />
@@ -500,15 +500,15 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       {/* 4. CENTER 3D CARD ARENA TABLE (Felt Stadium Mat with 3D Depth, Neon Edge, & Slots) */}
       <div className="relative z-10 w-full max-w-xl mx-auto px-2 py-1 my-auto flex flex-col items-center">
         {/* 3D Oval Felt Table Surface */}
-        <div className="relative w-full rounded-[28px] sm:rounded-[36px] p-2.5 sm:p-3.5 bg-gradient-to-b from-[#35064f]/90 via-[#230233]/95 to-[#13011c]/95 border-2 border-amber-400/35 shadow-[inset_0_4px_22px_rgba(0,0,0,0.85),0_15px_35px_rgba(0,0,0,0.55)] backdrop-blur-sm flex flex-col items-center overflow-hidden">
+        <div className="relative w-full rounded-[28px] sm:rounded-[36px] p-2.5 sm:p-3.5 bg-gradient-to-b from-[#0a2f6e]/90 via-[#061e47]/95 to-[#03112b]/95 border-2 border-cyan-400/40 shadow-[inset_0_4px_22px_rgba(6,182,212,0.25),0_15px_35px_rgba(0,0,0,0.6)] backdrop-blur-sm flex flex-col items-center overflow-hidden">
           
           {/* Subtle Top Table Felt Spotlight Glow */}
-          <div className="absolute inset-x-8 top-0 h-16 bg-gradient-to-b from-purple-400/20 via-amber-400/5 to-transparent rounded-t-[28px] pointer-events-none" />
+          <div className="absolute inset-x-8 top-0 h-20 bg-gradient-to-b from-cyan-400/30 via-blue-500/10 to-transparent rounded-t-[28px] pointer-events-none" />
 
           {/* Table Center Floating Lead Suit Tag (When trick has started) */}
           {gameState.leadSuit && (
-            <div className="relative z-10 mb-2 px-3 py-0.5 rounded-full bg-slate-950/85 border border-amber-400/60 shadow-[0_0_15px_rgba(250,204,21,0.4)] flex items-center gap-1.5 text-xs font-black text-amber-300">
-              <span className="text-[10px] uppercase tracking-wider text-purple-200">Table Lead:</span>
+            <div className="relative z-10 mb-2 px-3 py-0.5 rounded-full bg-slate-950/85 border border-cyan-400/60 shadow-[0_0_15px_rgba(6,182,212,0.4)] flex items-center gap-1.5 text-xs font-black text-amber-300">
+              <span className="text-[10px] uppercase tracking-wider text-cyan-200">Table Lead:</span>
               <span className={`text-sm font-black ${
                 gameState.leadSuit === 'HEARTS' || gameState.leadSuit === 'DIAMONDS' ? 'text-red-400' : 'text-slate-100'
               }`}>
@@ -576,7 +576,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     >
                       {playedCard ? (
                         /* FACE-UP PLAYED CARD (3D Realistic Card with Crisp Embossing & Specular Sheen) */
-                        <div className="w-full h-full rounded-xl bg-gradient-to-b from-white via-[#fcfdfe] to-[#edf2f7] border-t-2 border-t-white border-l border-l-white/90 border-r-2 border-r-slate-300 border-b-2 border-b-slate-400 flex flex-col justify-between p-1.5 select-none shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden animate-card-drop relative">
+                        <div className={`w-full h-full rounded-xl bg-gradient-to-b from-white via-[#fcfdfe] to-[#edf2f7] border-t-2 border-t-white border-l border-l-white/90 border-r-2 border-r-slate-300 border-b-2 border-b-slate-400 flex flex-col justify-between p-1.5 select-none shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden relative ${
+                          isViewerSlot ? 'animate-deal-bottom' : 'animate-deal-top'
+                        }`}>
                           {/* Specular 3D Gloss Highlight */}
                           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
 
@@ -711,22 +713,23 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             onInvalidMove={error => {
               setInvalidCardNotice({ message: error.message, symbol: error.symbol, cardId: error.card.id });
             }}
+            onQuickChat={handleSendQuickChat}
           />
         )}
       </div>
 
       {/* 7. BOTTOM CONTROL BAR: Back, Emoji, Chat, Profile (with green/red turn ring), DEAL Button */}
-      <div className="relative z-20 w-full px-3 py-2 safe-bottom bg-gradient-to-t from-[#140602] via-[#240e04] to-[#341407] flex items-center justify-between border-t-2 border-amber-500/50 shadow-[0_-8px_25px_rgba(0,0,0,0.6)]">
+      <div className="relative z-20 w-full px-3 py-2 safe-bottom bg-gradient-to-t from-[#020b1c] via-[#051739] to-[#0a2760] flex items-center justify-between border-t-2 border-cyan-500/50 shadow-[0_-8px_25px_rgba(0,0,0,0.7)]">
         
-        {/* Left Side Buttons: Purple Exit '<<' + Yellow Emoji + Yellow Chat */}
+        {/* Left Side Buttons: Exit '<<' + Yellow Emoji + Yellow Chat */}
         <div className="relative flex items-center gap-1.5 sm:gap-2">
-          {/* Purple '<<' Exit/Settings Button with 3D Tactile Push */}
+          {/* Blue '<<' Exit/Settings Button with 3D Tactile Push */}
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="w-10 h-10 rounded-xl bg-gradient-to-b from-purple-800 to-purple-950 border-t border-t-purple-300 border-x border-purple-500/50 border-b-3 border-b-purple-950 shadow-[0_4px_0_#2e1065,0_8px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-white active:translate-y-1 active:shadow-[0_1px_0_#2e1065] active:scale-95 transition-all cursor-pointer"
+            className="w-10 h-10 rounded-xl bg-gradient-to-b from-blue-800 to-blue-950 border-t border-t-cyan-300 border-x border-cyan-500/50 border-b-3 border-b-blue-950 shadow-[0_4px_0_#1e3a8a,0_8px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-white active:translate-y-1 active:shadow-[0_1px_0_#1e3a8a] active:scale-95 transition-all cursor-pointer"
             title="Settings & Exit"
           >
-            <ChevronsLeft className="w-5 h-5 text-purple-200" />
+            <ChevronsLeft className="w-5 h-5 text-cyan-200" />
           </button>
 
           {/* Yellow Smiling Emoji Button with 3D Raised Bevel */}
@@ -894,13 +897,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       {/* WATCH OR EXIT MODAL (When player finishes their cards) */}
       {showClearedModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-purple-900 to-slate-950 border-2 border-amber-400 text-center shadow-2xl">
+          <div className="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-slate-900 via-blue-950 to-slate-950 border-2 border-amber-400 text-center shadow-2xl">
             <div className="text-5xl mb-2">🎉</div>
             <h2 className="text-xl font-black text-amber-300">YOU CLEARED YOUR CARDS!</h2>
             <p className="text-sm font-bold text-white mt-1">
               You are Rank #{me?.rank} (Safe)!
             </p>
-            <p className="text-xs text-purple-200 mt-2">
+            <p className="text-xs text-blue-200 mt-2">
               Would you like to watch the rest of the game or exit to the lobby?
             </p>
 
@@ -926,21 +929,21 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       {/* SETTINGS MODAL */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="w-full max-w-xs p-5 rounded-3xl bg-gradient-to-b from-purple-950 to-slate-950 border-2 border-purple-500 text-white shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-purple-500/30">
+          <div className="w-full max-w-xs p-5 rounded-3xl bg-gradient-to-b from-slate-900 via-blue-950 to-slate-950 border-2 border-cyan-500 text-white shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-cyan-500/30">
               <h3 className="text-base font-black text-amber-300 flex items-center gap-2">
                 <Settings className="w-5 h-5" /> Game Settings
               </h3>
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="p-1 rounded-lg text-purple-300 hover:text-white"
+                className="p-1 rounded-lg text-cyan-300 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="py-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-900/40 border border-purple-400/20">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-blue-900/40 border border-cyan-400/20">
                 <span className="text-xs font-bold">Sound Effects</span>
                 <button
                   onClick={toggleSound}
@@ -953,7 +956,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 </button>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-900/40 border border-purple-400/20 text-xs">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-blue-900/40 border border-cyan-400/20 text-xs">
                 <span className="font-bold">Turn Timer</span>
                 <span className="font-mono font-bold text-amber-300">30 Seconds</span>
               </div>
