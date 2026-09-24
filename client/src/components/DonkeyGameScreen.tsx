@@ -6,7 +6,7 @@ import { PlayerAvatar } from './PlayerAvatar';
 import { DonkeyHand } from './DonkeyHand';
 import { DonkeyCardView } from './DonkeyCardView';
 import { RankCardModal } from './RankCardModal';
-import { getOpponentSeatStyle } from '../utils/tableSeating';
+import { partitionOpponents } from '../utils/tableSeating';
 import { sounds } from '../utils/audio';
 import {
   Volume2,
@@ -44,6 +44,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const myId = socketService.playerId;
   const me = gameState.players.find(p => p.id === myId);
   const opponents = gameState.players.filter(p => p.id !== myId);
+  const { leftOpponent, topOpponents, rightOpponent } = partitionOpponents(opponents);
   const isHost = gameState.hostId === myId;
 
   const isMyTurn = gameState.currentTurnPlayerId === myId;
@@ -188,37 +189,64 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         }}
       />
 
-      {/* TOP HEADER BAR */}
-      <div className="relative z-20 w-full px-3 safe-top pb-2 flex items-center justify-between bg-black/50 backdrop-blur-md border-b border-purple-500/30">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl filter drop-shadow">🫏</span>
-          <div>
+      {/* SINGLE CONSOLIDATED TOP BAR */}
+      <div className="relative z-20 w-full px-3 safe-top py-1.5 flex items-center justify-between bg-black/60 backdrop-blur-md border-b border-purple-500/30 gap-2">
+        {/* Left: Title & Room */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-xl filter drop-shadow">🫏</span>
+          <div className="leading-tight">
             <div className="text-xs sm:text-sm font-black tracking-wider text-amber-400">DONKEY MASTER</div>
-            <div className="text-[10px] text-purple-200 font-mono font-bold">
+            <div className="text-[9px] text-purple-200 font-mono font-bold">
               {gameState.roomCode === 'FAMILY' ? 'FAMILY TABLE (OPEN)' : `ROOM: ${gameState.roomCode}`}
             </div>
           </div>
         </div>
 
-        {/* Lead Suit & Top Timer Badge */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-950/80 border border-purple-400/40 text-xs font-black shadow-lg">
+        {/* Center: Turn Flow & Status Pill (Prev, Active Turn, Next) + Lead Suit */}
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar">
+          {/* Lead Suit Badge */}
+          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-950/90 border border-purple-400/40 text-[11px] font-black shadow-md flex-shrink-0">
             {gameState.leadSuit ? (
               <span>
                 Lead:{' '}
-                <strong className={gameState.leadSuit === 'HEARTS' || gameState.leadSuit === 'DIAMONDS' ? 'text-red-400 text-sm' : 'text-slate-100 text-sm'}>
-                  {gameState.leadSuit}
+                <strong className={gameState.leadSuit === 'HEARTS' || gameState.leadSuit === 'DIAMONDS' ? 'text-red-400 font-bold' : 'text-slate-100 font-bold'}>
+                  {gameState.leadSuit === 'SPADES' ? '♠ SPADES' : gameState.leadSuit === 'HEARTS' ? '♥ HEARTS' : gameState.leadSuit === 'CLUBS' ? '♣ CLUBS' : '♦ DIAMONDS'}
                 </strong>
               </span>
             ) : (
               <span className="text-amber-300">
-                {isFirstTrick ? '♠ Ace of Spades Leads' : 'Lead any card'}
+                {isFirstTrick ? '♠ Ace of Spades Leads' : 'Any Card Leads'}
               </span>
             )}
           </div>
 
+          {/* Turn Relationship Badge */}
+          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-purple-500/50 shadow-md text-xs flex-shrink-0">
+            {playerBeforeMe && (
+              <span className="text-[10px] text-cyan-300 font-bold hidden sm:inline" title="Plays before you">
+                ⏮️ {playerBeforeMe.name}
+              </span>
+            )}
+
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full font-black text-[11px] shadow ${
+              isMyTurn
+                ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 animate-pulse'
+                : 'bg-purple-900/80 text-amber-200'
+            }`}>
+              <span className="text-emerald-400 font-black">↻ CW</span>
+              <span className="truncate max-w-[85px] sm:max-w-[110px]">{isMyTurn ? "YOUR TURN!" : currentTurnPlayer?.name}</span>
+            </div>
+
+            {playerAfterMe && (
+              <span className="text-[10px] text-emerald-300 font-bold hidden sm:inline" title="Plays after you">
+                {playerAfterMe.name} ⏭️
+              </span>
+            )}
+          </div>
+
+          {/* 30s Countdown Pill */}
           <div
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border-2 shadow-xl ${
+            className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black border shadow-lg flex-shrink-0 ${
               turnSeconds <= 5
                 ? 'bg-red-600 text-white border-white animate-pulse'
                 : turnSeconds <= 12
@@ -226,119 +254,93 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 : 'bg-emerald-600 text-white border-emerald-300'
             }`}
           >
-            <Clock className="w-4 h-4 animate-spin" />
-            <span className="text-sm font-mono">{turnSeconds}s</span>
+            <Clock className={`w-3.5 h-3.5 ${turnSeconds <= 5 ? 'animate-spin' : ''}`} />
+            <span className="font-mono text-[11px]">{turnSeconds}s</span>
           </div>
         </div>
 
-        {/* TOP RIGHT SETTINGS BUTTON */}
+        {/* Right: Settings / Exit */}
         <button
           onClick={() => setShowSettingsModal(true)}
-          className="p-2 rounded-xl bg-purple-900/80 hover:bg-purple-800 border border-purple-400/50 text-amber-300 shadow-md active:scale-95 transition-all"
+          className="p-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 border border-purple-400/50 text-amber-300 shadow-md active:scale-95 transition-all flex-shrink-0"
           title="Game Settings & Exit"
         >
           <Settings className="w-4 h-4" />
         </button>
       </div>
 
-      {/* TURN FLOW ORDER BAR: Clear indication of who plays before, who is current, who plays after */}
-      <div className="relative z-15 w-full max-w-sm mx-auto px-4 my-1">
-        <div className="px-3 py-1.5 rounded-2xl bg-black/85 backdrop-blur-md border border-purple-500/50 shadow-xl flex items-center justify-between text-xs">
-          {/* Before Me */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-sm">⏮️</span>
-            <div className="flex flex-col text-left leading-none truncate">
-              <span className="text-[9px] uppercase tracking-wider text-cyan-300 font-bold">Before You</span>
-              <span className="text-xs font-black text-white truncate max-w-[85px]">
-                {playerBeforeMe ? playerBeforeMe.name : '—'}
-              </span>
-            </div>
-          </div>
-
-          {/* Current Turn with Revolving Green Direction Arrow */}
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs shadow-md animate-pulse">
-            <span className="text-emerald-900 font-black">↻ CW</span>
-            <span className="truncate max-w-[90px]">{isMyTurn ? "YOUR TURN!" : currentTurnPlayer?.name}</span>
-            <span className="font-mono text-[10px]">({turnSeconds}s)</span>
-          </div>
-
-          {/* After Me */}
-          <div className="flex items-center gap-1.5 min-w-0 text-right">
-            <div className="flex flex-col text-right leading-none truncate">
-              <span className="text-[9px] uppercase tracking-wider text-emerald-300 font-bold">After You</span>
-              <span className="text-xs font-black text-white truncate max-w-[85px]">
-                {playerAfterMe ? playerAfterMe.name : '—'}
-              </span>
-            </div>
-            <span className="text-sm">⏭️</span>
-          </div>
-        </div>
-      </div>
-
-      {/* PROMINENT CENTRAL 30-SECOND TIMER & PROGRESS BAR */}
-      <div className="relative z-15 w-full max-w-sm mx-auto px-4 my-0.5">
-        <div className="p-1.5 rounded-2xl bg-black/60 backdrop-blur-md border border-amber-400/40 shadow-2xl flex flex-col items-center">
-          <div className="flex items-center justify-between w-full px-1 mb-0.5">
-            <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
-              <Clock className={`w-3.5 h-3.5 ${turnSeconds <= 5 ? 'text-red-400 animate-spin' : 'text-amber-400'}`} />
-              {isMyTurn ? "👉 IT IS YOUR TURN!" : `⏳ ${currentTurnPlayer?.name || 'Player'}'s Turn`}
-            </span>
-            <span
-              className={`text-xs font-black font-mono px-2 py-0.5 rounded-full border shadow-md ${
-                turnSeconds <= 5
-                  ? 'bg-red-600 text-white border-white animate-pulse'
-                  : turnSeconds <= 12
-                  ? 'bg-amber-400 text-slate-950 border-amber-200'
-                  : 'bg-emerald-600 text-white border-emerald-300'
-              }`}
-            >
-              ⏱️ {turnSeconds}s / 30s
-            </span>
-          </div>
-
-          <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden border border-white/20">
-            <div
-              className={`h-full transition-all duration-300 ${
-                turnSeconds <= 5
-                  ? 'bg-red-500 animate-pulse'
-                  : turnSeconds <= 12
-                  ? 'bg-amber-400'
-                  : 'bg-emerald-400'
-              }`}
-              style={{ width: `${timerRatio}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* SPECTATOR BADGE (If player cleared hand and is watching) */}
       {isWatching && !isGameOver && (
-        <div className="relative z-15 w-fit mx-auto px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-400 text-emerald-300 text-xs font-black flex items-center gap-1.5 animate-pulse">
+        <div className="relative z-15 w-fit mx-auto px-3 py-0.5 my-0.5 rounded-full bg-emerald-950/80 border border-emerald-400 text-emerald-300 text-[11px] font-black flex items-center gap-1.5 animate-pulse">
           <Eye className="w-3.5 h-3.5" />
           <span>Watching Match Live (Rank #{me?.rank} Safe)</span>
         </div>
       )}
 
-      {/* AUTHENTIC CIRCULAR CASINO GREEN FELT TABLE ARENA (Perimeter Seating around the table) */}
-      <div className="relative z-10 mx-auto my-1 w-full max-w-lg h-[245px] sm:h-[280px] flex items-center justify-center px-1">
+      {/* CASINO GREEN FELT TABLE ARENA (Dedicated Non-Overlapping Zones) */}
+      <div className="relative z-10 w-full max-w-4xl mx-auto px-2 flex-1 flex flex-col justify-center my-0.5">
         
-        {/* The Oval Green Felt Table */}
-        <div className="relative w-[90%] h-[84%] rounded-[2.5rem] sm:rounded-[3.2rem] bg-gradient-to-b from-[#0d5c2e] via-[#084220] to-[#042412] border-[5px] sm:border-[6px] border-[#451e11] ring-2 ring-amber-600/50 shadow-[inset_0_0_35px_rgba(0,0,0,0.85),0_12px_35px_rgba(0,0,0,0.7)] flex flex-col items-center justify-center overflow-hidden">
+        {/* ZONE 1: TOP OPPONENTS ROW (Strictly above the felt rim - ZERO chance of overlapping cards) */}
+        <div className="w-full flex items-center justify-center gap-6 sm:gap-12 min-h-[64px] mb-1">
+          {topOpponents.map((opp, idx) => {
+            const colors: ('blue' | 'pink' | 'green' | 'yellow' | 'orange' | 'purple')[] = [
+              'blue', 'pink', 'green', 'yellow', 'orange', 'purple'
+            ];
+            const themeColor = colors[(idx + 1) % colors.length];
+
+            return (
+              <PlayerAvatar
+                key={opp.id}
+                player={opp}
+                size="sm"
+                namePosition="top"
+                isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
+                isBeforeMe={playerBeforeMe?.id === opp.id}
+                isAfterMe={playerAfterMe?.id === opp.id}
+                colorTheme={themeColor}
+                activeEmote={activeEmotes[opp.id]}
+                turnExpiresAt={gameState.turnExpiresAt}
+                turnDuration={gameState.turnDuration}
+              />
+            );
+          })}
+        </div>
+
+        {/* ZONE 2: FELT TABLE WITH LEFT OPPONENT, CENTER PLAY AREA & RIGHT OPPONENT */}
+        <div className="relative w-full rounded-[2.5rem] sm:rounded-[3rem] bg-gradient-to-b from-[#0d5c2e] via-[#084220] to-[#042412] border-[5px] sm:border-[6px] border-[#451e11] ring-2 ring-amber-600/50 shadow-[inset_0_0_35px_rgba(0,0,0,0.85),0_12px_35px_rgba(0,0,0,0.7)] flex items-center justify-between px-3 sm:px-6 py-2 min-h-[145px] sm:min-h-[165px]">
           
-          {/* Revolving Central Neon-Green Turn Direction Arrow Track */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-60">
-            <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 border-dashed border-emerald-400/50 flex items-center justify-center animate-green-arrow-cw">
-              <div className="absolute -top-3 text-emerald-400 text-lg font-black filter drop-shadow-[0_0_10px_#22c55e]">➤</div>
-              <div className="absolute -bottom-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-180">➤</div>
-              <div className="absolute -right-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-90">➤</div>
-              <div className="absolute -left-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] -rotate-90">➤</div>
-            </div>
+          {/* Left Flank Opponent */}
+          <div className="w-16 sm:w-20 flex justify-center z-20">
+            {leftOpponent ? (
+              <PlayerAvatar
+                player={leftOpponent}
+                size="sm"
+                namePosition="top"
+                isCurrentTurn={gameState.currentTurnPlayerId === leftOpponent.id}
+                isBeforeMe={playerBeforeMe?.id === leftOpponent.id}
+                isAfterMe={playerAfterMe?.id === leftOpponent.id}
+                colorTheme="blue"
+                activeEmote={activeEmotes[leftOpponent.id]}
+                turnExpiresAt={gameState.turnExpiresAt}
+                turnDuration={gameState.turnDuration}
+              />
+            ) : null}
           </div>
 
-          {/* CENTER TRICK PLAY AREA */}
-          <div className="relative z-10 flex flex-col items-center justify-center px-2 max-w-[210px] sm:max-w-xs">
+          {/* Center Felt Play Area (Revolving green arrow + Cards) */}
+          <div className="relative flex-1 flex flex-col items-center justify-center px-1">
+            {/* Revolving Central Neon-Green Turn Direction Arrow Track */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-60">
+              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-2 border-dashed border-emerald-400/50 flex items-center justify-center animate-green-arrow-cw">
+                <div className="absolute -top-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e]">➤</div>
+                <div className="absolute -bottom-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-180">➤</div>
+                <div className="absolute -right-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-90">➤</div>
+                <div className="absolute -left-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] -rotate-90">➤</div>
+              </div>
+            </div>
+
             {/* Active Cards in Trick */}
-            <div className="relative z-20 flex flex-wrap items-center justify-center gap-1.5 max-w-[200px] sm:max-w-xs">
+            <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 max-w-[210px] sm:max-w-xs">
               {gameState.currentTrick.length > 0 ? (
                 gameState.currentTrick.map((play, idx) => (
                   <div
@@ -359,8 +361,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               ) : (
                 <div className="text-center py-1.5 px-3 rounded-2xl bg-black/60 border border-emerald-400/40 backdrop-blur-md shadow-md text-[11px] font-bold text-emerald-200">
                   {isMyTurn
-                    ? (isFirstTrick ? '♠ You hold Ace of Spades! Tap to lead.' : 'Lead any card to start trick.')
-                    : `Waiting for ${currentTurnPlayer?.name || 'opponent'} to play...`}
+                    ? (isFirstTrick ? '♠ Ace of Spades Leads! Tap to play.' : 'Lead any card to start trick.')
+                    : `Waiting for ${currentTurnPlayer?.name || 'opponent'}...`}
                 </div>
               )}
             </div>
@@ -381,41 +383,31 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
             {/* Last Action Announcement Pill */}
             {gameState.lastAction && !isCutAnimating && (
-              <div className="mt-1 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/50 text-amber-300 text-[9px] sm:text-[10px] font-bold shadow-lg max-w-[200px] sm:max-w-xs truncate text-center">
+              <div className="mt-1 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/50 text-amber-300 text-[9px] sm:text-[10px] font-bold shadow-lg max-w-[200px] sm:max-w-xs truncate text-center z-10">
                 {gameState.lastAction}
               </div>
             )}
           </div>
-        </div>
 
-        {/* INDIVIDUAL OPPONENT PROFILES SEATED SEPARATELY AROUND THE TABLE PERIMETER */}
-        {opponents.map((opp, idx) => {
-          const colors: ('blue' | 'pink' | 'green' | 'yellow' | 'orange' | 'purple')[] = [
-            'blue', 'pink', 'green', 'yellow', 'orange', 'purple'
-          ];
-          const themeColor = colors[idx % colors.length];
-
-          return (
-            <div
-              key={opp.id}
-              style={getOpponentSeatStyle(idx, opponents.length)}
-              className="absolute z-20 pointer-events-auto"
-            >
+          {/* Right Flank Opponent */}
+          <div className="w-16 sm:w-20 flex justify-center z-20">
+            {rightOpponent ? (
               <PlayerAvatar
-                player={opp}
+                player={rightOpponent}
                 size="sm"
                 namePosition="top"
-                isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
-                isBeforeMe={playerBeforeMe?.id === opp.id}
-                isAfterMe={playerAfterMe?.id === opp.id}
-                colorTheme={themeColor}
-                activeEmote={activeEmotes[opp.id]}
+                isCurrentTurn={gameState.currentTurnPlayerId === rightOpponent.id}
+                isBeforeMe={playerBeforeMe?.id === rightOpponent.id}
+                isAfterMe={playerAfterMe?.id === rightOpponent.id}
+                colorTheme="yellow"
+                activeEmote={activeEmotes[rightOpponent.id]}
                 turnExpiresAt={gameState.turnExpiresAt}
                 turnDuration={gameState.turnDuration}
               />
-            </div>
-          );
-        })}
+            ) : null}
+          </div>
+
+        </div>
       </div>
 
       {/* BOTTOM USER HAND (4-Suit Cascade where ALL cards are visible simultaneously) */}
@@ -491,6 +483,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               <div className="flex flex-col items-center">
                 <PlayerAvatar
                   player={me}
+                  size="sm"
                   isCurrentTurn={isMyTurn}
                   isSelf={true}
                   colorTheme="orange"

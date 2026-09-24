@@ -163,9 +163,9 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
             const canCut = isMyTurn && leadSuit && !hasLeadSuit && suitCards.length > 0;
             const count = suitCards.length;
 
-            // Height and spacing tuned so EVERY card number is 100% visible
-            const containerHeight = Math.max(200, Math.min(260, count > 0 ? (count - 1) * 25 + 65 : 190));
-            const cardHeight = 62;
+            // Height and spacing tuned so EVERY card number is 100% visible, perfectly fitting above footer
+            const containerHeight = Math.max(130, Math.min(170, count > 0 ? (count - 1) * 16 + 50 : 130));
+            const cardHeight = 48;
             const stepOffset = count > 1 ? (containerHeight - cardHeight) / (count - 1) : 0;
 
             return (
@@ -234,10 +234,10 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                             )}
                           </div>
 
-                          {/* On the bottom-most card of the stack, display the giant iconic suit emblem */}
+                          {/* On the bottom-most card of the stack, display the iconic suit emblem */}
                           {isLastCard && (
-                            <div className={`w-full h-9 flex items-center justify-center ${color}`}>
-                              <span className="text-3xl filter drop-shadow-sm leading-none">{symbol}</span>
+                            <div className={`w-full h-6 flex items-center justify-center ${color}`}>
+                              <span className="text-xl filter drop-shadow-sm leading-none">{symbol}</span>
                             </div>
                           )}
                         </div>

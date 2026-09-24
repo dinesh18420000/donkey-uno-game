@@ -62,3 +62,51 @@ export function getOpponentSeatStyle(idx: number, total: number): CSSProperties 
     transform: 'translate(-50%, -50%)'
   };
 }
+
+export interface PartitionedOpponents<T> {
+  leftOpponent: T | null;
+  topOpponents: T[];
+  rightOpponent: T | null;
+}
+
+/**
+ * Partitions opponents into Left flank, Top row, and Right flank.
+ * This guarantees ZERO element overlap:
+ * - Top opponents sit in a row above the table felt.
+ * - Left opponent sits on the left flank.
+ * - Right opponent sits on the right flank.
+ * - Table felt cards remain completely unobstructed in the center!
+ */
+export function partitionOpponents<T>(opponents: T[]): PartitionedOpponents<T> {
+  const total = opponents.length;
+  if (total === 0) {
+    return { leftOpponent: null, topOpponents: [], rightOpponent: null };
+  }
+  if (total === 1) {
+    return { leftOpponent: null, topOpponents: [opponents[0]], rightOpponent: null };
+  }
+  if (total === 2) {
+    return { leftOpponent: opponents[0], topOpponents: [], rightOpponent: opponents[1] };
+  }
+  if (total === 3) {
+    // 4 players (1 self + 3 opponents: left, top, right)
+    return {
+      leftOpponent: opponents[0],
+      topOpponents: [opponents[1]],
+      rightOpponent: opponents[2]
+    };
+  }
+  if (total === 4) {
+    return {
+      leftOpponent: opponents[0],
+      topOpponents: [opponents[1], opponents[2]],
+      rightOpponent: opponents[3]
+    };
+  }
+  // 5 or more opponents (6+ players): Left, Top opponents array, Right
+  return {
+    leftOpponent: opponents[0],
+    topOpponents: opponents.slice(1, total - 1),
+    rightOpponent: opponents[total - 1]
+  };
+}
