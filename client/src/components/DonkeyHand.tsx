@@ -11,6 +11,7 @@ interface DonkeyHandProps {
   selectedCardId?: string | null;
   onSelectCard: (card: DonkeyCard) => void;
   onPlayCard: (card: DonkeyCard) => void;
+  onInvalidMove?: (error: { message: string; card: DonkeyCard; symbol: string }) => void;
 }
 
 const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderSlot: string; bgSlot: string }[] = [
@@ -19,32 +20,32 @@ const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderS
     label: 'Spades',
     symbol: '♠',
     color: 'text-slate-950',
-    borderSlot: 'border-slate-500',
-    bgSlot: 'bg-slate-900/60'
+    borderSlot: 'border-slate-500/50',
+    bgSlot: 'bg-purple-950/40'
   },
   {
     suit: 'HEARTS',
     label: 'Hearts',
     symbol: '♥',
     color: 'text-red-600',
-    borderSlot: 'border-red-500',
-    bgSlot: 'bg-red-950/40'
+    borderSlot: 'border-red-500/50',
+    bgSlot: 'bg-purple-950/40'
   },
   {
     suit: 'CLUBS',
     label: 'Clubs',
     symbol: '♣',
     color: 'text-slate-950',
-    borderSlot: 'border-emerald-500',
-    bgSlot: 'bg-emerald-950/40'
+    borderSlot: 'border-emerald-500/50',
+    bgSlot: 'bg-purple-950/40'
   },
   {
     suit: 'DIAMONDS',
     label: 'Diamonds',
     symbol: '♦',
     color: 'text-red-600',
-    borderSlot: 'border-amber-500',
-    bgSlot: 'bg-amber-950/40'
+    borderSlot: 'border-amber-500/50',
+    bgSlot: 'bg-purple-950/40'
   }
 ];
 
@@ -55,24 +56,47 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
   isFirstTrick,
   selectedCardId,
   onSelectCard,
-  onPlayCard
+  onPlayCard,
+  onInvalidMove
 }) => {
   const [viewMode, setViewMode] = useState<'columns' | 'grid'>('columns');
+  const [shakingCardId, setShakingCardId] = useState<string | null>(null);
 
   const hasLeadSuit = leadSuit ? hand.some(c => c.suit === leadSuit) : false;
 
-  const isCardValid = (card: DonkeyCard): boolean => {
-    if (!isMyTurn) return false;
-    if (isFirstTrick) {
-      return card.suit === 'SPADES' && card.value === 'A';
+  const getInvalidReason = (card: DonkeyCard): string | null => {
+    if (!isMyTurn) {
+      return "⏳ It's not your turn! Please wait for your turn.";
     }
-    if (!leadSuit) return true;
-    if (hasLeadSuit) return card.suit === leadSuit;
-    return true; // Can cut with any card
+    if (isFirstTrick) {
+      if (!(card.suit === 'SPADES' && card.value === 'A')) {
+        return "♠ Ace of Spades (♠ A) must lead the first trick! Please play ♠ A.";
+      }
+    }
+    if (leadSuit && hasLeadSuit && card.suit !== leadSuit) {
+      const leadSym = leadSuit === 'SPADES' ? '♠ Spades' : leadSuit === 'HEARTS' ? '♥ Hearts' : leadSuit === 'CLUBS' ? '♣ Clubs' : '♦ Diamonds';
+      const cardSym = card.suit === 'SPADES' ? '♠' : card.suit === 'HEARTS' ? '♥' : card.suit === 'CLUBS' ? '♣' : '♦';
+      return `⚠️ Lead suit is ${leadSym}! You hold ${leadSym} in hand, so you cannot play ${cardSym} ${card.value}.`;
+    }
+    return null;
+  };
+
+  const isCardValid = (card: DonkeyCard): boolean => {
+    return getInvalidReason(card) === null;
   };
 
   const handleCardClick = (card: DonkeyCard) => {
-    if (!isCardValid(card)) return;
+    const errorMsg = getInvalidReason(card);
+    if (errorMsg) {
+      setShakingCardId(card.id);
+      setTimeout(() => setShakingCardId(null), 500);
+      const symbol = card.suit === 'SPADES' ? '♠' : card.suit === 'HEARTS' ? '♥' : card.suit === 'CLUBS' ? '♣' : '♦';
+      if (onInvalidMove) {
+        onInvalidMove({ message: errorMsg, card, symbol });
+      }
+      return;
+    }
+
     if (selectedCardId === card.id) {
       onPlayCard(card);
     } else {
@@ -185,17 +209,22 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                   </span>
                 </div>
 
+                {/* Faint Suit Watermark Outline in slot background */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 overflow-hidden">
+                  <span className={`text-6xl sm:text-7xl font-black select-none ${color}`}>{symbol}</span>
+                </div>
+
                 {/* Cascade Stack Container */}
                 <div
-                  className="relative w-full overflow-visible"
+                  className="relative w-full overflow-visible z-10"
                   style={{ height: `${containerHeight}px` }}
                 >
                   {count > 0 ? (
                     suitCards.map((card, idx) => {
-                      const valid = isCardValid(card);
                       const isSelected = selectedCardId === card.id;
                       const isLastCard = idx === count - 1;
                       const topPos = idx * stepOffset;
+                      const isShaking = shakingCardId === card.id;
 
                       return (
                         <div
@@ -209,17 +238,13 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                             height: isLastCard ? `${cardHeight}px` : `${stepOffset + 14}px`,
                             zIndex: isSelected ? 100 : idx + 5
                           }}
-                          className={`rounded-xl bg-white border-2 shadow-lg transition-all duration-150 select-none overflow-hidden ${
+                          className={`rounded-xl bg-white border-2 shadow-lg transition-all duration-150 select-none overflow-hidden cursor-pointer ${
                             isSelected
-                              ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_0_20px_rgba(250,204,21,0.9)] -translate-y-2 z-50'
-                              : 'hover:z-40 hover:-translate-y-1'
+                              ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_0_20px_rgba(250,204,21,0.9)] -translate-y-2 z-50 border-amber-400'
+                              : 'hover:z-40 hover:-translate-y-1 active:scale-95 border-slate-300 hover:border-amber-400'
                           } ${
-                            valid
-                              ? 'cursor-pointer border-amber-400 ring-2 ring-amber-400/80 hover:brightness-105 active:scale-95'
-                              : 'opacity-50 grayscale-[30%] border-slate-300 cursor-not-allowed'
-                          } ${
-                            valid && isFirstTrick && card.suit === 'SPADES' && card.value === 'A'
-                              ? 'ring-4 ring-amber-400 animate-bounce'
+                            isShaking
+                              ? 'animate-card-shake ring-4 ring-red-500 bg-red-50'
                               : ''
                           }`}
                         >
@@ -229,9 +254,6 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                               <span className="text-sm sm:text-base font-black tracking-tight">{card.value}</span>
                               <span className="text-xs sm:text-sm font-extrabold">{symbol}</span>
                             </div>
-                            {valid && (
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
-                            )}
                           </div>
 
                           {/* On the bottom-most card of the stack, display the iconic suit emblem */}
@@ -244,10 +266,10 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                       );
                     })
                   ) : (
-                    /* Empty Suit Placeholder */
-                    <div className="w-full h-full flex flex-col items-center justify-center text-white/30 border-2 border-dashed border-white/20 rounded-xl">
-                      <span className="text-3xl">{symbol}</span>
-                      <span className="text-[10px] font-bold mt-1 uppercase">Empty</span>
+                    /* Empty Suit Placeholder with faint watermark */
+                    <div className="w-full h-full flex flex-col items-center justify-center text-white/30 border-2 border-dashed border-white/20 rounded-xl relative">
+                      <span className="text-3xl opacity-50">{symbol}</span>
+                      <span className="text-[10px] font-bold mt-1 uppercase opacity-50">Empty</span>
                     </div>
                   )}
                 </div>

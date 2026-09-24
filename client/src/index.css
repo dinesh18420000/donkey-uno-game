@@ -204,3 +204,14 @@
 .animate-green-arrow-ccw {
   animation: spinCCW 8s linear infinite;
 }
+
+/* Card Shake Animation for Invalid Selection */
+@keyframes cardShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px) rotate(-2deg); }
+  40%, 80% { transform: translateX(6px) rotate(2deg); }
+}
+
+.animate-card-shake {
+  animation: cardShake 0.4s ease-in-out;
+}

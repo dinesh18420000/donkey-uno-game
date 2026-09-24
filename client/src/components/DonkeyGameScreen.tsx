@@ -12,6 +12,9 @@ import {
   Volume2,
   VolumeX,
   Smile,
+  MessageSquare,
+  ChevronsLeft,
+  Gift,
   Settings,
   X,
   LogOut,
@@ -28,10 +31,21 @@ interface DonkeyGameScreenProps {
 }
 
 const EMOTE_LIST = ['😂', '🔥', '🫏', '💥', '😱', '👏', '🥳', '😎'];
+const QUICK_CHAT_MESSAGES = [
+  'Nice move! 👏',
+  'Watch out for CUT! 💥',
+  'Who has Ace of Spades? ♠',
+  'Donkey incoming! 🫏',
+  'Good game! 🤝',
+  'Hurry up please! ⏱️',
+  'Oops! 😂'
+];
 
 export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, onExitToLobby }) => {
   const [selectedCard, setSelectedCard] = useState<DonkeyCard | null>(null);
   const [showEmotePicker, setShowEmotePicker] = useState<boolean>(false);
+  const [showChatPicker, setShowChatPicker] = useState<boolean>(false);
+  const [invalidCardNotice, setInvalidCardNotice] = useState<{ message: string; symbol: string; cardId: string } | null>(null);
   const [activeEmotes, setActiveEmotes] = useState<Record<string, string>>({});
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
@@ -148,6 +162,19 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         return copy;
       });
     }, 2500);
+  };
+
+  const handleSendQuickChat = (msg: string) => {
+    socketService.sendEmote(gameState.roomCode, msg);
+    setShowChatPicker(false);
+    setActiveEmotes(prev => ({ ...prev, [myId]: msg }));
+    setTimeout(() => {
+      setActiveEmotes(prev => {
+        const copy = { ...prev };
+        delete copy[myId];
+        return copy;
+      });
+    }, 3000);
   };
 
   const handleConfirmExit = () => {
@@ -293,7 +320,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 key={opp.id}
                 player={opp}
                 size="sm"
-                namePosition="top"
+                namePosition="bottom"
                 isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
                 isBeforeMe={playerBeforeMe?.id === opp.id}
                 isAfterMe={playerAfterMe?.id === opp.id}
@@ -306,109 +333,133 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           })}
         </div>
 
-        {/* ZONE 2: FELT TABLE WITH LEFT OPPONENT, CENTER PLAY AREA & RIGHT OPPONENT */}
-        <div className="relative w-full rounded-[2.5rem] sm:rounded-[3rem] bg-gradient-to-b from-[#0d5c2e] via-[#084220] to-[#042412] border-[5px] sm:border-[6px] border-[#451e11] ring-2 ring-amber-600/50 shadow-[inset_0_0_35px_rgba(0,0,0,0.85),0_12px_35px_rgba(0,0,0,0.7)] flex items-center justify-between px-3 sm:px-6 py-2 min-h-[145px] sm:min-h-[165px]">
+        {/* ZONE 2: 4 DESIGNATED CARD SLOTS + SLANTED DECK (Authentic Donkey Master UI) */}
+        <div className="relative w-full rounded-[2.5rem] sm:rounded-[3rem] bg-gradient-to-b from-[#220338]/90 via-[#320652]/90 to-[#180126]/95 border-2 border-purple-500/40 ring-1 ring-purple-400/30 shadow-[inset_0_0_40px_rgba(0,0,0,0.85),0_10px_30px_rgba(0,0,0,0.7)] flex items-center justify-center px-2 sm:px-6 py-2 min-h-[145px] sm:min-h-[165px]">
           
-          {/* Left Flank Opponent */}
-          <div className="w-16 sm:w-20 flex justify-center z-20">
-            {leftOpponent ? (
-              <PlayerAvatar
-                player={leftOpponent}
-                size="sm"
-                namePosition="top"
-                isCurrentTurn={gameState.currentTurnPlayerId === leftOpponent.id}
-                isBeforeMe={playerBeforeMe?.id === leftOpponent.id}
-                isAfterMe={playerAfterMe?.id === leftOpponent.id}
-                colorTheme="blue"
-                activeEmote={activeEmotes[leftOpponent.id]}
-                turnExpiresAt={gameState.turnExpiresAt}
-                turnDuration={gameState.turnDuration}
-              />
-            ) : null}
+          {/* Revolving Central Neon-Green Turn Direction Arrow Track */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-30">
+            <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 border-dashed border-emerald-400/40 flex items-center justify-center animate-green-arrow-cw">
+              <div className="absolute -top-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e]">➤</div>
+              <div className="absolute -bottom-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-180">➤</div>
+              <div className="absolute -right-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-90">➤</div>
+              <div className="absolute -left-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] -rotate-90">➤</div>
+            </div>
           </div>
 
-          {/* Center Felt Play Area (Revolving green arrow + Cards) */}
-          <div className="relative flex-1 flex flex-col items-center justify-center px-1">
-            {/* Revolving Central Neon-Green Turn Direction Arrow Track */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-60">
-              <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-2 border-dashed border-emerald-400/50 flex items-center justify-center animate-green-arrow-cw">
-                <div className="absolute -top-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e]">➤</div>
-                <div className="absolute -bottom-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-180">➤</div>
-                <div className="absolute -right-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-90">➤</div>
-                <div className="absolute -left-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] -rotate-90">➤</div>
-              </div>
-            </div>
+          {/* 4 DESIGNATED CARD SLOTS IN A ROW + SLANTED DECK */}
+          <div className="relative z-10 flex items-center justify-center gap-2 sm:gap-3.5">
+            {gameState.players.slice(0, 4).map((p, idx) => {
+              const slotThemes = [
+                {
+                  border: 'border-yellow-400 ring-2 ring-yellow-400/60',
+                  bg: 'bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500',
+                  ring: 'ring-2 ring-yellow-400'
+                },
+                {
+                  border: 'border-cyan-400 ring-2 ring-cyan-400/60',
+                  bg: 'bg-gradient-to-br from-blue-600 via-cyan-500 to-blue-700',
+                  ring: 'ring-2 ring-cyan-400'
+                },
+                {
+                  border: 'border-pink-500 ring-2 ring-pink-500/60',
+                  bg: 'bg-gradient-to-br from-pink-600 via-rose-500 to-fuchsia-600',
+                  ring: 'ring-2 ring-pink-500'
+                },
+                {
+                  border: 'border-emerald-400 ring-2 ring-emerald-400/60',
+                  bg: 'bg-gradient-to-br from-emerald-600 via-green-500 to-teal-600',
+                  ring: 'ring-2 ring-emerald-400'
+                }
+              ];
+              const theme = slotThemes[idx % slotThemes.length];
+              const play = gameState.currentTrick.find(item => item.playerId === p.id);
 
-            {/* Active Cards in Trick */}
-            <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 max-w-[210px] sm:max-w-xs">
-              {gameState.currentTrick.length > 0 ? (
-                gameState.currentTrick.map((play, idx) => (
+              if (play) {
+                return (
                   <div
-                    key={`${play.playerId}_${play.card.id}_${idx}`}
+                    key={p.id}
                     className={`flex flex-col items-center transition-all ${
                       isCutAnimating ? 'animate-cut-sweep' : 'animate-deal-to-table'
                     }`}
-                    style={{
-                      transform: `rotate(${(idx - (gameState.currentTrick.length - 1) / 2) * 8}deg)`
-                    }}
                   >
-                    <div className="text-[8px] sm:text-[9px] font-black bg-slate-950/90 px-1 py-0.2 rounded-full mb-0.5 text-white border border-amber-400/40 shadow-md">
+                    <div className="text-[8px] sm:text-[9px] font-black bg-slate-950/90 px-1.5 py-0.2 rounded-full mb-0.5 text-white border border-amber-400/40 shadow-md truncate max-w-[65px]">
                       {play.playerName} {play.isCut ? '💥 CUT!' : ''}
                     </div>
-                    <DonkeyCardView card={play.card} isCompact={true} />
+                    <div className={`p-0.5 rounded-xl border-2 shadow-xl ${theme.ring}`}>
+                      <DonkeyCardView card={play.card} isCompact={true} />
+                    </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-1.5 px-3 rounded-2xl bg-black/60 border border-emerald-400/40 backdrop-blur-md shadow-md text-[11px] font-bold text-emerald-200">
-                  {isMyTurn
-                    ? (isFirstTrick ? '♠ Ace of Spades Leads! Tap to play.' : 'Lead any card to start trick.')
-                    : `Waiting for ${currentTurnPlayer?.name || 'opponent'}...`}
+                );
+              }
+
+              // Face-Down designated slot with player's solid colored back
+              return (
+                <div key={p.id} className="flex flex-col items-center opacity-85">
+                  <div className="text-[8px] sm:text-[9px] font-bold text-purple-200 mb-0.5 truncate max-w-[65px]">
+                    {p.name}
+                  </div>
+                  <div className={`w-13 h-19 sm:w-15 sm:h-22 rounded-xl border-2 shadow-xl flex flex-col items-center justify-center p-1 transition-all ${theme.border} ${theme.bg}`}>
+                    <div className="w-full h-full rounded-lg border border-white/30 flex flex-col items-center justify-center text-white/90">
+                      <span className="text-lg filter drop-shadow">🫏</span>
+                    </div>
+                  </div>
                 </div>
-              )}
+              );
+            })}
+
+            {/* Slanted Deck of Cards (Near center-right, matching Donkey Master reference screenshot!) */}
+            <div className="relative rotate-12 self-center ml-2 sm:ml-4 hidden xs:flex flex-col items-center shadow-2xl">
+              <div className="w-11 h-16 sm:w-13 sm:h-18 rounded-xl bg-gradient-to-br from-purple-900 via-indigo-950 to-purple-950 border-2 border-purple-400/70 shadow-2xl flex flex-col items-center justify-center text-center p-1 ring-1 ring-black/50">
+                <span className="text-xs">🫏</span>
+                <span className="text-[7px] sm:text-[8px] font-black text-amber-300 leading-tight uppercase tracking-tighter mt-0.5">
+                  Donkey<br />Master
+                </span>
+              </div>
             </div>
+          </div>
 
-            {/* DYNAMIC CUT ANIMATION OVERLAY: All cards fly to victim */}
-            {isCutAnimating && (
-              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none">
-                <div className="animate-cut-sweep flex flex-col items-center">
-                  <div className="text-3xl filter drop-shadow">🎴🎴🎴</div>
-                  <div className="mt-1 px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs sm:text-sm border-2 border-yellow-300 shadow-2xl flex items-center gap-1.5 animate-bounce whitespace-nowrap">
-                    <span>💥 CUT!</span>
-                    <span>All Trick Cards Swept to {cutVictimName || 'Victim'}!</span>
-                    <span>🫏</span>
-                  </div>
+          {/* DYNAMIC CUT ANIMATION OVERLAY: All cards fly to victim */}
+          {isCutAnimating && (
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none">
+              <div className="animate-cut-sweep flex flex-col items-center">
+                <div className="text-3xl filter drop-shadow">🎴🎴🎴</div>
+                <div className="mt-1 px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs sm:text-sm border-2 border-yellow-300 shadow-2xl flex items-center gap-1.5 animate-bounce whitespace-nowrap">
+                  <span>💥 CUT!</span>
+                  <span>All Trick Cards Swept to {cutVictimName || 'Victim'}!</span>
+                  <span>🫏</span>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Last Action Announcement Pill */}
-            {gameState.lastAction && !isCutAnimating && (
-              <div className="mt-1 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/50 text-amber-300 text-[9px] sm:text-[10px] font-bold shadow-lg max-w-[200px] sm:max-w-xs truncate text-center z-10">
-                {gameState.lastAction}
-              </div>
-            )}
-          </div>
-
-          {/* Right Flank Opponent */}
-          <div className="w-16 sm:w-20 flex justify-center z-20">
-            {rightOpponent ? (
-              <PlayerAvatar
-                player={rightOpponent}
-                size="sm"
-                namePosition="top"
-                isCurrentTurn={gameState.currentTurnPlayerId === rightOpponent.id}
-                isBeforeMe={playerBeforeMe?.id === rightOpponent.id}
-                isAfterMe={playerAfterMe?.id === rightOpponent.id}
-                colorTheme="yellow"
-                activeEmote={activeEmotes[rightOpponent.id]}
-                turnExpiresAt={gameState.turnExpiresAt}
-                turnDuration={gameState.turnDuration}
-              />
-            ) : null}
-          </div>
-
+          {/* Last Action Announcement Pill */}
+          {gameState.lastAction && !isCutAnimating && (
+            <div className="absolute bottom-1 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/50 text-amber-300 text-[9px] sm:text-[10px] font-bold shadow-lg max-w-[210px] sm:max-w-xs truncate text-center z-10">
+              {gameState.lastAction}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* PROMINENT INVALID CARD ERROR MESSAGE BANNER (Brief with card symbol) */}
+      {invalidCardNotice && (
+        <div className="relative z-30 w-full max-w-md mx-auto px-3 my-0.5 animate-bounce">
+          <div className="p-2 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 border-2 border-white shadow-2xl flex items-center justify-between gap-2 text-white">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-lg filter drop-shadow">⚠️</span>
+              <span className="text-xs sm:text-sm font-black leading-tight text-white drop-shadow truncate">
+                {invalidCardNotice.message}
+              </span>
+            </div>
+            <button
+              onClick={() => setInvalidCardNotice(null)}
+              className="p-1 rounded-full bg-black/40 hover:bg-black/60 text-white active:scale-95 flex-shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* BOTTOM USER HAND (4-Suit Cascade where ALL cards are visible simultaneously) */}
       <div className="relative z-10 w-full">
@@ -419,26 +470,58 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             isMyTurn={isMyTurn}
             isFirstTrick={isFirstTrick}
             selectedCardId={selectedCard?.id}
-            onSelectCard={card => setSelectedCard(card)}
+            onSelectCard={card => {
+              setSelectedCard(card);
+              setInvalidCardNotice(null);
+            }}
             onPlayCard={card => handlePlayCard(card)}
+            onInvalidMove={error => {
+              setInvalidCardNotice({ message: error.message, symbol: error.symbol, cardId: error.card.id });
+            }}
           />
         )}
       </div>
 
-      {/* BOTTOM CONTROL & ACTION BAR */}
-      <div className="relative z-20 w-full px-3 pt-2 safe-bottom bg-gradient-to-t from-black via-black/95 to-black/80 flex items-center justify-between border-t border-purple-500/30">
-        {/* Quick Emote / Reactions Button */}
-        <div className="relative">
+      {/* BOTTOM CONTROL & ACTION BAR (Authentic Donkey Master Navigation Footer) */}
+      <div className="relative z-20 w-full px-3 py-2 safe-bottom bg-gradient-to-t from-[#12011f] via-[#1f0333] to-[#12011f]/90 flex items-center justify-between border-t border-purple-500/40">
+        {/* Left Action Buttons: Purple Settings Button + Yellow Emoji + Yellow Chat Button */}
+        <div className="relative flex items-center gap-2">
+          {/* Purple Menu/Settings Button */}
           <button
-            onClick={() => setShowEmotePicker(!showEmotePicker)}
-            className="w-11 h-11 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 border-2 border-yellow-200 flex items-center justify-center text-slate-950 shadow-xl active:scale-95 transition-all"
-            title="Send Emote"
+            onClick={() => setShowSettingsModal(true)}
+            className="w-10 h-10 rounded-xl bg-purple-900/90 hover:bg-purple-800 border-2 border-purple-400/50 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all"
+            title="Settings & Menu"
           >
-            <Smile className="w-6 h-6 fill-current" />
+            <ChevronsLeft className="w-5 h-5 text-purple-200" />
           </button>
 
+          {/* Yellow Circular Emoji Button */}
+          <button
+            onClick={() => {
+              setShowEmotePicker(!showEmotePicker);
+              setShowChatPicker(false);
+            }}
+            className="w-10 h-10 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-2 border-yellow-200 flex items-center justify-center shadow-xl active:scale-95 transition-all"
+            title="Send Emoji"
+          >
+            <Smile className="w-5 h-5 text-slate-950" />
+          </button>
+
+          {/* Yellow Circular Chat Button */}
+          <button
+            onClick={() => {
+              setShowChatPicker(!showChatPicker);
+              setShowEmotePicker(false);
+            }}
+            className="w-10 h-10 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-2 border-yellow-200 flex items-center justify-center shadow-xl active:scale-95 transition-all"
+            title="Quick Chat"
+          >
+            <MessageSquare className="w-5 h-5 text-slate-950" />
+          </button>
+
+          {/* Quick Emote Picker Dropdown */}
           {showEmotePicker && (
-            <div className="absolute bottom-14 left-0 z-40 p-2 rounded-2xl bg-slate-900 border-2 border-amber-400 shadow-2xl flex gap-1.5 backdrop-blur-md">
+            <div className="absolute bottom-14 left-0 z-50 p-2 rounded-2xl bg-slate-900 border-2 border-amber-400 shadow-2xl flex gap-1.5 backdrop-blur-md">
               {EMOTE_LIST.map((em, idx) => (
                 <button
                   key={idx}
@@ -450,11 +533,29 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               ))}
             </div>
           )}
+
+          {/* Quick Chat Phrases Dropdown */}
+          {showChatPicker && (
+            <div className="absolute bottom-14 left-10 z-50 p-2 rounded-2xl bg-slate-900 border-2 border-amber-400 shadow-2xl flex flex-col gap-1 backdrop-blur-md min-w-[190px]">
+              <div className="text-[10px] font-black text-amber-300 px-2 py-0.5 uppercase tracking-wider border-b border-white/10 mb-0.5">
+                Quick Messages
+              </div>
+              {QUICK_CHAT_MESSAGES.map((msg, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSendQuickChat(msg)}
+                  className="text-left px-2.5 py-1 rounded-xl text-xs font-bold text-white hover:bg-purple-900 active:scale-95 transition-all truncate"
+                >
+                  {msg}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* If Spectating / Cleared Hand */}
         {hasPlayerCleared ? (
-          <div className="flex-1 flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-purple-900/60 border border-purple-400/40 backdrop-blur-md shadow-lg">
+          <div className="flex-1 mx-2 flex items-center justify-between px-3.5 py-2 rounded-2xl bg-purple-900/60 border border-purple-400/40 backdrop-blur-md shadow-lg">
             <div className="flex items-center gap-2">
               <span className="text-2xl animate-pulse">👀</span>
               <div className="text-left">
@@ -478,7 +579,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           </div>
         ) : (
           <>
-            {/* Current User Profile Center Avatar */}
+            {/* Center: User Profile Avatar strictly in bottom bar (Zero overlap with hand) */}
             {me && (
               <div className="flex flex-col items-center">
                 <PlayerAvatar
@@ -486,7 +587,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                   size="sm"
                   isCurrentTurn={isMyTurn}
                   isSelf={true}
-                  colorTheme="orange"
+                  colorTheme="green"
                   activeEmote={activeEmotes[myId]}
                   turnExpiresAt={gameState.turnExpiresAt}
                   turnDuration={gameState.turnDuration}
@@ -494,28 +595,47 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               </div>
             )}
 
-            {/* Large "DEAL" Action Button */}
+            {/* Right: Prominent Pill-Shaped Yellow "DEAL" Action Button (Matching authentic mobile screenshot) */}
             <button
               onClick={() => {
-                if (isMyTurn && selectedCard) {
+                if (!isMyTurn) {
+                  setInvalidCardNotice({
+                    message: "⏳ It's not your turn! Please wait for your turn.",
+                    symbol: '⏳',
+                    cardId: ''
+                  });
+                  return;
+                }
+                if (selectedCard) {
                   handlePlayCard(selectedCard);
+                } else {
+                  // If a card isn't explicitly highlighted, auto-pick the lowest valid card in hand
+                  const myHand = (gameState.myHand as DonkeyCard[]) || [];
+                  const validCard = myHand.find(c => {
+                    if (isFirstTrick) return c.suit === 'SPADES' && c.value === 'A';
+                    if (gameState.leadSuit && myHand.some(h => h.suit === gameState.leadSuit)) {
+                      return c.suit === gameState.leadSuit;
+                    }
+                    return true;
+                  });
+                  if (validCard) {
+                    handlePlayCard(validCard);
+                  } else {
+                    setInvalidCardNotice({
+                      message: 'Please tap a card in your hand to deal!',
+                      symbol: '🃏',
+                      cardId: ''
+                    });
+                  }
                 }
               }}
-              disabled={!isMyTurn || !selectedCard}
-              className={`px-6 py-2.5 rounded-full font-black text-sm sm:text-base shadow-2xl transition-all flex items-center gap-1.5 ${
-                isMyTurn && selectedCard
-                  ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 ring-4 ring-yellow-300 active:scale-95 shadow-yellow-400/80 cursor-pointer animate-pulse'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+              className={`px-8 sm:px-10 py-2.5 sm:py-3 rounded-full font-black text-sm sm:text-base tracking-wider uppercase shadow-2xl transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                isMyTurn
+                  ? 'bg-gradient-to-b from-yellow-300 via-amber-400 to-yellow-500 text-slate-950 border-2 border-yellow-200 ring-4 ring-yellow-400/50 shadow-[0_0_25px_rgba(250,204,21,0.8)] animate-pulse cursor-pointer'
+                  : 'bg-gradient-to-b from-amber-300/80 via-yellow-400/80 to-amber-500/80 text-slate-900 border-2 border-yellow-200/50 shadow-md cursor-pointer'
               }`}
             >
-              <Sparkles className="w-4 h-4 fill-current" />
-              <span>
-                {isMyTurn
-                  ? selectedCard
-                    ? `DEAL ${selectedCard.value}${selectedCard.suit === 'SPADES' ? '♠' : selectedCard.suit === 'HEARTS' ? '♥' : selectedCard.suit === 'CLUBS' ? '♣' : '♦'}`
-                    : 'DEAL'
-                  : 'DEAL'}
-              </span>
+              <span>DEAL</span>
             </button>
           </>
         )}
