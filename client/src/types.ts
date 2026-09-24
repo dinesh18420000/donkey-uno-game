@@ -120,3 +120,35 @@ export interface ClientGameState {
   drawStackCount: number;
   deckRemainingCount: number;
 }
+
+// Helper to determine who plays before and after a specific player
+export function getTurnNeighbors(
+  players: PlayerPublic[],
+  myPlayerId: string,
+  direction: 1 | -1 = 1
+): { playerBeforeMe: PlayerPublic | null; playerAfterMe: PlayerPublic | null } {
+  // Filter active players who still have cards / not ranked out
+  const activePlayers = players.filter(
+    p => !p.rank && !p.isMercyEliminated && (p.cardsCount > 0 || p.id === myPlayerId)
+  );
+
+  if (activePlayers.length <= 1) {
+    return { playerBeforeMe: null, playerAfterMe: null };
+  }
+
+  const myIdx = activePlayers.findIndex(p => p.id === myPlayerId);
+  if (myIdx === -1) {
+    return { playerBeforeMe: null, playerAfterMe: null };
+  }
+
+  const len = activePlayers.length;
+  // If direction is 1 (CW): after me is +1, before me is -1
+  // If direction is -1 (CCW): after me is -1, before me is +1
+  const afterIdx = (myIdx + direction + len) % len;
+  const beforeIdx = (myIdx - direction + len) % len;
+
+  return {
+    playerAfterMe: activePlayers[afterIdx] || null,
+    playerBeforeMe: activePlayers[beforeIdx] || null
+  };
+}

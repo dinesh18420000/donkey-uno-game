@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ClientGameState, UnoCard, UnoColor } from '../types';
-import { canPlayUnoCard } from '../types';
+import { canPlayUnoCard, getTurnNeighbors } from '../types';
 import { socketService } from '../services/socket';
 import { PlayerAvatar } from './PlayerAvatar';
 import { UnoCardView } from './UnoCardView';
@@ -61,7 +61,84 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
   const me = gameState.players.find(p => p.id === myId);
   const opponents = gameState.players.filter(p => p.id !== myId);
   const isMyTurn = gameState.currentTurnPlayerId === myId;
+  const currentTurnPlayer = gameState.players.find(p => p.id === gameState.currentTurnPlayerId);
   const myHand = (gameState.myHand as UnoCard[]) || [];
+
+  // Turn flow: who plays before me and who plays after me (accounting for CW / CCW direction)
+  const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(
+    gameState.players,
+    myId,
+    gameState.direction || 1
+  );
+
+  // Animated feedback for Card Plays & Card Draws
+  const [actionNotice, setActionNotice] = useState<{
+    type: 'draw' | 'play';
+    text: string;
+    playerName: string;
+    playerId?: string;
+  } | null>(null);
+  const [isDrawingAnimation, setIsDrawingAnimation] = useState<boolean>(false);
+  const [isCardSlamming, setIsCardSlamming] = useState<boolean>(false);
+
+  const prevActiveCardIdRef = React.useRef<string | undefined>(gameState.activeUnoCard?.id);
+  const prevLastActionRef = React.useRef<string>(gameState.lastAction || '');
+
+  // Detect card play vs card draw and trigger rich animations
+  useEffect(() => {
+    const currentActiveId = gameState.activeUnoCard?.id;
+    const currentAction = gameState.lastAction || '';
+
+    // 1. Detect CARD PLAY onto discard pile
+    if (currentActiveId && currentActiveId !== prevActiveCardIdRef.current) {
+      prevActiveCardIdRef.current = currentActiveId;
+      setIsCardSlamming(true);
+      setTimeout(() => setIsCardSlamming(false), 500);
+      sounds.playCardPlay();
+
+      const playedByPlayer = gameState.players.find(p => currentAction.includes(p.name));
+      const cardTitle = gameState.activeUnoCard
+        ? `${gameState.activeUnoCard.color.toUpperCase()} ${gameState.activeUnoCard.type.replace('_', ' ').toUpperCase()}`
+        : 'Card';
+
+      setActionNotice({
+        type: 'play',
+        text: `Played ${cardTitle}`,
+        playerName: playedByPlayer ? playedByPlayer.name : 'Player',
+        playerId: playedByPlayer?.id
+      });
+    }
+
+    // 2. Detect CARD DRAW from draw pile
+    if (
+      currentAction !== prevLastActionRef.current &&
+      (currentAction.toLowerCase().includes('drew') || currentAction.toLowerCase().includes('draw'))
+    ) {
+      prevLastActionRef.current = currentAction;
+      setIsDrawingAnimation(true);
+      setTimeout(() => setIsDrawingAnimation(false), 600);
+      sounds.playCardDeal();
+
+      const drawingPlayer = gameState.players.find(p => currentAction.includes(p.name));
+      const match = currentAction.match(/drew (\d+)/i);
+      const drawCount = match ? match[1] : '1';
+
+      setActionNotice({
+        type: 'draw',
+        text: `Drew +${drawCount} Cards`,
+        playerName: drawingPlayer ? drawingPlayer.name : 'Player',
+        playerId: drawingPlayer?.id
+      });
+    } else {
+      prevLastActionRef.current = currentAction;
+    }
+
+    const timer = setTimeout(() => {
+      setActionNotice(null);
+    }, 2800);
+
+    return () => clearTimeout(timer);
+  }, [gameState.activeUnoCard?.id, gameState.lastAction, gameState.players]);
 
   const COLOR_ORDER: Record<UnoColor, number> = {
     red: 1,
@@ -296,6 +373,9 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                 <PlayerAvatar
                   player={opp}
                   isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
+                  isBeforeMe={playerBeforeMe?.id === opp.id}
+                  isAfterMe={playerAfterMe?.id === opp.id}
+                  actionNotice={actionNotice?.playerId === opp.id ? { type: actionNotice.type, text: actionNotice.text } : null}
                   colorTheme={themeColor}
                   activeEmote={activeEmotes[opp.id]}
                   turnExpiresAt={gameState.turnExpiresAt}
@@ -312,29 +392,75 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
         </div>
       </div>
 
+      {/* TURN FLOW ORDER BAR: Who plays before you, active turn, who plays after you */}
+      <div className="relative z-15 w-full max-w-sm mx-auto px-4 my-1">
+        <div className="px-3 py-1.5 rounded-2xl bg-black/85 backdrop-blur-md border border-purple-500/50 shadow-xl flex items-center justify-between text-xs">
+          {/* Before Me */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm">⏮️</span>
+            <div className="flex flex-col text-left leading-none truncate">
+              <span className="text-[9px] uppercase tracking-wider text-cyan-300 font-bold">Before You</span>
+              <span className="text-xs font-black text-white truncate max-w-[85px]">
+                {playerBeforeMe ? playerBeforeMe.name : '—'}
+              </span>
+            </div>
+          </div>
+
+          {/* Current Turn with Direction Icon */}
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs shadow-md animate-pulse">
+            <span className="text-sm font-black">{gameState.direction === -1 ? '↺ REV' : '↻ CW'}</span>
+            <span className="truncate max-w-[80px]">{isMyTurn ? "YOUR TURN!" : currentTurnPlayer?.name}</span>
+            <span className="font-mono text-[10px]">({secondsRemaining}s)</span>
+          </div>
+
+          {/* After Me */}
+          <div className="flex items-center gap-1.5 min-w-0 text-right">
+            <div className="flex flex-col text-right leading-none truncate">
+              <span className="text-[9px] uppercase tracking-wider text-emerald-300 font-bold">After You</span>
+              <span className="text-xs font-black text-white truncate max-w-[85px]">
+                {playerAfterMe ? playerAfterMe.name : '—'}
+              </span>
+            </div>
+            <span className="text-sm">⏭️</span>
+          </div>
+        </div>
+      </div>
+
       {/* CENTER PLAY AREA (Draw Pile + Discard Pile) */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center my-1 px-4 min-h-[140px]">
         <div className="flex items-center gap-6 sm:gap-10">
-          {/* DRAW PILE */}
-          <div
-            onClick={isMyTurn ? handleDrawCard : undefined}
-            className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-gradient-to-br from-slate-900 to-black border-2 border-slate-600 shadow-2xl flex flex-col items-center justify-center transition-all ${
-              isMyTurn
-                ? 'cursor-pointer hover:scale-105 active:scale-95 ring-4 ring-yellow-400 animate-turn-pulse shadow-yellow-400/50'
-                : 'opacity-70'
-            }`}
-          >
-            <span className="text-2xl sm:text-3xl font-black text-red-500 tracking-tighter">UNO</span>
-            <span className="text-[10px] text-slate-300 font-bold mt-1">DRAW</span>
-            {gameState.drawStackCount > 0 && isMyTurn && (
-              <div className="absolute -top-3 -right-3 bg-red-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full border-2 border-white animate-bounce shadow-xl">
-                TAKE +{gameState.drawStackCount}
+          {/* DRAW PILE WITH ANIMATION */}
+          <div className="relative">
+            <div
+              onClick={isMyTurn ? handleDrawCard : undefined}
+              className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-gradient-to-br from-slate-900 to-black border-2 border-slate-600 shadow-2xl flex flex-col items-center justify-center transition-all ${
+                isDrawingAnimation ? 'scale-110 ring-4 ring-cyan-400 shadow-cyan-400/80' : ''
+              } ${
+                isMyTurn
+                  ? 'cursor-pointer hover:scale-105 active:scale-95 ring-4 ring-yellow-400 animate-turn-pulse shadow-yellow-400/50'
+                  : 'opacity-70'
+              }`}
+            >
+              <span className="text-2xl sm:text-3xl font-black text-red-500 tracking-tighter">UNO</span>
+              <span className="text-[10px] text-slate-300 font-bold mt-1">DRAW</span>
+              {gameState.drawStackCount > 0 && isMyTurn && (
+                <div className="absolute -top-3 -right-3 bg-red-600 text-white font-black text-xs px-2.5 py-0.5 rounded-full border-2 border-white animate-bounce shadow-xl">
+                  TAKE +{gameState.drawStackCount}
+                </div>
+              )}
+            </div>
+
+            {/* Floating visual card leaving draw pile when someone draws */}
+            {isDrawingAnimation && (
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 border-2 border-white flex flex-col items-center justify-center text-white font-black text-xs pointer-events-none animate-bounce shadow-2xl z-30">
+                <span className="text-base">🎴</span>
+                <span className="text-[10px] tracking-wider">DRAW</span>
               </div>
             )}
           </div>
 
-          {/* ACTIVE DISCARD PILE */}
-          <div className="relative">
+          {/* ACTIVE DISCARD PILE WITH SLAM ANIMATION */}
+          <div className={`relative transition-all duration-200 ${isCardSlamming ? 'scale-110 -rotate-3 ring-4 ring-amber-300 rounded-2xl shadow-yellow-400/80' : ''}`}>
             {gameState.activeUnoCard ? (
               <div className="relative">
                 <div
@@ -371,12 +497,25 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
           </div>
         </div>
 
-        {/* Action Ticker */}
-        {gameState.lastAction && (
-          <div className="mt-3 px-4 py-1 rounded-full bg-slate-950/90 border border-red-500/40 text-rose-300 text-xs font-bold shadow-xl text-center max-w-sm truncate">
+        {/* PROMINENT ANIMATED ACTION BANNER: Clearly shows DRAW vs PLAY */}
+        {actionNotice ? (
+          <div
+            className={`mt-2.5 px-4 py-1.5 rounded-full border-2 text-xs sm:text-sm font-black shadow-2xl flex items-center gap-2 animate-bounce ${
+              actionNotice.type === 'draw'
+                ? 'bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 text-white border-cyan-300 shadow-cyan-500/50'
+                : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 border-white shadow-yellow-400/60'
+            }`}
+          >
+            <span className="text-base">{actionNotice.type === 'draw' ? '📥' : '🎯'}</span>
+            <span>
+              <strong>{actionNotice.playerName}</strong> {actionNotice.text}
+            </span>
+          </div>
+        ) : gameState.lastAction ? (
+          <div className="mt-2.5 px-4 py-1 rounded-full bg-slate-950/90 border border-purple-500/40 text-purple-200 text-xs font-bold shadow-xl text-center max-w-sm truncate">
             {gameState.lastAction}
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* MERCY DANGER METER */}
@@ -590,6 +729,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                 player={me}
                 isCurrentTurn={isMyTurn}
                 isSelf={true}
+                actionNotice={actionNotice?.playerId === myId ? { type: actionNotice.type, text: actionNotice.text } : null}
                 colorTheme="orange"
                 activeEmote={activeEmotes[myId]}
                 turnExpiresAt={gameState.turnExpiresAt}

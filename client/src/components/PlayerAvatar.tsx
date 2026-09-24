@@ -11,6 +11,9 @@ interface PlayerAvatarProps {
   turnExpiresAt?: number;
   turnDuration?: number;
   onSelect?: () => void;
+  isBeforeMe?: boolean;
+  isAfterMe?: boolean;
+  actionNotice?: { type: 'draw' | 'play'; text: string } | null;
 }
 
 const AVATAR_COLORS: Record<string, { ring: string; pill: string; glow: string }> = {
@@ -30,7 +33,10 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
   activeEmote,
   turnExpiresAt,
   turnDuration = 30,
-  onSelect
+  onSelect,
+  isBeforeMe,
+  isAfterMe,
+  actionNotice
 }) => {
   const theme = AVATAR_COLORS[colorTheme] || AVATAR_COLORS.blue;
   const initials = player.name.slice(0, 2).toUpperCase();
@@ -54,13 +60,6 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
     return () => clearInterval(interval);
   }, [isCurrentTurn, turnExpiresAt, turnDuration]);
 
-  // Timer color
-  const timerColor = secondsRemaining <= 5
-    ? 'text-red-400 border-red-500 bg-red-950/90 animate-ping'
-    : secondsRemaining <= 12
-    ? 'text-amber-300 border-amber-400 bg-amber-950/90'
-    : 'text-emerald-300 border-emerald-400 bg-emerald-950/90';
-
   return (
     <div
       onClick={onSelect}
@@ -72,6 +71,20 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
       {activeEmote && (
         <div className="absolute -top-12 z-30 animate-bounce text-4xl filter drop-shadow-lg">
           {activeEmote}
+        </div>
+      )}
+
+      {/* Floating Action Notice (Draw or Play card) */}
+      {actionNotice && (
+        <div
+          className={`absolute -top-10 z-40 px-2 py-0.5 rounded-full text-[10px] font-black shadow-2xl border-2 flex items-center gap-1 animate-bounce ${
+            actionNotice.type === 'draw'
+              ? 'bg-blue-600 text-white border-cyan-300 shadow-cyan-500/50'
+              : 'bg-amber-400 text-slate-950 border-white shadow-yellow-500/50'
+          }`}
+        >
+          <span>{actionNotice.type === 'draw' ? '📥' : '🎯'}</span>
+          <span>{actionNotice.text}</span>
         </div>
       )}
 
@@ -154,12 +167,34 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
 
       {/* Name Label */}
       <div
-        className={`mt-1.5 px-3 py-0.5 rounded-lg text-white text-xs font-black shadow-md max-w-[90px] truncate text-center ${
+        className={`mt-1.5 px-2.5 py-0.5 rounded-lg text-white text-xs font-black shadow-md max-w-[95px] truncate text-center ${
           isSelf ? 'bg-amber-500 text-slate-950 font-black' : theme.pill
         }`}
       >
         {player.name}
       </div>
+
+      {/* Turn Relationship Badges: Before You / After You / Playing Now */}
+      {!player.rank && !player.isMercyEliminated && (
+        <div className="mt-0.5 flex flex-col items-center">
+          {isCurrentTurn ? (
+            <span className="px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[9px] font-black uppercase tracking-tight shadow-sm flex items-center gap-0.5 animate-pulse">
+              <span>🎯</span>
+              <span>{isSelf ? 'YOUR TURN' : 'PLAYING'}</span>
+            </span>
+          ) : isBeforeMe ? (
+            <span className="px-1.5 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-400 text-cyan-300 text-[9px] font-bold tracking-tight shadow-sm flex items-center gap-0.5">
+              <span>⏮️</span>
+              <span>Before You</span>
+            </span>
+          ) : isAfterMe ? (
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-950/90 border border-emerald-400 text-emerald-300 text-[9px] font-bold tracking-tight shadow-sm flex items-center gap-0.5">
+              <span>⏭️</span>
+              <span>After You</span>
+            </span>
+          ) : null}
+        </div>
+      )}
 
       {player.isDisconnected && (
         <span className="text-[9px] text-amber-300 font-semibold mt-0.5 tracking-tight">

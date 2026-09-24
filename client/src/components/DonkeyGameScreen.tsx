@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ClientGameState, DonkeyCard } from '../types';
+import { getTurnNeighbors } from '../types';
 import { socketService } from '../services/socket';
 import { PlayerAvatar } from './PlayerAvatar';
 import { DonkeyHand } from './DonkeyHand';
@@ -47,6 +48,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const isMyTurn = gameState.currentTurnPlayerId === myId;
   const currentTurnPlayer = gameState.players.find(p => p.id === gameState.currentTurnPlayerId);
   const isFirstTrick = gameState.roundNumber === 1 && gameState.currentTrick.length === 0 && !gameState.leadSuit;
+
+  // Turn order: who plays before me and who plays after me (Donkey is clockwise: 1)
+  const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(gameState.players, myId, 1);
 
   // Whenever turn changes or trick updates, initialize the 30-second countdown
   useEffect(() => {
@@ -231,6 +235,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 key={opp.id}
                 player={opp}
                 isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
+                isBeforeMe={playerBeforeMe?.id === opp.id}
+                isAfterMe={playerAfterMe?.id === opp.id}
                 colorTheme={themeColor}
                 activeEmote={activeEmotes[opp.id]}
                 turnExpiresAt={gameState.turnExpiresAt}
@@ -238,6 +244,40 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               />
             );
           })}
+        </div>
+      </div>
+
+      {/* TURN FLOW ORDER BAR: Clear indication of who plays before, who is current, who plays after */}
+      <div className="relative z-15 w-full max-w-sm mx-auto px-4 my-1">
+        <div className="px-3 py-1.5 rounded-2xl bg-black/85 backdrop-blur-md border border-purple-500/50 shadow-xl flex items-center justify-between text-xs">
+          {/* Before Me */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm">⏮️</span>
+            <div className="flex flex-col text-left leading-none truncate">
+              <span className="text-[9px] uppercase tracking-wider text-cyan-300 font-bold">Before You</span>
+              <span className="text-xs font-black text-white truncate max-w-[85px]">
+                {playerBeforeMe ? playerBeforeMe.name : '—'}
+              </span>
+            </div>
+          </div>
+
+          {/* Current Turn */}
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs shadow-md animate-pulse">
+            <span>🎯</span>
+            <span className="truncate max-w-[90px]">{isMyTurn ? "YOUR TURN!" : currentTurnPlayer?.name}</span>
+            <span className="font-mono text-[10px]">({turnSeconds}s)</span>
+          </div>
+
+          {/* After Me */}
+          <div className="flex items-center gap-1.5 min-w-0 text-right">
+            <div className="flex flex-col text-right leading-none truncate">
+              <span className="text-[9px] uppercase tracking-wider text-emerald-300 font-bold">After You</span>
+              <span className="text-xs font-black text-white truncate max-w-[85px]">
+                {playerAfterMe ? playerAfterMe.name : '—'}
+              </span>
+            </div>
+            <span className="text-sm">⏭️</span>
+          </div>
         </div>
       </div>
 
