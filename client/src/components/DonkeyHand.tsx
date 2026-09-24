@@ -130,7 +130,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
             Hand ({hand.length})
           </span>
           {isMyTurn && (
-            <span className="text-[10px] bg-emerald-500 text-white font-extrabold px-2 py-0.5 rounded-full animate-pulse shadow-md">
+            <span className="text-[10px] bg-emerald-500 text-white font-extrabold px-2 py-0.5 rounded-full shadow-md">
               YOUR TURN
             </span>
           )}
@@ -218,7 +218,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                       isColumnLead
                         ? 'border-amber-400 bg-amber-400/15 ring-2 ring-amber-400/80 shadow-[0_0_18px_rgba(250,204,21,0.6)] scale-[1.01] z-20'
                         : canCut
-                        ? 'border-rose-500/80 bg-rose-500/10 ring-2 ring-rose-500/60 shadow-[0_0_14px_rgba(244,63,94,0.4)] animate-pulse'
+                        ? 'border-rose-500/80 bg-rose-500/10 ring-2 ring-rose-500/60 shadow-[0_0_14px_rgba(244,63,94,0.4)]'
                         : shouldShadowThisSuit
                         ? 'border-purple-950/40 bg-black/25'
                         : 'border-white/10 bg-black/15'

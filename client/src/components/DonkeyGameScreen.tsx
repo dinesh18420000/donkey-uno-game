@@ -434,30 +434,21 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     </div>
                   )}
 
-                  {/* Circular Avatar Container with Active Turn Outer Blinking */}
+                  {/* Circular Avatar Container with Active Turn Steady Highlight */}
                   <div
                     onClick={() => handleCheerPlayer(player.id)}
                     className="relative mt-1 cursor-pointer group active:scale-95 transition-transform"
                     title="Tap to Cheer!"
                   >
-                    {/* Blinking Ripple Halo around Outer Profile when Current Player */}
-                    {isTurn && (
-                      <div
-                        className={`absolute -inset-1.5 rounded-full animate-ping pointer-events-none opacity-75 ${
-                          isTimeLow ? 'bg-red-500' : 'bg-emerald-400'
-                        }`}
-                      />
-                    )}
-
                     <div
-                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 transition-all duration-300 relative ${
+                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 transition-all duration-200 relative ${
                         isTurn
                           ? isTimeLow
-                            ? 'animate-profile-blink-red ring-4 ring-red-500 shadow-[0_0_24px_#ef4444]'
-                            : 'animate-profile-blink-green ring-4 ring-emerald-400 shadow-[0_0_24px_#22c55e]'
+                            ? 'ring-3 ring-red-500 shadow-[0_0_14px_rgba(239,68,68,0.7)]'
+                            : 'ring-3 ring-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.7)]'
                           : isSelf
-                          ? 'ring-2 ring-amber-400 shadow-[0_4px_10px_rgba(250,204,21,0.5)]'
-                          : 'ring-2 ring-white/70 shadow-[0_4px_10px_rgba(0,0,0,0.5)]'
+                          ? 'ring-2 ring-amber-400 shadow-[0_2px_8px_rgba(250,204,21,0.5)]'
+                          : 'ring-2 ring-white/60 shadow-[0_2px_6px_rgba(0,0,0,0.4)]'
                       }`}
                       style={{
                         borderColor: !isTurn ? player.theme.accentHex : undefined
@@ -772,22 +763,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           title="Tap to Cheer!"
         >
           <div className="relative">
-            {/* Blinking Ripple Halo around Outer Profile when My Turn */}
-            {isMyTurn && (
-              <div
-                className={`absolute -inset-1.5 rounded-full animate-ping pointer-events-none opacity-75 ${
-                  isTimeLow ? 'bg-red-500' : 'bg-emerald-400'
-                }`}
-              />
-            )}
-
             <div
-              className={`w-12 h-12 rounded-full p-0.5 transition-all duration-300 relative ${
+              className={`w-12 h-12 rounded-full p-0.5 transition-all duration-200 relative ${
                 isMyTurn
                   ? isTimeLow
-                    ? 'animate-profile-blink-red ring-4 ring-red-500 shadow-[0_0_28px_#ef4444]'
-                    : 'animate-profile-blink-green ring-4 ring-emerald-400 shadow-[0_0_26px_#22c55e]'
-                  : 'ring-2 ring-amber-400 shadow-[0_4px_12px_rgba(250,204,21,0.5)]'
+                    ? 'ring-3 ring-red-500 shadow-[0_0_16px_rgba(239,68,68,0.7)]'
+                    : 'ring-3 ring-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.7)]'
+                  : 'ring-2 ring-amber-400 shadow-[0_3px_8px_rgba(250,204,21,0.4)]'
               }`}
             >
               {/* Inner Profile Disc: Pure Yellow Glossy Disc (No symbols, no text, no image) */}
@@ -849,7 +831,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             }}
             className={`px-6 sm:px-8 py-2 sm:py-2.5 rounded-full font-black text-sm sm:text-base tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 border-t-2 border-t-white/80 border-b-2 border-b-amber-800 shadow-[0_6px_0_#92400e,0_12px_24px_rgba(0,0,0,0.6)] active:translate-y-1.5 active:shadow-[0_1px_0_#92400e] cursor-pointer ${
               isMyTurn
-                ? 'bg-gradient-to-b from-yellow-300 via-amber-400 to-yellow-500 text-red-950 ring-4 ring-yellow-400/50 shadow-[0_0_25px_rgba(250,204,21,0.85)] animate-pulse'
+                ? 'bg-gradient-to-b from-yellow-300 via-amber-400 to-yellow-500 text-red-950 ring-4 ring-yellow-400/50 shadow-[0_0_20px_rgba(250,204,21,0.85)]'
                 : 'bg-gradient-to-b from-amber-300/80 via-yellow-400/80 to-amber-500/80 text-red-950/80'
             }`}
           >
