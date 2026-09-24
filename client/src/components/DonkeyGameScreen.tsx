@@ -163,6 +163,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const isMyTurn = gameState.currentTurnPlayerId === myId;
   const currentTurnPlayer = gameState.players.find(p => p.id === gameState.currentTurnPlayerId);
   const isFirstTrick = gameState.roundNumber === 1 && gameState.currentTrick.length === 0 && !gameState.leadSuit;
+  const isGameOver = gameState.status === 'game_over';
+  const hasPlayerCleared = !!me?.rank && me.cardsCount === 0;
 
   // Turn order: who plays before me and who plays after me among ACTIVE players
   const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(activePlayers, myId, 1);
@@ -179,7 +181,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       setIsCutAnimating(true);
       const match = action.match(/(\w+) picked up/i);
       if (match) setCutVictimName(match[1]);
-      sounds.playDonkeySound();
+      sounds.playCutSound();
       setTimeout(() => {
         setIsCutAnimating(false);
         setCutVictimName('');
@@ -188,6 +190,37 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       prevLastActionRef.current = action;
     }
   }, [gameState.lastAction]);
+
+  // Turn notification bell: pleasant casino chime when your turn arrives
+  const prevIsMyTurnRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (isMyTurn && !prevIsMyTurnRef.current && !isGameOver && !hasPlayerCleared) {
+      sounds.playTurnAlert();
+    }
+    prevIsMyTurnRef.current = isMyTurn;
+  }, [isMyTurn, isGameOver, hasPlayerCleared]);
+
+  // Card slap audio when opponents place cards on the table
+  const prevTrickLengthRef = useRef<number>(gameState.currentTrick?.length || 0);
+  useEffect(() => {
+    const curLen = gameState.currentTrick?.length || 0;
+    if (curLen > prevTrickLengthRef.current) {
+      const lastPlay = gameState.currentTrick?.[gameState.currentTrick.length - 1];
+      if (lastPlay && lastPlay.playerId !== myId) {
+        sounds.playCardPlay();
+      }
+    }
+    prevTrickLengthRef.current = curLen;
+  }, [gameState.currentTrick, myId]);
+
+  // Victory fanfare celebration when player finishes cards
+  const prevClearedRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (hasPlayerCleared && !prevClearedRef.current) {
+      sounds.playVictory();
+    }
+    prevClearedRef.current = hasPlayerCleared;
+  }, [hasPlayerCleared]);
 
   // Turn countdown timer: green when normal, red when <= 6s
   useEffect(() => {
@@ -300,8 +333,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     }
   };
 
-  const isGameOver = gameState.status === 'game_over';
-  const hasPlayerCleared = !!me?.rank && me.cardsCount === 0;
   const showClearedModal = hasPlayerCleared && !isWatching && !isGameOver;
   const isTimeLow = turnSeconds <= 6;
 
