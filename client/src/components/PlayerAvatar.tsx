@@ -44,9 +44,17 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
   const [secondsRemaining, setSecondsRemaining] = useState<number>(30);
 
   useEffect(() => {
-    if (!isCurrentTurn || !turnExpiresAt) {
+    if (!isCurrentTurn) {
       setSecondsRemaining(turnDuration);
       return;
+    }
+
+    if (!turnExpiresAt) {
+      setSecondsRemaining(turnDuration);
+      const interval = setInterval(() => {
+        setSecondsRemaining(prev => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearInterval(interval);
     }
 
     const updateTimer = () => {
@@ -55,9 +63,12 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
     };
 
     updateTimer();
-    const interval = setInterval(updateTimer, 300);
+    const interval = setInterval(updateTimer, 200);
     return () => clearInterval(interval);
   }, [isCurrentTurn, turnExpiresAt, turnDuration]);
+
+  // Turn is active and time is very low (<= 6 seconds)
+  const isTimeLow = isCurrentTurn && secondsRemaining <= 6;
 
   // Size specific dimensions
   const circleSizeClass =
@@ -102,11 +113,17 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         </div>
       )}
 
-      {/* 30-Second Turn Countdown Timer Badge */}
+      {/* 30-Second Turn Countdown Timer Badge (Green when normal, Red when time is low) */}
       {isCurrentTurn && !player.rank && (
-        <div className="absolute -top-6 z-30 flex items-center gap-1 px-2 py-0.5 rounded-full border shadow-xl bg-slate-950 text-[10px] sm:text-[11px] font-black tracking-tight">
-          <Clock className={`w-3 h-3 ${secondsRemaining <= 5 ? 'text-red-400 animate-spin' : 'text-amber-400'}`} />
-          <span className={secondsRemaining <= 5 ? 'text-red-400 font-extrabold animate-pulse' : 'text-amber-300 font-black'}>
+        <div
+          className={`absolute -top-6 z-30 flex items-center gap-1 px-2 py-0.5 rounded-full border shadow-xl text-[10px] sm:text-[11px] font-black tracking-tight ${
+            isTimeLow
+              ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse shadow-red-500/50'
+              : 'bg-emerald-950/95 border-emerald-400 text-emerald-300 shadow-emerald-500/30'
+          }`}
+        >
+          <Clock className={`w-3 h-3 ${isTimeLow ? 'text-red-400 animate-spin' : 'text-emerald-400'}`} />
+          <span className={isTimeLow ? 'text-red-400 font-extrabold animate-pulse' : 'text-emerald-300 font-black'}>
             {secondsRemaining}s
           </span>
         </div>
@@ -136,12 +153,46 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         </div>
       )}
 
-      {/* Avatar Circle Container */}
+      {/* Avatar Circle Container (Green Circle for Active Turn, Turns to Red when Time is Low) */}
       <div className="relative">
+        {/* Animated Circular Countdown Progress Ring around Profile */}
+        {isCurrentTurn && (
+          <div className="absolute -inset-1 sm:-inset-1.5 pointer-events-none z-10">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
+              {/* Background faint ring track */}
+              <circle
+                cx="22"
+                cy="22"
+                r="19"
+                fill="none"
+                stroke={isTimeLow ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}
+                strokeWidth="2.5"
+              />
+              {/* Active countdown arc */}
+              <circle
+                cx="22"
+                cy="22"
+                r="19"
+                fill="none"
+                stroke={isTimeLow ? '#ef4444' : '#22c55e'}
+                strokeWidth="2.5"
+                strokeDasharray="119.38"
+                strokeDashoffset={`${119.38 * (1 - Math.max(0, secondsRemaining) / (turnDuration || 30))}`}
+                strokeLinecap="round"
+                className={`transition-all duration-300 ${
+                  isTimeLow ? 'filter drop-shadow-[0_0_8px_#ef4444]' : 'filter drop-shadow-[0_0_6px_#22c55e]'
+                }`}
+              />
+            </svg>
+          </div>
+        )}
+
         <div
-          className={`${circleSizeClass} rounded-full p-0.5 transition-all ${
+          className={`${circleSizeClass} rounded-full p-0.5 transition-all duration-300 relative ${
             isCurrentTurn
-              ? 'turn-halo-yellow ring-4 ring-yellow-400 bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 shadow-[0_0_25px_#facc15] scale-105'
+              ? isTimeLow
+                ? 'turn-halo-red ring-4 ring-red-500 bg-gradient-to-br from-red-500 via-rose-600 to-red-700 shadow-[0_0_25px_#ef4444,0_0_40px_rgba(239,68,68,0.7)] scale-105 animate-pulse'
+                : 'turn-halo-green ring-4 ring-emerald-400 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_22px_#22c55e,0_0_35px_rgba(34,197,94,0.6)] scale-105'
               : `${theme.ring} ring-2 shadow-md`
           }`}
         >
@@ -220,7 +271,11 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
       {!player.rank && !player.isMercyEliminated && (
         <div className="mt-0.5 flex flex-col items-center">
           {isCurrentTurn ? (
-            <span className="px-1 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[8px] sm:text-[9px] font-black uppercase tracking-tight shadow-sm flex items-center gap-0.5 animate-pulse">
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-tight shadow-sm flex items-center gap-0.5 animate-pulse ${
+                isTimeLow ? 'bg-red-600 text-white' : 'bg-emerald-500 text-slate-950'
+              }`}
+            >
               <span>🎯</span>
               <span>{isSelf ? 'YOU' : 'PLAY'}</span>
             </span>

@@ -397,10 +397,10 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
           <div
             className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black border shadow-lg flex-shrink-0 ${
               secondsRemaining <= 5
-                ? 'bg-red-600 text-white border-red-300 animate-pulse'
+                ? 'bg-red-600 text-white border-white animate-pulse'
                 : secondsRemaining <= 12
-                ? 'bg-amber-500 text-slate-950 border-amber-300'
-                : 'bg-slate-900 text-amber-300 border-amber-400/40'
+                ? 'bg-amber-400 text-slate-950 border-amber-200'
+                : 'bg-emerald-600 text-white border-emerald-300'
             }`}
           >
             <Clock className={`w-3.5 h-3.5 ${secondsRemaining <= 5 ? 'animate-spin' : ''}`} />
