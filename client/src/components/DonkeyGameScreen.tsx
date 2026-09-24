@@ -66,7 +66,7 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   if (count <= 2) {
     return {
       slotBox: 'w-24 sm:w-28 h-36 sm:h-42 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]',
-      rankText: 'text-base sm:text-lg',
+      rankText: 'text-xl sm:text-2xl font-black',
       cornerSuitSize: 18,
       centerSuitSize: 60,
       innerCircleSize: 'w-7 h-7',
@@ -76,7 +76,7 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   if (count <= 3) {
     return {
       slotBox: 'w-20 sm:w-24 h-32 sm:h-38 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]',
-      rankText: 'text-sm sm:text-base',
+      rankText: 'text-lg sm:text-xl font-black',
       cornerSuitSize: 16,
       centerSuitSize: 52,
       innerCircleSize: 'w-6 h-6',
@@ -86,7 +86,7 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   if (count <= 4) {
     return {
       slotBox: 'w-[72px] sm:w-[84px] h-[108px] sm:h-[126px] shadow-[0_10px_22px_-3px_rgba(0,0,0,0.65),0_4px_6px_rgba(0,0,0,0.4)]',
-      rankText: 'text-xs sm:text-sm',
+      rankText: 'text-base sm:text-lg font-black',
       cornerSuitSize: 15,
       centerSuitSize: 44,
       innerCircleSize: 'w-5 h-5',
@@ -96,7 +96,7 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   if (count <= 6) {
     return {
       slotBox: 'w-14 sm:w-16 h-22 sm:h-24 shadow-[0_8px_16px_-2px_rgba(0,0,0,0.55)]',
-      rankText: 'text-xs',
+      rankText: 'text-sm sm:text-base font-black',
       cornerSuitSize: 13,
       centerSuitSize: 34,
       innerCircleSize: 'w-4 h-4',
@@ -106,7 +106,7 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   if (count <= 8) {
     return {
       slotBox: 'w-12 sm:w-13 h-18 sm:h-20 shadow-[0_6px_12px_rgba(0,0,0,0.5)]',
-      rankText: 'text-[10px] sm:text-xs',
+      rankText: 'text-xs sm:text-sm font-black',
       cornerSuitSize: 12,
       centerSuitSize: 26,
       innerCircleSize: 'w-3 h-3',
@@ -115,7 +115,7 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   }
   return {
     slotBox: 'w-10 sm:w-11 h-15 sm:h-17 shadow-[0_5px_10px_rgba(0,0,0,0.5)]',
-    rankText: 'text-[9px] sm:text-[10px]',
+    rankText: 'text-[11px] sm:text-xs font-black',
     cornerSuitSize: 10,
     centerSuitSize: 22,
     innerCircleSize: 'w-2.5 h-2.5',
@@ -430,65 +430,52 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     </div>
                   )}
 
-                  {/* Circular Avatar Container with Green to Red Turn Circle */}
+                  {/* Circular Avatar Container with Active Turn Outer Blinking */}
                   <div
                     onClick={() => handleCheerPlayer(player.id)}
                     className="relative mt-1 cursor-pointer group active:scale-95 transition-transform"
                     title="Tap to Cheer!"
                   >
+                    {/* Blinking Ripple Halo around Outer Profile when Current Player */}
+                    {isTurn && (
+                      <div
+                        className={`absolute -inset-1.5 rounded-full animate-ping pointer-events-none opacity-75 ${
+                          isTimeLow ? 'bg-red-500' : 'bg-emerald-400'
+                        }`}
+                      />
+                    )}
+
                     <div
                       className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 transition-all duration-300 relative ${
                         isTurn
                           ? isTimeLow
-                            ? 'turn-halo-red ring-4 ring-red-500 bg-gradient-to-br from-red-500 via-rose-600 to-red-700 shadow-[0_0_24px_#ef4444] scale-105 animate-pulse'
-                            : 'turn-halo-green ring-4 ring-emerald-400 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_22px_#22c55e] scale-105'
+                            ? 'animate-profile-blink-red ring-4 ring-red-500 shadow-[0_0_24px_#ef4444]'
+                            : 'animate-profile-blink-green ring-4 ring-emerald-400 shadow-[0_0_24px_#22c55e]'
                           : isSelf
-                          ? 'ring-2 ring-amber-400 bg-amber-400/90 shadow-[0_4px_10px_rgba(250,204,21,0.5)]'
-                          : 'ring-2 ring-white/70 bg-slate-800 shadow-[0_4px_10px_rgba(0,0,0,0.5)]'
+                          ? 'ring-2 ring-amber-400 shadow-[0_4px_10px_rgba(250,204,21,0.5)]'
+                          : 'ring-2 ring-white/70 shadow-[0_4px_10px_rgba(0,0,0,0.5)]'
                       }`}
+                      style={{
+                        borderColor: !isTurn ? player.theme.accentHex : undefined
+                      }}
                     >
-                      <div className="w-full h-full rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-white/90 shadow-inner">
+                      {/* Inner Profile Pic with background EXACTLY matching relevant player's theme color */}
+                      <div
+                        className={`w-full h-full rounded-full overflow-hidden flex items-center justify-center border-2 border-white/90 shadow-inner ${player.theme.deckBackGradient}`}
+                      >
                         {player.avatar && player.avatar.startsWith('http') ? (
                           <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-tr from-purple-900 via-indigo-800 to-purple-700 flex items-center justify-center font-black text-white text-[11px] sm:text-xs">
+                          <div
+                            className={`w-full h-full flex items-center justify-center font-black ${
+                              player.theme.name === 'Yellow' || player.theme.name === 'Cyan' ? 'text-slate-950' : 'text-white'
+                            } text-xs sm:text-sm drop-shadow-sm select-none`}
+                          >
                             {initials}
                           </div>
                         )}
                       </div>
                     </div>
-
-                    {/* White Gift Box Icon Badge on Top-Left with 3D Pop */}
-                    <div
-                      className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-gradient-to-b from-slate-800 to-slate-950 border border-white flex items-center justify-center text-white shadow-md z-15 group-hover:scale-110 transition-transform"
-                      title="Gift"
-                    >
-                      <Gift className="w-2.5 h-2.5 text-white fill-current" />
-                    </div>
-
-                    {/* Yellow User Profile Icon Badge on Bottom-Right */}
-                    {!player.isBot && !player.isDisconnected && (
-                      <div className="absolute -bottom-0.5 -right-1 w-4 h-4 rounded-full bg-amber-400 border border-yellow-200 flex items-center justify-center text-slate-950 shadow-md z-15">
-                        <User className="w-2.5 h-2.5 text-slate-950 fill-current" />
-                      </div>
-                    )}
-
-                    {/* Bot Icon Indicator */}
-                    {(player.isBot || player.isDisconnected) && (
-                      <div
-                        title={player.isDisconnected ? "Disconnected: Bot is playing" : "AI Bot"}
-                        className="absolute -bottom-0.5 -right-1 w-4 h-4 rounded-full bg-indigo-600 border border-white flex items-center justify-center text-white shadow-md z-15"
-                      >
-                        <Bot className="w-2.5 h-2.5" />
-                      </div>
-                    )}
-
-                    {/* Offline Warning */}
-                    {player.isDisconnected && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 border border-white flex items-center justify-center text-white shadow-md animate-pulse z-20">
-                        <WifiOff className="w-2.5 h-2.5" />
-                      </div>
-                    )}
                   </div>
 
                   {/* Colored Nameplate Pill */}
@@ -615,7 +602,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                           <div className="flex items-center justify-between w-full leading-none relative z-10 px-0.5">
                             <span className={`${dims.rankText} font-black tracking-tight ${
                               playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                            }`}>
+                            } drop-shadow-sm select-none`}>
                               {playedCard.value}
                             </span>
                             <CardSuitIcon suit={playedCard.suit} size={dims.cornerSuitSize} />
@@ -631,7 +618,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                             <div className="flex items-center justify-between w-full leading-none rotate-180 relative z-10 px-0.5">
                               <span className={`${dims.rankText} font-black tracking-tight ${
                                 playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                              }`}>
+                              } drop-shadow-sm select-none`}>
                                 {playedCard.value}
                               </span>
                               <CardSuitIcon suit={playedCard.suit} size={dims.cornerSuitSize} />

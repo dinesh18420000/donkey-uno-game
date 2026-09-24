@@ -30,7 +30,7 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
         } ${isValid ? 'cursor-pointer active:scale-95 hover:-translate-y-1 hover:shadow-lg' : 'opacity-40 cursor-not-allowed'}`}
       >
         <div className="flex items-center justify-between w-full leading-none relative z-10 px-0.5">
-          <span className={`text-base font-black ${textColor}`}>{card.value}</span>
+          <span className={`text-base sm:text-lg font-[900] tracking-tight ${textColor} drop-shadow-[0_0.5px_0_currentColor] select-none`}>{card.value}</span>
           <CardSuitIcon suit={card.suit} size={15} />
         </div>
         <div className="w-full flex items-center justify-center my-auto relative z-10">
@@ -57,7 +57,7 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
     >
       {/* Top Header Row: Left = Bold Rank, Right = Small Vector Suit (Exact match to screenshot) */}
       <div className="flex items-center justify-between w-full leading-none relative z-10 px-0.5">
-        <span className={`text-xl sm:text-2xl font-black tracking-tight ${textColor}`}>
+        <span className={`text-xl sm:text-2xl font-[900] tracking-tight ${textColor} drop-shadow-[0_0.5px_0_currentColor] select-none`}>
           {card.value}
         </span>
         <CardSuitIcon suit={card.suit} size={20} />
@@ -79,7 +79,7 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
 
       {/* Bottom Header Row: Inverted Left = Rank, Right = Suit */}
       <div className="flex items-center justify-between w-full leading-none rotate-180 relative z-10 px-0.5">
-        <span className={`text-xl sm:text-2xl font-black tracking-tight ${textColor}`}>
+        <span className={`text-xl sm:text-2xl font-[900] tracking-tight ${textColor} drop-shadow-[0_0.5px_0_currentColor] select-none`}>
           {card.value}
         </span>
         <CardSuitIcon suit={card.suit} size={20} />

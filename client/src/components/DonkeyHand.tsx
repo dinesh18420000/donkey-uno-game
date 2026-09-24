@@ -275,7 +275,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                             >
                               {/* Card Header Strip: Bold Rank on Left, Small Suit Icon on Right (Exact Donkey Master Match) */}
                               <div className="h-6 sm:h-7 px-1.5 sm:px-2 pt-0.5 flex items-center justify-between leading-none relative z-10">
-                                <span className={`text-base sm:text-lg font-black tracking-tight ${rankColor}`}>
+                                <span className={`text-lg sm:text-xl font-[900] tracking-tight ${rankColor} drop-shadow-[0_0.5px_0_currentColor] select-none`}>
                                   {card.value}
                                 </span>
                                 <CardSuitIcon suit={card.suit} size={17} />
