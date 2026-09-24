@@ -64,47 +64,47 @@ interface CenterSlotDims {
 const getCenterSlotDims = (count: number): CenterSlotDims => {
   if (count <= 2) {
     return {
-      slotBox: 'w-24 sm:w-28 h-36 sm:h-42',
+      slotBox: 'w-24 sm:w-28 h-36 sm:h-42 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]',
       rankText: 'text-base sm:text-lg',
       suitCornerText: 'text-xs sm:text-sm',
       centerSuitText: 'text-3xl sm:text-4xl',
-      innerCircleSize: 'w-6 h-6',
+      innerCircleSize: 'w-7 h-7',
       slotNumberText: 'text-sm sm:text-base font-black',
     };
   }
   if (count <= 3) {
     return {
-      slotBox: 'w-20 sm:w-24 h-32 sm:h-38',
+      slotBox: 'w-20 sm:w-24 h-32 sm:h-38 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]',
       rankText: 'text-sm sm:text-base',
       suitCornerText: 'text-xs sm:text-sm',
       centerSuitText: 'text-2xl sm:text-3xl',
-      innerCircleSize: 'w-5 h-5',
+      innerCircleSize: 'w-6 h-6',
       slotNumberText: 'text-xs sm:text-sm font-black',
     };
   }
   if (count <= 4) {
     return {
-      slotBox: 'w-[72px] sm:w-[84px] h-[108px] sm:h-[126px]',
+      slotBox: 'w-[72px] sm:w-[84px] h-[108px] sm:h-[126px] shadow-[0_10px_22px_-3px_rgba(0,0,0,0.65),0_4px_6px_rgba(0,0,0,0.4)]',
       rankText: 'text-xs sm:text-sm',
       suitCornerText: 'text-[11px] sm:text-xs',
       centerSuitText: 'text-2xl sm:text-3xl',
-      innerCircleSize: 'w-4 h-4',
+      innerCircleSize: 'w-5 h-5',
       slotNumberText: 'text-xs sm:text-sm font-bold',
     };
   }
   if (count <= 6) {
     return {
-      slotBox: 'w-14 sm:w-16 h-22 sm:h-24',
+      slotBox: 'w-14 sm:w-16 h-22 sm:h-24 shadow-[0_8px_16px_-2px_rgba(0,0,0,0.55)]',
       rankText: 'text-xs',
       suitCornerText: 'text-[10px] sm:text-xs',
       centerSuitText: 'text-lg sm:text-xl',
-      innerCircleSize: 'w-3.5 h-3.5',
+      innerCircleSize: 'w-4 h-4',
       slotNumberText: 'text-xs font-bold',
     };
   }
   if (count <= 8) {
     return {
-      slotBox: 'w-12 sm:w-13 h-18 sm:h-20',
+      slotBox: 'w-12 sm:w-13 h-18 sm:h-20 shadow-[0_6px_12px_rgba(0,0,0,0.5)]',
       rankText: 'text-[10px] sm:text-xs',
       suitCornerText: 'text-[9px] sm:text-[10px]',
       centerSuitText: 'text-base sm:text-lg',
@@ -113,7 +113,7 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     };
   }
   return {
-    slotBox: 'w-10 sm:w-11 h-15 sm:h-17',
+    slotBox: 'w-10 sm:w-11 h-15 sm:h-17 shadow-[0_5px_10px_rgba(0,0,0,0.5)]',
     rankText: 'text-[9px] sm:text-[10px]',
     suitCornerText: 'text-[8px] sm:text-[9px]',
     centerSuitText: 'text-sm sm:text-base',
@@ -276,6 +276,20 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     setShowChatPicker(false);
   };
 
+  const handleCheerPlayer = (playerId: string) => {
+    sounds.playCardSelect();
+    const cheers = ['👏', '🔥', '🎉', '😎', '🥳', '💥', '✨'];
+    const cheer = cheers[Math.floor(Math.random() * cheers.length)];
+    setActiveEmotes(prev => ({ ...prev, [playerId]: cheer }));
+    setTimeout(() => {
+      setActiveEmotes(prev => {
+        const copy = { ...prev };
+        delete copy[playerId];
+        return copy;
+      });
+    }, 2200);
+  };
+
   const handleConfirmExit = () => {
     setShowExitConfirm(false);
     setShowSettingsModal(false);
@@ -385,32 +399,36 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                   )}
 
                   {/* Circular Avatar Container with Green to Red Turn Circle */}
-                  <div className="relative mt-1">
+                  <div
+                    onClick={() => handleCheerPlayer(player.id)}
+                    className="relative mt-1 cursor-pointer group active:scale-95 transition-transform"
+                    title="Tap to Cheer!"
+                  >
                     <div
                       className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 transition-all duration-300 relative ${
                         isTurn
                           ? isTimeLow
-                            ? 'turn-halo-red ring-4 ring-red-500 bg-gradient-to-br from-red-500 via-rose-600 to-red-700 shadow-[0_0_22px_#ef4444] scale-105 animate-pulse'
-                            : 'turn-halo-green ring-4 ring-emerald-400 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_20px_#22c55e] scale-105'
+                            ? 'turn-halo-red ring-4 ring-red-500 bg-gradient-to-br from-red-500 via-rose-600 to-red-700 shadow-[0_0_24px_#ef4444] scale-105 animate-pulse'
+                            : 'turn-halo-green ring-4 ring-emerald-400 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_22px_#22c55e] scale-105'
                           : isSelf
-                          ? 'ring-2 ring-amber-400 bg-amber-400/80 shadow-md'
-                          : 'ring-2 ring-white/60 bg-slate-800 shadow-md'
+                          ? 'ring-2 ring-amber-400 bg-amber-400/90 shadow-[0_4px_10px_rgba(250,204,21,0.5)]'
+                          : 'ring-2 ring-white/70 bg-slate-800 shadow-[0_4px_10px_rgba(0,0,0,0.5)]'
                       }`}
                     >
-                      <div className="w-full h-full rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-white/90">
+                      <div className="w-full h-full rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-white/90 shadow-inner">
                         {player.avatar && player.avatar.startsWith('http') ? (
                           <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-tr from-purple-900 to-indigo-800 flex items-center justify-center font-black text-white text-[11px] sm:text-xs">
+                          <div className="w-full h-full bg-gradient-to-tr from-purple-900 via-indigo-800 to-purple-700 flex items-center justify-center font-black text-white text-[11px] sm:text-xs">
                             {initials}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* White Gift Box Icon Badge on Top-Left */}
+                    {/* White Gift Box Icon Badge on Top-Left with 3D Pop */}
                     <div
-                      className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-slate-900 border border-white flex items-center justify-center text-white shadow-md z-15"
+                      className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-gradient-to-b from-slate-800 to-slate-950 border border-white flex items-center justify-center text-white shadow-md z-15 group-hover:scale-110 transition-transform"
                       title="Gift"
                     >
                       <Gift className="w-2.5 h-2.5 text-white fill-current" />
@@ -479,128 +497,166 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         </div>
       </div>
 
-      {/* 4. CENTER CARD / DECK SLOTS ROW (Exact Reference Image with 10 colored slots + angled brown card) */}
+      {/* 4. CENTER 3D CARD ARENA TABLE (Felt Stadium Mat with 3D Depth, Neon Edge, & Slots) */}
       <div className="relative z-10 w-full max-w-xl mx-auto px-2 py-1 my-auto flex flex-col items-center">
-        <div className="relative w-full flex items-center justify-center">
+        {/* 3D Oval Felt Table Surface */}
+        <div className="relative w-full rounded-[28px] sm:rounded-[36px] p-2.5 sm:p-3.5 bg-gradient-to-b from-[#35064f]/90 via-[#230233]/95 to-[#13011c]/95 border-2 border-amber-400/35 shadow-[inset_0_4px_22px_rgba(0,0,0,0.85),0_15px_35px_rgba(0,0,0,0.55)] backdrop-blur-sm flex flex-col items-center overflow-hidden">
           
-          {/* Left Arrow Button for Deck Slots */}
-          {totalPlayers > 5 && (
-            <button
-              onClick={() => scrollAvatars('left')}
-              className="absolute -left-1 z-30 w-7 h-7 rounded-full bg-black/60 border border-white/40 text-white flex items-center justify-center shadow-lg active:scale-90 hover:bg-black/80"
-              title="Scroll Decks Left"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+          {/* Subtle Top Table Felt Spotlight Glow */}
+          <div className="absolute inset-x-8 top-0 h-16 bg-gradient-to-b from-purple-400/20 via-amber-400/5 to-transparent rounded-t-[28px] pointer-events-none" />
+
+          {/* Table Center Floating Lead Suit Tag (When trick has started) */}
+          {gameState.leadSuit && (
+            <div className="relative z-10 mb-2 px-3 py-0.5 rounded-full bg-slate-950/85 border border-amber-400/60 shadow-[0_0_15px_rgba(250,204,21,0.4)] flex items-center gap-1.5 text-xs font-black text-amber-300">
+              <span className="text-[10px] uppercase tracking-wider text-purple-200">Table Lead:</span>
+              <span className={`text-sm font-black ${
+                gameState.leadSuit === 'HEARTS' || gameState.leadSuit === 'DIAMONDS' ? 'text-red-400' : 'text-slate-100'
+              }`}>
+                {gameState.leadSuit === 'SPADES' ? '♠ Spades' : gameState.leadSuit === 'HEARTS' ? '♥ Hearts' : gameState.leadSuit === 'CLUBS' ? '♣ Clubs' : '♦ Diamonds'}
+              </span>
+            </div>
           )}
 
-          {/* Slots Container with permanent colors & player's card / deck */}
-          <div
-            ref={deckSlotsRef}
-            className={`flex items-center justify-center ${
-              totalPlayers <= 3 ? 'gap-4 sm:gap-6' : totalPlayers <= 4 ? 'gap-2.5 sm:gap-3.5' : totalPlayers <= 6 ? 'gap-2 sm:gap-2.5' : 'gap-1.5 sm:gap-2'
-            } overflow-x-auto no-scrollbar py-2 px-6`}
-          >
-            {orderedPlayers.map((player, slotIdx) => {
-              const slotNumber = slotIdx + 1;
-              const isViewerSlot = slotIdx === 0;
-              const isSlotTurn = gameState.currentTurnPlayerId === player.id;
-              
-              // Check if a card has been played in this trick by this player
-              const trickItem = gameState.currentTrick?.find(t => t.playerId === player.id);
-              const playedCard = trickItem?.card;
+          <div className="relative w-full flex items-center justify-center">
+            {/* Left Arrow Button for Deck Slots */}
+            {totalPlayers > 5 && (
+              <button
+                onClick={() => scrollAvatars('left')}
+                className="absolute -left-1 z-30 w-7 h-7 rounded-full bg-black/70 border border-white/50 text-white flex items-center justify-center shadow-lg active:scale-90 hover:bg-black/90"
+                title="Scroll Decks Left"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
 
-              // Dynamic card & slot dimensions scaling according to player count
-              const dims = getCenterSlotDims(totalPlayers);
+            {/* Slots Container with permanent colors & player's card / deck */}
+            <div
+              ref={deckSlotsRef}
+              className={`flex items-center justify-center ${
+                totalPlayers <= 3 ? 'gap-4 sm:gap-6' : totalPlayers <= 4 ? 'gap-2.5 sm:gap-3.5' : totalPlayers <= 6 ? 'gap-2 sm:gap-2.5' : 'gap-1.5 sm:gap-2'
+              } overflow-x-auto no-scrollbar py-3 px-6`}
+            >
+              {orderedPlayers.map((player, slotIdx) => {
+                const slotNumber = slotIdx + 1;
+                const isViewerSlot = slotIdx === 0;
+                const isSlotTurn = gameState.currentTurnPlayerId === player.id;
+                
+                // Check if a card has been played in this trick by this player
+                const trickItem = gameState.currentTrick?.find(t => t.playerId === player.id);
+                const playedCard = trickItem?.card;
 
-              return (
-                <div key={`deck-slot-${player.id}`} className="flex flex-col items-center flex-shrink-0">
-                  {/* The Card / Deck Slot Box */}
-                  <div
-                    className={`${dims.slotBox} rounded-xl border-2 transition-all duration-200 relative flex items-center justify-center shadow-lg ${
-                      player.theme.deckBorder
-                    } ${
-                      isSlotTurn
-                        ? isTimeLow
-                          ? 'ring-4 ring-red-500 shadow-[0_0_20px_#ef4444] scale-105 animate-pulse'
-                          : 'ring-4 ring-emerald-400 shadow-[0_0_20px_#22c55e] scale-105'
-                        : ''
-                    }`}
-                  >
-                    {playedCard ? (
-                      /* FACE-UP PLAYED CARD (Clean White Body, Crisp Suit & Rank, Matches reference screenshot) */
-                      <div className="w-full h-full rounded-lg bg-white border border-slate-300 flex flex-col justify-between p-1 select-none shadow-md overflow-hidden animate-card-drop">
-                        {/* Top-Left Rank & Suit */}
-                        <div className="flex flex-col items-start leading-none">
-                          <span className={`${dims.rankText} font-black ${
-                            playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
-                          }`}>
-                            {playedCard.value}
-                          </span>
-                          <span className={`${dims.suitCornerText} ${
-                            playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
-                          }`}>
-                            {playedCard.suit === 'SPADES' ? '♠' : playedCard.suit === 'HEARTS' ? '♥' : playedCard.suit === 'CLUBS' ? '♣' : '♦'}
-                          </span>
-                        </div>
+                // Dynamic card & slot dimensions scaling according to player count
+                const dims = getCenterSlotDims(totalPlayers);
 
-                        {/* Centered Large Suit Emblem */}
-                        <div className="w-full flex items-center justify-center my-auto">
-                          <span className={`${dims.centerSuitText} font-black filter drop-shadow-sm ${
-                            playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
-                          }`}>
-                            {playedCard.suit === 'SPADES' ? '♠' : playedCard.suit === 'HEARTS' ? '♥' : playedCard.suit === 'CLUBS' ? '♣' : '♦'}
-                          </span>
-                        </div>
-
-                        {/* Bottom-Right Inverted Rank */}
-                        <div className="flex flex-col items-end leading-none rotate-180">
-                          <span className={`${dims.suitCornerText} font-black ${
-                            playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
-                          }`}>
-                            {playedCard.value}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* FACE-DOWN GLOSSY COLORED CARD BACK (Solid Yellow, Blue, Pink, Green, etc. as in Reference Image) */
-                      <div
-                        className={`w-full h-full rounded-lg ${player.theme.deckBackGradient} border-2 ${player.theme.deckBackBorder} flex flex-col items-center justify-center p-1 shadow-inner relative overflow-hidden`}
-                      >
-                        {/* Inner Glossy Border */}
-                        <div className="w-full h-full rounded-md border border-white/40 flex items-center justify-center">
-                          <div className={`${dims.innerCircleSize} rounded-full bg-white/20 border border-white/40`} />
-                        </div>
+                return (
+                  <div key={`deck-slot-${player.id}`} className="flex flex-col items-center flex-shrink-0 relative">
+                    {/* Interactive 3D Bouncing "PLAYING" Pointer */}
+                    {isSlotTurn && (
+                      <div className="absolute -top-6 sm:-top-7 z-30 flex flex-col items-center animate-bounce pointer-events-none">
+                        <span className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.2 rounded-full border shadow-lg ${
+                          isTimeLow ? 'bg-red-600 text-white border-white animate-pulse' : 'bg-emerald-500 text-white border-white'
+                        }`}>
+                          PLAYING
+                        </span>
+                        <span className={`text-xs sm:text-sm font-black -mt-1 leading-none ${isTimeLow ? 'text-red-400' : 'text-emerald-400'}`}>▼</span>
                       </div>
                     )}
-                  </div>
 
-                  {/* Slot Number & Yellow Pointer for Player 1 (You) */}
-                  <div className="mt-1 flex flex-col items-center leading-none">
-                    {isViewerSlot ? (
-                      <div className="flex flex-col items-center">
-                        <span className="text-amber-400 text-xs sm:text-sm font-black leading-none">▲</span>
-                        <span className={`text-white ${dims.slotNumberText}`}>{slotNumber}</span>
-                      </div>
-                    ) : (
-                      <span className={`text-white ${dims.slotNumberText} opacity-90`}>{slotNumber}</span>
-                    )}
+                    {/* The Card / Deck Slot Box */}
+                    <div
+                      className={`${dims.slotBox} rounded-xl border-2 transition-all duration-200 relative flex items-center justify-center shadow-lg ${
+                        player.theme.deckBorder
+                      } ${
+                        isSlotTurn
+                          ? isTimeLow
+                            ? 'ring-4 ring-red-500 shadow-[0_0_24px_#ef4444] scale-105 animate-pulse'
+                            : 'ring-4 ring-emerald-400 shadow-[0_0_24px_#22c55e] scale-105'
+                          : ''
+                      }`}
+                    >
+                      {playedCard ? (
+                        /* FACE-UP PLAYED CARD (3D Realistic Card with Crisp Embossing & Specular Sheen) */
+                        <div className="w-full h-full rounded-xl bg-gradient-to-b from-white via-[#fcfdfe] to-[#edf2f7] border-t-2 border-t-white border-l border-l-white/90 border-r-2 border-r-slate-300 border-b-2 border-b-slate-400 flex flex-col justify-between p-1.5 select-none shadow-[inset_0_1px_2px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden animate-card-drop relative">
+                          {/* Specular 3D Gloss Highlight */}
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
+
+                          {/* Top-Left Rank & Suit */}
+                          <div className="flex flex-col items-start leading-none relative z-10 filter drop-shadow-sm">
+                            <span className={`${dims.rankText} font-black ${
+                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
+                            }`}>
+                              {playedCard.value}
+                            </span>
+                            <span className={`${dims.suitCornerText} font-black ${
+                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
+                            }`}>
+                              {playedCard.suit === 'SPADES' ? '♠' : playedCard.suit === 'HEARTS' ? '♥' : playedCard.suit === 'CLUBS' ? '♣' : '♦'}
+                            </span>
+                          </div>
+
+                          {/* Centered Large Suit Emblem with 3D drop-shadow */}
+                          <div className="w-full flex items-center justify-center my-auto relative z-10">
+                            <span className={`${dims.centerSuitText} font-black filter drop-shadow-md leading-none ${
+                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
+                            }`}>
+                              {playedCard.suit === 'SPADES' ? '♠' : playedCard.suit === 'HEARTS' ? '♥' : playedCard.suit === 'CLUBS' ? '♣' : '♦'}
+                            </span>
+                          </div>
+
+                          {/* Bottom-Right Inverted Rank */}
+                          <div className="flex flex-col items-end leading-none rotate-180 relative z-10 filter drop-shadow-sm">
+                            <span className={`${dims.suitCornerText} font-black ${
+                              playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
+                            }`}>
+                              {playedCard.value}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        /* FACE-DOWN GLOSSY 3D COLORED CARD BACK */
+                        <div
+                          className={`w-full h-full rounded-xl ${player.theme.deckBackGradient} border-t-2 border-t-white/70 border-l border-l-white/50 border-r-2 border-r-black/30 border-b-2 border-b-black/40 flex flex-col items-center justify-center p-1 shadow-[inset_0_2px_4px_rgba(255,255,255,0.4),0_6px_12px_rgba(0,0,0,0.3)] relative overflow-hidden`}
+                        >
+                          {/* Glossy diagonal sheen */}
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent pointer-events-none" />
+                          
+                          {/* Inner Glossy Metallic Medallion */}
+                          <div className="w-full h-full rounded-lg border-2 border-white/40 flex flex-col items-center justify-center bg-black/15 shadow-inner">
+                            <div className={`${dims.innerCircleSize} rounded-full bg-gradient-to-br from-white/40 to-white/10 border-2 border-white/60 shadow-md flex items-center justify-center`}>
+                              <span className="text-[9px] filter drop-shadow-sm leading-none opacity-80">🎴</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Slot Number & Yellow Pointer for Player 1 (You) */}
+                    <div className="mt-1 flex flex-col items-center leading-none">
+                      {isViewerSlot ? (
+                        <div className="flex flex-col items-center">
+                          <span className="text-amber-400 text-xs sm:text-sm font-black leading-none drop-shadow">▲</span>
+                          <span className={`text-white ${dims.slotNumberText} drop-shadow`}>{slotNumber}</span>
+                        </div>
+                      ) : (
+                        <span className={`text-white ${dims.slotNumberText} opacity-90 drop-shadow`}>{slotNumber}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            {/* Right Arrow Button for Deck Slots */}
+            {totalPlayers > 5 && (
+              <button
+                onClick={() => scrollAvatars('right')}
+                className="absolute -right-1 z-30 w-7 h-7 rounded-full bg-black/70 border border-white/50 text-white flex items-center justify-center shadow-lg active:scale-90 hover:bg-black/90"
+                title="Scroll Decks Right"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
-
-          {/* Right Arrow Button for Deck Slots */}
-          {totalPlayers > 5 && (
-            <button
-              onClick={() => scrollAvatars('right')}
-              className="absolute -right-1 z-30 w-7 h-7 rounded-full bg-black/60 border border-white/40 text-white flex items-center justify-center shadow-lg active:scale-90 hover:bg-black/80"
-              title="Scroll Decks Right"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          )}
         </div>
 
         {/* CUT ANIMATION OVERLAY (When a player is forced to pick up cards) */}
@@ -660,38 +716,40 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       </div>
 
       {/* 7. BOTTOM CONTROL BAR: Back, Emoji, Chat, Profile (with green/red turn ring), DEAL Button */}
-      <div className="relative z-20 w-full px-3 py-2 safe-bottom bg-gradient-to-t from-[#1b0a03] via-[#2d1206] to-[#3a1808] flex items-center justify-between border-t-2 border-amber-600/40 shadow-2xl">
+      <div className="relative z-20 w-full px-3 py-2 safe-bottom bg-gradient-to-t from-[#140602] via-[#240e04] to-[#341407] flex items-center justify-between border-t-2 border-amber-500/50 shadow-[0_-8px_25px_rgba(0,0,0,0.6)]">
         
         {/* Left Side Buttons: Purple Exit '<<' + Yellow Emoji + Yellow Chat */}
         <div className="relative flex items-center gap-1.5 sm:gap-2">
-          {/* Purple '<<' Exit/Settings Button */}
+          {/* Purple '<<' Exit/Settings Button with 3D Tactile Push */}
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="w-10 h-10 rounded-xl bg-purple-900/90 hover:bg-purple-800 border-2 border-purple-400/60 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all"
+            className="w-10 h-10 rounded-xl bg-gradient-to-b from-purple-800 to-purple-950 border-t border-t-purple-300 border-x border-purple-500/50 border-b-3 border-b-purple-950 shadow-[0_4px_0_#2e1065,0_8px_16px_rgba(0,0,0,0.4)] flex items-center justify-center text-white active:translate-y-1 active:shadow-[0_1px_0_#2e1065] active:scale-95 transition-all cursor-pointer"
             title="Settings & Exit"
           >
             <ChevronsLeft className="w-5 h-5 text-purple-200" />
           </button>
 
-          {/* Yellow Smiling Emoji Button */}
+          {/* Yellow Smiling Emoji Button with 3D Raised Bevel */}
           <button
             onClick={() => {
+              sounds.playCardSelect();
               setShowEmotePicker(!showEmotePicker);
               setShowChatPicker(false);
             }}
-            className="w-10 h-10 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-2 border-yellow-200 flex items-center justify-center shadow-xl active:scale-95 transition-all"
+            className="w-10 h-10 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-t-2 border-t-white/80 border-b-2 border-b-amber-700 shadow-[0_4px_0_#92400e,0_8px_16px_rgba(0,0,0,0.4)] flex items-center justify-center active:translate-y-1 active:shadow-[0_1px_0_#92400e] active:scale-95 transition-all cursor-pointer"
             title="Send Emoji"
           >
             <Smile className="w-5 h-5 text-slate-950 fill-amber-400" />
           </button>
 
-          {/* Yellow Chat Message Button */}
+          {/* Yellow Chat Message Button with 3D Raised Bevel */}
           <button
             onClick={() => {
+              sounds.playCardSelect();
               setShowChatPicker(!showChatPicker);
               setShowEmotePicker(false);
             }}
-            className="w-10 h-10 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-2 border-yellow-200 flex items-center justify-center shadow-xl active:scale-95 transition-all"
+            className="w-10 h-10 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 border-t-2 border-t-white/80 border-b-2 border-b-amber-700 shadow-[0_4px_0_#92400e,0_8px_16px_rgba(0,0,0,0.4)] flex items-center justify-center active:translate-y-1 active:shadow-[0_1px_0_#92400e] active:scale-95 transition-all cursor-pointer"
             title="Quick Chat"
           >
             <MessageSquare className="w-5 h-5 text-slate-950 fill-amber-400" />
@@ -731,23 +789,27 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           )}
         </div>
 
-        {/* Center: Current Player Profile with Green/Red Turn Circle (Matching Reference Image) */}
-        <div className="flex flex-col items-center justify-center mx-auto relative">
+        {/* Center: Current Player Profile with Green/Red Turn Circle */}
+        <div
+          onClick={() => handleCheerPlayer(myId)}
+          className="flex flex-col items-center justify-center mx-auto relative cursor-pointer group active:scale-95 transition-transform"
+          title="Tap to Cheer!"
+        >
           <div className="relative">
             <div
               className={`w-12 h-12 rounded-full p-0.5 transition-all duration-300 relative ${
                 isMyTurn
                   ? isTimeLow
-                    ? 'turn-halo-red ring-4 ring-red-500 bg-gradient-to-br from-red-500 via-rose-600 to-red-700 shadow-[0_0_25px_#ef4444] scale-105 animate-pulse'
-                    : 'turn-halo-green ring-4 ring-emerald-400 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_22px_#22c55e] scale-105'
-                  : 'ring-2 ring-amber-400 bg-amber-400 shadow-md'
+                    ? 'turn-halo-red ring-4 ring-red-500 bg-gradient-to-br from-red-500 via-rose-600 to-red-700 shadow-[0_0_28px_#ef4444] scale-105 animate-pulse'
+                    : 'turn-halo-green ring-4 ring-emerald-400 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_26px_#22c55e] scale-105'
+                  : 'ring-2 ring-amber-400 bg-amber-400 shadow-[0_4px_12px_rgba(0,0,0,0.5)]'
               }`}
             >
-              <div className="w-full h-full rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-white/90">
+              <div className="w-full h-full rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-white/90 shadow-inner">
                 {me?.avatar && me.avatar.startsWith('http') ? (
                   <img src={me.avatar} alt={me.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-tr from-purple-900 to-indigo-800 flex items-center justify-center font-black text-white text-xs">
+                  <div className="w-full h-full bg-gradient-to-tr from-purple-900 via-indigo-800 to-purple-700 flex items-center justify-center font-black text-white text-xs">
                     {me ? me.name.slice(0, 2).toUpperCase() : 'ME'}
                   </div>
                 )}
@@ -755,22 +817,22 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             </div>
 
             {/* Gift Icon Badge on Right of Profile */}
-            <div className="absolute -bottom-0.5 -right-1 w-4 h-4 rounded-full bg-slate-900 border border-white flex items-center justify-center text-white shadow-md z-15">
+            <div className="absolute -bottom-0.5 -right-1 w-4 h-4 rounded-full bg-slate-900 border border-white flex items-center justify-center text-white shadow-md z-15 group-hover:scale-110 transition-transform">
               <Gift className="w-2.5 h-2.5 text-white fill-current" />
             </div>
           </div>
 
-          {/* Yellow Name Tag Below Profile */}
-          <div className="mt-0.5 px-2 py-0.2 rounded-md bg-amber-400 border border-yellow-200 text-slate-950 font-black text-[10px] sm:text-[11px] shadow-md">
+          {/* Yellow Name Tag Below Profile with 3D Bevel */}
+          <div className="mt-0.5 px-2.5 py-0.2 rounded-md bg-gradient-to-b from-amber-300 to-amber-400 border border-yellow-200 text-slate-950 font-black text-[10px] sm:text-[11px] shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
             {me?.name || 'Thala'}
           </div>
         </div>
 
-        {/* Right: Prominent Pill-Shaped Yellow "DEAL" Action Button (Exact Reference Screenshot) */}
+        {/* Right: Prominent 3D Yellow "DEAL / PLAY" Action Button */}
         {hasPlayerCleared ? (
           <button
             onClick={() => setShowExitConfirm(true)}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition-all"
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition-all shadow-md"
           >
             Exit Game
           </button>
@@ -808,13 +870,23 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 }
               }
             }}
-            className={`px-7 sm:px-9 py-2 sm:py-2.5 rounded-full font-black text-sm sm:text-base tracking-wider uppercase shadow-2xl transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+            className={`px-6 sm:px-8 py-2 sm:py-2.5 rounded-full font-black text-sm sm:text-base tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 border-t-2 border-t-white/80 border-b-2 border-b-amber-800 shadow-[0_6px_0_#92400e,0_12px_24px_rgba(0,0,0,0.6)] active:translate-y-1.5 active:shadow-[0_1px_0_#92400e] cursor-pointer ${
               isMyTurn
-                ? 'bg-gradient-to-b from-yellow-300 via-amber-400 to-yellow-500 text-red-950 border-2 border-yellow-200 ring-4 ring-yellow-400/50 shadow-[0_0_25px_rgba(250,204,21,0.85)] animate-pulse cursor-pointer'
-                : 'bg-gradient-to-b from-amber-300/80 via-yellow-400/80 to-amber-500/80 text-red-950/80 border-2 border-yellow-200/60 shadow-md cursor-pointer'
+                ? 'bg-gradient-to-b from-yellow-300 via-amber-400 to-yellow-500 text-red-950 ring-4 ring-yellow-400/50 shadow-[0_0_25px_rgba(250,204,21,0.85)] animate-pulse'
+                : 'bg-gradient-to-b from-amber-300/80 via-yellow-400/80 to-amber-500/80 text-red-950/80'
             }`}
           >
-            <span>DEAL</span>
+            {isMyTurn && selectedCard ? (
+              <div className="flex items-center gap-1 font-black">
+                <span>PLAY</span>
+                <span className="text-base leading-none">
+                  {selectedCard.suit === 'SPADES' ? '♠' : selectedCard.suit === 'HEARTS' ? '♥' : selectedCard.suit === 'CLUBS' ? '♣' : '♦'}
+                </span>
+                <span>{selectedCard.value}</span>
+              </div>
+            ) : (
+              <span>DEAL</span>
+            )}
           </button>
         )}
       </div>

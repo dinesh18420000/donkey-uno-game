@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { DonkeyCard, Suit } from '../types';
 import { DonkeyCardView } from './DonkeyCardView';
 import { Columns, LayoutGrid } from 'lucide-react';
+import { sounds } from '../utils/audio';
 
 interface DonkeyHandProps {
   hand: DonkeyCard[];
@@ -86,6 +87,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
   };
 
   const handleCardClick = (card: DonkeyCard) => {
+    sounds.playCardSelect();
     const errorMsg = getInvalidReason(card);
     if (errorMsg) {
       setShakingCardId(card.id);
@@ -195,16 +197,16 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
             return (
               <div
                 key={suit}
-                className={`relative flex flex-col rounded-2xl p-1 sm:p-1.5 transition-all border-2 backdrop-blur-md ${bgSlot} ${borderSlot} ${
-                  isColumnLead ? 'ring-4 ring-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.6)]' : ''
-                } ${canCut ? 'ring-4 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-pulse' : ''}`}
+                className={`relative flex flex-col rounded-2xl p-1 sm:p-1.5 transition-all border-2 backdrop-blur-md shadow-[inset_0_2px_8px_rgba(0,0,0,0.6),0_6px_16px_rgba(0,0,0,0.4)] ${bgSlot} ${borderSlot} ${
+                  isColumnLead ? 'ring-4 ring-amber-400 shadow-[0_0_20px_rgba(250,204,21,0.85)]' : ''
+                } ${canCut ? 'ring-4 ring-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.85)] animate-pulse' : ''}`}
               >
-                {/* Top Header of the Column: Symbol & Card Count */}
+                {/* Top Header of the Column: Symbol & Card Count with 3D Pill */}
                 <div className="flex items-center justify-between px-1 mb-1 text-xs font-black text-white">
-                  <span className={`text-base font-black ${color === 'text-red-600' ? 'text-red-400' : 'text-slate-100'}`}>
+                  <span className={`text-base font-black ${color === 'text-red-600' ? 'text-red-400' : 'text-slate-100'} filter drop-shadow`}>
                     {symbol}
                   </span>
-                  <span className="bg-black/80 px-1.5 py-0.2 rounded-full text-[10px] sm:text-[11px] text-amber-300 font-mono font-bold border border-white/10">
+                  <span className="bg-gradient-to-b from-slate-900 to-black px-1.5 py-0.2 rounded-full text-[10px] sm:text-[11px] text-amber-300 font-mono font-black border border-white/20 shadow-inner">
                     {count}
                   </span>
                 </div>
@@ -232,25 +234,28 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                           onClick={() => handleCardClick(card)}
                           style={{
                             position: 'absolute',
-                            top: `${isSelected ? Math.max(0, topPos - 12) : topPos}px`,
+                            top: `${isSelected ? Math.max(0, topPos - 14) : topPos}px`,
                             left: 0,
                             right: 0,
                             height: isLastCard ? `${cardHeight}px` : `${stepOffset + 14}px`,
                             zIndex: isSelected ? 100 : idx + 5
                           }}
-                          className={`rounded-xl bg-white border-2 shadow-lg transition-all duration-150 select-none overflow-hidden cursor-pointer ${
+                          className={`rounded-xl bg-gradient-to-b from-white via-[#fcfdfe] to-[#edf2f7] border-t-2 border-t-white border-l border-l-white/90 border-r-2 border-r-slate-300 border-b-2 border-b-slate-400 shadow-[0_4px_10px_rgba(0,0,0,0.35)] transition-all duration-150 select-none overflow-hidden cursor-pointer ${
                             isSelected
-                              ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_0_20px_rgba(250,204,21,0.9)] -translate-y-2 z-50 border-amber-400'
-                              : 'hover:z-40 hover:-translate-y-1 active:scale-95 border-slate-300 hover:border-amber-400'
+                              ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_16px_32px_rgba(250,204,21,0.9),0_8px_16px_rgba(0,0,0,0.5)] -translate-y-3.5 scale-105 z-50 border-amber-400'
+                              : 'hover:z-40 hover:-translate-y-1.5 hover:scale-102 active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] border-slate-300 hover:border-amber-400'
                           } ${
                             isShaking
                               ? 'animate-card-shake ring-4 ring-red-500 bg-red-50'
                               : ''
                           }`}
                         >
-                          {/* Card Header Strip: 100% PROMINENT & TOP-ANCHORED (Never covered!) */}
-                          <div className="h-6 px-1.5 flex items-center justify-between bg-gradient-to-b from-white via-white to-slate-100 border-b border-slate-200">
-                            <div className={`flex items-center gap-1 ${color} leading-none`}>
+                          {/* 3D Gloss Sheen */}
+                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
+
+                          {/* Card Header Strip: 100% PROMINENT & TOP-ANCHORED */}
+                          <div className="h-6 px-1.5 flex items-center justify-between bg-gradient-to-b from-white via-white to-slate-100/90 border-b border-slate-200 relative z-10">
+                            <div className={`flex items-center gap-1 ${color} leading-none filter drop-shadow-sm`}>
                               <span className="text-sm sm:text-base font-black tracking-tight">{card.value}</span>
                               <span className="text-xs sm:text-sm font-extrabold">{symbol}</span>
                             </div>
@@ -258,8 +263,8 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
 
                           {/* On the bottom-most card of the stack, display the iconic suit emblem */}
                           {isLastCard && (
-                            <div className={`w-full h-6 flex items-center justify-center ${color}`}>
-                              <span className="text-xl filter drop-shadow-sm leading-none">{symbol}</span>
+                            <div className={`w-full h-6 flex items-center justify-center ${color} relative z-10`}>
+                              <span className="text-xl filter drop-shadow leading-none font-black">{symbol}</span>
                             </div>
                           )}
                         </div>
@@ -267,9 +272,9 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                     })
                   ) : (
                     /* Empty Suit Placeholder with faint watermark */
-                    <div className="w-full h-full flex flex-col items-center justify-center text-white/30 border-2 border-dashed border-white/20 rounded-xl relative">
-                      <span className="text-3xl opacity-50">{symbol}</span>
-                      <span className="text-[10px] font-bold mt-1 uppercase opacity-50">Empty</span>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-white/30 border-2 border-dashed border-white/20 rounded-xl relative shadow-inner">
+                      <span className="text-3xl opacity-50 filter drop-shadow">{symbol}</span>
+                      <span className="text-[10px] font-bold mt-1 uppercase opacity-50 tracking-wider">Empty</span>
                     </div>
                   )}
                 </div>
