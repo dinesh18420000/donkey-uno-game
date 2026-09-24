@@ -64,18 +64,32 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
   const myId = socketService.playerId;
   const me = gameState.players.find(p => p.id === myId);
-  const orderedPlayers = reorderPlayersForLocalView(gameState.players, myId);
+
+  // Active players still competing in the game
+  // (Once a player clears their cards and has a rank, they win/are safe, except during an ongoing trick they played in)
+  const rawActive = gameState.players.filter(p => {
+    if (!p.rank && !p.isMercyEliminated) return true;
+    if (gameState.currentTrick?.some(t => t.playerId === p.id)) return true;
+    return false;
+  });
+  const activePlayers = rawActive.length >= 2 ? rawActive : gameState.players;
+  const orderedPlayers = reorderPlayersForLocalView(activePlayers, myId);
   const totalPlayers = orderedPlayers.length;
   const avatarSize = getAvatarSizeForCount(totalPlayers);
   const cardDims = getCenterCardDimensions(totalPlayers);
   const isHost = gameState.hostId === myId;
 
+  // Safe winners who have already cleared cards
+  const finishedWinners = gameState.players
+    .filter(p => p.rank && !p.isDonkey && p.cardsCount === 0)
+    .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+
   const isMyTurn = gameState.currentTurnPlayerId === myId;
   const currentTurnPlayer = gameState.players.find(p => p.id === gameState.currentTurnPlayerId);
   const isFirstTrick = gameState.roundNumber === 1 && gameState.currentTrick.length === 0 && !gameState.leadSuit;
 
-  // Turn order: who plays before me and who plays after me (Donkey is clockwise: 1)
-  const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(gameState.players, myId, 1);
+  // Turn order: who plays before me and who plays after me among ACTIVE players
+  const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(activePlayers, myId, 1);
 
   // Animated feedback for Donkey Cut (all cards swept to victim)
   const [isCutAnimating, setIsCutAnimating] = useState<boolean>(false);
@@ -304,6 +318,26 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           <Settings className="w-4 h-4" />
         </button>
       </div>
+
+      {/* FINISHED / SAFE WINNERS BANNER (Once players start winning) */}
+      {finishedWinners.length > 0 && !isGameOver && (
+        <div className="relative z-15 w-full px-3 py-1 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar bg-black/40 backdrop-blur-sm border-b border-purple-500/20">
+          <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 flex-shrink-0">
+            <span>🏆</span>
+            <span>Safe:</span>
+          </span>
+          {finishedWinners.map(w => (
+            <div
+              key={`safe-${w.id}`}
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black text-[10px] sm:text-[11px] shadow-md border border-white/60 flex-shrink-0"
+            >
+              <span>#{w.rank}</span>
+              <span className="truncate max-w-[80px]">{w.name}</span>
+              <span className="text-[8px] bg-slate-950 text-emerald-300 px-1 py-0.2 rounded-full font-bold">Safe</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* SPECTATOR BADGE (If player cleared hand and is watching) */}
       {isWatching && !isGameOver && (

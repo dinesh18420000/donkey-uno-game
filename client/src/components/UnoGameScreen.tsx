@@ -66,16 +66,26 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
   const myId = socketService.playerId;
   const me = gameState.players.find(p => p.id === myId);
   const opponents = gameState.players.filter(p => p.id !== myId);
-  const orderedPlayers = reorderPlayersForLocalView(gameState.players, myId);
+
+  // Active players still in Uno (not ranked out or mercy eliminated)
+  const rawActive = gameState.players.filter(p => !p.rank && !p.isMercyEliminated && p.cardsCount > 0);
+  const activePlayers = rawActive.length >= 2 ? rawActive : gameState.players;
+  const orderedPlayers = reorderPlayersForLocalView(activePlayers, myId);
   const totalPlayers = orderedPlayers.length;
   const avatarSize = getAvatarSizeForCount(totalPlayers);
+
+  // Finished / Safe winners or mercy eliminated players
+  const finishedWinners = gameState.players
+    .filter(p => p.rank || p.isMercyEliminated)
+    .sort((a, b) => (a.rank || 99) - (b.rank || 99));
+
   const isMyTurn = gameState.currentTurnPlayerId === myId;
   const currentTurnPlayer = gameState.players.find(p => p.id === gameState.currentTurnPlayerId);
   const myHand = (gameState.myHand as UnoCard[]) || [];
 
-  // Turn flow: who plays before me and who plays after me (accounting for CW / CCW direction)
+  // Turn flow among ACTIVE players (accounting for CW / CCW direction)
   const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(
-    gameState.players,
+    activePlayers,
     myId,
     gameState.direction || 1
   );
@@ -407,6 +417,38 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
           <Settings className="w-4 h-4" />
         </button>
       </div>
+
+      {/* FINISHED / SAFE WINNERS & MERCY ELIMINATED BANNER (Once players start winning / KO) */}
+      {finishedWinners.length > 0 && !isGameOver && (
+        <div className="relative z-15 w-full px-3 py-1 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar bg-black/40 backdrop-blur-sm border-b border-purple-500/20">
+          <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 flex-shrink-0">
+            <span>🏆</span>
+            <span>Status:</span>
+          </span>
+          {finishedWinners.map(w => (
+            <div
+              key={`safe-${w.id}`}
+              className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full font-black text-[10px] sm:text-[11px] shadow-md border flex-shrink-0 ${
+                w.isMercyEliminated
+                  ? 'bg-red-950/90 text-red-300 border-red-500/50'
+                  : 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 border-white/60'
+              }`}
+            >
+              <span>{w.rank ? `#${w.rank}` : '💀'}</span>
+              <span className="truncate max-w-[80px]">{w.name}</span>
+              <span
+                className={`text-[8px] px-1 py-0.2 rounded-full font-bold ${
+                  w.isMercyEliminated
+                    ? 'bg-red-800 text-white'
+                    : 'bg-slate-950 text-emerald-300'
+                }`}
+              >
+                {w.isMercyEliminated ? 'KO' : 'Safe'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* CASINO CIRCULAR TABLE ARENA (Dynamic 2 to 10 Players Layout - Uno No Mercy) */}
       <div className="relative z-10 w-full max-w-lg mx-auto px-2 flex-1 flex flex-col justify-center my-0.5">
