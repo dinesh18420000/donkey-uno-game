@@ -6,7 +6,14 @@ import { PlayerAvatar } from './PlayerAvatar';
 import { DonkeyHand } from './DonkeyHand';
 import { DonkeyCardView } from './DonkeyCardView';
 import { RankCardModal } from './RankCardModal';
-import { partitionOpponents } from '../utils/tableSeating';
+import {
+  getTableSeatPosition,
+  reorderPlayersForLocalView,
+  getAvatarSizeForCount,
+  getCenterCardDimensions,
+  PLAYER_THEME_KEYS,
+  PLAYER_THEME_DETAILS
+} from '../utils/tableSeating';
 import { sounds } from '../utils/audio';
 import {
   Volume2,
@@ -57,8 +64,10 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
   const myId = socketService.playerId;
   const me = gameState.players.find(p => p.id === myId);
-  const opponents = gameState.players.filter(p => p.id !== myId);
-  const { leftOpponent, topOpponents, rightOpponent } = partitionOpponents(opponents);
+  const orderedPlayers = reorderPlayersForLocalView(gameState.players, myId);
+  const totalPlayers = orderedPlayers.length;
+  const avatarSize = getAvatarSizeForCount(totalPlayers);
+  const cardDims = getCenterCardDimensions(totalPlayers);
   const isHost = gameState.hostId === myId;
 
   const isMyTurn = gameState.currentTurnPlayerId === myId;
@@ -304,119 +313,100 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         </div>
       )}
 
-      {/* CASINO GREEN FELT TABLE ARENA (Dedicated Non-Overlapping Zones) */}
-      <div className="relative z-10 w-full max-w-4xl mx-auto px-2 flex-1 flex flex-col justify-center my-0.5">
-        
-        {/* ZONE 1: TOP OPPONENTS ROW (Strictly above the felt rim - ZERO chance of overlapping cards) */}
-        <div className="w-full flex items-center justify-center gap-6 sm:gap-12 min-h-[64px] mb-1">
-          {topOpponents.map((opp, idx) => {
-            const colors: ('blue' | 'pink' | 'green' | 'yellow' | 'orange' | 'purple')[] = [
-              'blue', 'pink', 'green', 'yellow', 'orange', 'purple'
-            ];
-            const themeColor = colors[(idx + 1) % colors.length];
-
-            return (
-              <PlayerAvatar
-                key={opp.id}
-                player={opp}
-                size="sm"
-                namePosition="bottom"
-                isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
-                isBeforeMe={playerBeforeMe?.id === opp.id}
-                isAfterMe={playerAfterMe?.id === opp.id}
-                colorTheme={themeColor}
-                activeEmote={activeEmotes[opp.id]}
-                turnExpiresAt={gameState.turnExpiresAt}
-                turnDuration={gameState.turnDuration}
-              />
-            );
-          })}
-        </div>
-
-        {/* ZONE 2: 4 DESIGNATED CARD SLOTS + SLANTED DECK (Authentic Donkey Master UI) */}
-        <div className="relative w-full rounded-[2.5rem] sm:rounded-[3rem] bg-gradient-to-b from-[#220338]/90 via-[#320652]/90 to-[#180126]/95 border-2 border-purple-500/40 ring-1 ring-purple-400/30 shadow-[inset_0_0_40px_rgba(0,0,0,0.85),0_10px_30px_rgba(0,0,0,0.7)] flex items-center justify-center px-2 sm:px-6 py-2 min-h-[145px] sm:min-h-[165px]">
+      {/* CASINO CIRCULAR TABLE ARENA (Dynamic 2 to 10 Players Layout - Matches Screenshot) */}
+      <div className="relative z-10 w-full max-w-lg mx-auto px-2 flex-1 flex flex-col justify-center my-0.5">
+        <div className="relative w-full aspect-[1/0.95] max-h-[350px] sm:max-h-[390px] mx-auto flex items-center justify-center">
           
+          {/* Glowing Neon Circular Felt Rim (Matching Reference Screenshot) */}
+          <div className="absolute inset-1.5 sm:inset-3 rounded-full border-2 border-fuchsia-500/60 shadow-[0_0_35px_rgba(217,70,239,0.45),inset_0_0_40px_rgba(0,0,0,0.85)] bg-gradient-to-b from-[#23043a]/90 via-[#340755]/85 to-[#160224]/95 pointer-events-none" />
+
           {/* Revolving Central Neon-Green Turn Direction Arrow Track */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-30">
-            <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 border-dashed border-emerald-400/40 flex items-center justify-center animate-green-arrow-cw">
-              <div className="absolute -top-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e]">➤</div>
-              <div className="absolute -bottom-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-180">➤</div>
-              <div className="absolute -right-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-90">➤</div>
-              <div className="absolute -left-3 text-emerald-400 text-base font-black filter drop-shadow-[0_0_10px_#22c55e] -rotate-90">➤</div>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-25">
+            <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-2 border-dashed border-emerald-400/40 flex items-center justify-center animate-green-arrow-cw">
+              <div className="absolute -top-3 text-emerald-400 text-sm sm:text-base font-black filter drop-shadow-[0_0_10px_#22c55e]">➤</div>
+              <div className="absolute -bottom-3 text-emerald-400 text-sm sm:text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-180">➤</div>
+              <div className="absolute -right-3 text-emerald-400 text-sm sm:text-base font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-90">➤</div>
+              <div className="absolute -left-3 text-emerald-400 text-sm sm:text-base font-black filter drop-shadow-[0_0_10px_#22c55e] -rotate-90">➤</div>
             </div>
           </div>
 
-          {/* 4 DESIGNATED CARD SLOTS IN A ROW + SLANTED DECK */}
-          <div className="relative z-10 flex items-center justify-center gap-2 sm:gap-3.5">
-            {gameState.players.slice(0, 4).map((p, idx) => {
-              const slotThemes = [
-                {
-                  border: 'border-yellow-400 ring-2 ring-yellow-400/60',
-                  bg: 'bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500',
-                  ring: 'ring-2 ring-yellow-400'
-                },
-                {
-                  border: 'border-cyan-400 ring-2 ring-cyan-400/60',
-                  bg: 'bg-gradient-to-br from-blue-600 via-cyan-500 to-blue-700',
-                  ring: 'ring-2 ring-cyan-400'
-                },
-                {
-                  border: 'border-pink-500 ring-2 ring-pink-500/60',
-                  bg: 'bg-gradient-to-br from-pink-600 via-rose-500 to-fuchsia-600',
-                  ring: 'ring-2 ring-pink-500'
-                },
-                {
-                  border: 'border-emerald-400 ring-2 ring-emerald-400/60',
-                  bg: 'bg-gradient-to-br from-emerald-600 via-green-500 to-teal-600',
-                  ring: 'ring-2 ring-emerald-400'
-                }
-              ];
-              const theme = slotThemes[idx % slotThemes.length];
-              const play = gameState.currentTrick.find(item => item.playerId === p.id);
+          {/* SHARED CARD / TRICK AREA IN THE CENTER (Radial Ring of Cards for 2 to 10 players) */}
+          <div className="absolute inset-0 pointer-events-none">
+            {orderedPlayers.map((player, idx) => {
+              const seatPos = getTableSeatPosition(totalPlayers, idx);
+              const theme = PLAYER_THEME_DETAILS[PLAYER_THEME_KEYS[idx % PLAYER_THEME_KEYS.length]];
+              const play = gameState.currentTrick.find(item => item.playerId === player.id);
 
-              if (play) {
-                return (
-                  <div
-                    key={p.id}
-                    className={`flex flex-col items-center transition-all ${
-                      isCutAnimating ? 'animate-cut-sweep' : 'animate-deal-to-table'
-                    }`}
-                  >
-                    <div className="text-[8px] sm:text-[9px] font-black bg-slate-950/90 px-1.5 py-0.2 rounded-full mb-0.5 text-white border border-amber-400/40 shadow-md truncate max-w-[65px]">
-                      {play.playerName} {play.isCut ? '💥 CUT!' : ''}
-                    </div>
-                    <div className={`p-0.5 rounded-xl border-2 shadow-xl ${theme.ring}`}>
-                      <DonkeyCardView card={play.card} isCompact={true} />
-                    </div>
-                  </div>
-                );
-              }
-
-              // Face-Down designated slot with player's solid colored back
               return (
-                <div key={p.id} className="flex flex-col items-center opacity-85">
-                  <div className="text-[8px] sm:text-[9px] font-bold text-purple-200 mb-0.5 truncate max-w-[65px]">
-                    {p.name}
-                  </div>
-                  <div className={`w-13 h-19 sm:w-15 sm:h-22 rounded-xl border-2 shadow-xl flex flex-col items-center justify-center p-1 transition-all ${theme.border} ${theme.bg}`}>
-                    <div className="w-full h-full rounded-lg border border-white/30 flex flex-col items-center justify-center text-white/90">
-                      <span className="text-lg filter drop-shadow">🫏</span>
+                <div
+                  key={`trick-slot-${player.id}`}
+                  style={seatPos.cardSlotStyle}
+                  className="pointer-events-auto transition-all duration-300"
+                >
+                  {play ? (
+                    <div className={`flex flex-col items-center ${isCutAnimating ? 'animate-cut-sweep' : 'animate-deal-to-table'}`}>
+                      <div className="text-[7px] sm:text-[8px] font-black bg-slate-950/90 px-1 py-0.2 rounded-full mb-0.5 text-white border border-amber-400/40 shadow truncate max-w-[55px]">
+                        {play.playerName} {play.isCut ? '💥 CUT!' : ''}
+                      </div>
+                      <div className={`p-0.5 rounded-lg border-2 shadow-xl ${theme.ring} bg-white`}>
+                        <DonkeyCardView card={play.card} isCompact={true} />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* Designated Face-Down Colored Card Back (Matching Reference Screenshot) */
+                    <div className="flex flex-col items-center opacity-85">
+                      <div className={`${cardDims.container} rounded-xl border-2 shadow-xl flex flex-col items-center justify-center p-0.5 transition-all ${theme.border} ${theme.cardBackBg}`}>
+                        <div className="w-full h-full rounded-lg border border-white/40 flex flex-col items-center justify-center text-white/90">
+                          <span className="text-xs sm:text-sm filter drop-shadow">🫏</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
 
             {/* Slanted Deck of Cards (Near center-right, matching Donkey Master reference screenshot!) */}
-            <div className="relative rotate-12 self-center ml-2 sm:ml-4 hidden xs:flex flex-col items-center shadow-2xl">
-              <div className="w-11 h-16 sm:w-13 sm:h-18 rounded-xl bg-gradient-to-br from-purple-900 via-indigo-950 to-purple-950 border-2 border-purple-400/70 shadow-2xl flex flex-col items-center justify-center text-center p-1 ring-1 ring-black/50">
-                <span className="text-xs">🫏</span>
-                <span className="text-[7px] sm:text-[8px] font-black text-amber-300 leading-tight uppercase tracking-tighter mt-0.5">
+            <div
+              style={{ left: '78%', top: '52%', transform: 'translate(-50%, -50%) rotate(18deg)' }}
+              className="absolute pointer-events-auto shadow-2xl hidden xs:flex flex-col items-center z-15"
+            >
+              <div className="w-9 h-13 sm:w-11 sm:h-16 rounded-xl bg-gradient-to-br from-purple-900 via-indigo-950 to-purple-950 border-2 border-purple-400/70 shadow-2xl flex flex-col items-center justify-center text-center p-0.5 ring-1 ring-black/50">
+                <span className="text-[10px] sm:text-xs">🫏</span>
+                <span className="text-[6px] sm:text-[7px] font-black text-amber-300 leading-tight uppercase tracking-tighter mt-0.5">
                   Donkey<br />Master
                 </span>
               </div>
             </div>
           </div>
+
+          {/* DYNAMIC PLAYER SEATS (Outer Table Perimeter, 2 to 10 Players) */}
+          {orderedPlayers.map((player, idx) => {
+            const seatPos = getTableSeatPosition(totalPlayers, idx);
+            const theme = PLAYER_THEME_KEYS[idx % PLAYER_THEME_KEYS.length];
+            const isSelf = player.id === myId;
+
+            return (
+              <div
+                key={`avatar-${player.id}`}
+                style={seatPos.avatarStyle}
+                className="transition-all duration-300"
+              >
+                <PlayerAvatar
+                  player={player}
+                  size={avatarSize}
+                  isCurrentTurn={gameState.currentTurnPlayerId === player.id}
+                  isSelf={isSelf}
+                  colorTheme={theme}
+                  activeEmote={activeEmotes[player.id]}
+                  turnExpiresAt={gameState.turnExpiresAt}
+                  turnDuration={gameState.turnDuration}
+                  isBeforeMe={playerBeforeMe?.id === player.id}
+                  isAfterMe={playerAfterMe?.id === player.id}
+                />
+              </div>
+            );
+          })}
 
           {/* DYNAMIC CUT ANIMATION OVERLAY: All cards fly to victim */}
           {isCutAnimating && (
@@ -434,7 +424,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
           {/* Last Action Announcement Pill */}
           {gameState.lastAction && !isCutAnimating && (
-            <div className="absolute bottom-1 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/50 text-amber-300 text-[9px] sm:text-[10px] font-bold shadow-lg max-w-[210px] sm:max-w-xs truncate text-center z-10">
+            <div className="absolute bottom-1 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/50 text-amber-300 text-[8px] sm:text-[9px] font-bold shadow-lg max-w-[210px] sm:max-w-xs truncate text-center z-25">
               {gameState.lastAction}
             </div>
           )}
@@ -579,21 +569,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           </div>
         ) : (
           <>
-            {/* Center: User Profile Avatar strictly in bottom bar (Zero overlap with hand) */}
-            {me && (
-              <div className="flex flex-col items-center">
-                <PlayerAvatar
-                  player={me}
-                  size="sm"
-                  isCurrentTurn={isMyTurn}
-                  isSelf={true}
-                  colorTheme="green"
-                  activeEmote={activeEmotes[myId]}
-                  turnExpiresAt={gameState.turnExpiresAt}
-                  turnDuration={gameState.turnDuration}
-                />
-              </div>
-            )}
+            <div className="flex-1" />
 
             {/* Right: Prominent Pill-Shaped Yellow "DEAL" Action Button (Matching authentic mobile screenshot) */}
             <button
