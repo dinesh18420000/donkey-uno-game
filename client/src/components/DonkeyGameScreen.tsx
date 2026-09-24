@@ -44,42 +44,82 @@ const QUICK_CHAT_MESSAGES = [
 ];
 
 /**
- * Top Blinkit Advertisement Banner (Matching exact Reference Image)
+ * Dynamic sizing for center trick / deck cards based on active player count:
+ * - 2 players: Large prominent cards (w-24/28, h-36/42)
+ * - 3 players: Spacious cards (w-20/24, h-32/38)
+ * - 4 players: Substantially larger cards (w-[72px]/[84px], h-[108px]/[126px])
+ * - 5-6 players: Compact cards (w-14/16, h-22/24)
+ * - 7-8 players: Mini cards (w-12/13, h-18/20)
+ * - 9-10 players: Dense cards (w-10/11, h-15/17)
  */
-const BlinkitAdBanner: React.FC = () => {
-  return (
-    <div className="w-full h-11 sm:h-12 bg-gradient-to-r from-[#ffe8ec] via-[#fedee4] to-[#fcd5dc] border-b border-pink-300/60 px-3 flex items-center justify-between overflow-hidden shadow-sm flex-shrink-0 z-30 select-none">
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="flex items-center font-black tracking-tight leading-none text-slate-950 text-sm sm:text-base">
-          <span>blink</span>
-          <span className="text-amber-500">i</span>
-          <span>t</span>
-        </div>
-        <div className="h-5 w-[1px] bg-pink-400/40" />
-        <div className="flex flex-col leading-tight min-w-0">
-          <div className="text-[11px] sm:text-xs font-black text-slate-900 tracking-tight flex items-center gap-1 truncate">
-            <span>FLAT ₹50 OFF</span>
-            <span className="text-[9px] font-bold text-pink-700 bg-pink-100 px-1 py-0.2 rounded hidden xs:inline">NEW</span>
-          </div>
-          <div className="text-[9px] sm:text-[10px] text-slate-700 font-semibold truncate">
-            ON YOUR FIRST ORDER <span className="text-[8px] text-slate-500">*T&Cs apply</span>
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <div className="hidden sm:flex items-center gap-1 text-base filter drop-shadow-sm">
-          💄💅✨
-        </div>
-        <button
-          onClick={() => window.open('https://blinkit.com', '_blank')}
-          className="px-3 py-1 rounded-full bg-slate-950 hover:bg-slate-800 text-white text-[10px] sm:text-[11px] font-black tracking-wide shadow-md active:scale-95 transition-all flex items-center gap-1"
-        >
-          <span>Buy Now</span>
-        </button>
-        <span className="text-[10px] text-slate-400 font-mono" title="Advertisement">ⓘ</span>
-      </div>
-    </div>
-  );
+interface CenterSlotDims {
+  slotBox: string;
+  rankText: string;
+  suitCornerText: string;
+  centerSuitText: string;
+  innerCircleSize: string;
+  slotNumberText: string;
+}
+
+const getCenterSlotDims = (count: number): CenterSlotDims => {
+  if (count <= 2) {
+    return {
+      slotBox: 'w-24 sm:w-28 h-36 sm:h-42',
+      rankText: 'text-base sm:text-lg',
+      suitCornerText: 'text-xs sm:text-sm',
+      centerSuitText: 'text-3xl sm:text-4xl',
+      innerCircleSize: 'w-6 h-6',
+      slotNumberText: 'text-sm sm:text-base font-black',
+    };
+  }
+  if (count <= 3) {
+    return {
+      slotBox: 'w-20 sm:w-24 h-32 sm:h-38',
+      rankText: 'text-sm sm:text-base',
+      suitCornerText: 'text-xs sm:text-sm',
+      centerSuitText: 'text-2xl sm:text-3xl',
+      innerCircleSize: 'w-5 h-5',
+      slotNumberText: 'text-xs sm:text-sm font-black',
+    };
+  }
+  if (count <= 4) {
+    return {
+      slotBox: 'w-[72px] sm:w-[84px] h-[108px] sm:h-[126px]',
+      rankText: 'text-xs sm:text-sm',
+      suitCornerText: 'text-[11px] sm:text-xs',
+      centerSuitText: 'text-2xl sm:text-3xl',
+      innerCircleSize: 'w-4 h-4',
+      slotNumberText: 'text-xs sm:text-sm font-bold',
+    };
+  }
+  if (count <= 6) {
+    return {
+      slotBox: 'w-14 sm:w-16 h-22 sm:h-24',
+      rankText: 'text-xs',
+      suitCornerText: 'text-[10px] sm:text-xs',
+      centerSuitText: 'text-lg sm:text-xl',
+      innerCircleSize: 'w-3.5 h-3.5',
+      slotNumberText: 'text-xs font-bold',
+    };
+  }
+  if (count <= 8) {
+    return {
+      slotBox: 'w-12 sm:w-13 h-18 sm:h-20',
+      rankText: 'text-[10px] sm:text-xs',
+      suitCornerText: 'text-[9px] sm:text-[10px]',
+      centerSuitText: 'text-base sm:text-lg',
+      innerCircleSize: 'w-3 h-3',
+      slotNumberText: 'text-[11px] font-bold',
+    };
+  }
+  return {
+    slotBox: 'w-10 sm:w-11 h-15 sm:h-17',
+    rankText: 'text-[9px] sm:text-[10px]',
+    suitCornerText: 'text-[8px] sm:text-[9px]',
+    centerSuitText: 'text-sm sm:text-base',
+    innerCircleSize: 'w-2.5 h-2.5',
+    slotNumberText: 'text-[10px] font-bold',
+  };
 };
 
 export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, onExitToLobby }) => {
@@ -264,8 +304,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   return (
     <div className="relative w-full h-full flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#240338] via-[#35064f] to-[#1a0229] text-white select-none">
       
-      {/* 1. TOP ADVERTISEMENT BANNER (Exact Reference Image) */}
-      <BlinkitAdBanner />
 
       {/* 2. SAFE / FINISHED WINNERS BANNER (When players win/rank out) */}
       {finishedWinners.length > 0 && !isGameOver && (
@@ -459,7 +497,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           {/* Slots Container with permanent colors & player's card / deck */}
           <div
             ref={deckSlotsRef}
-            className="flex items-center justify-center gap-1.5 sm:gap-2.5 overflow-x-auto no-scrollbar py-2 px-6"
+            className={`flex items-center justify-center ${
+              totalPlayers <= 3 ? 'gap-4 sm:gap-6' : totalPlayers <= 4 ? 'gap-2.5 sm:gap-3.5' : totalPlayers <= 6 ? 'gap-2 sm:gap-2.5' : 'gap-1.5 sm:gap-2'
+            } overflow-x-auto no-scrollbar py-2 px-6`}
           >
             {orderedPlayers.map((player, slotIdx) => {
               const slotNumber = slotIdx + 1;
@@ -470,15 +510,14 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               const trickItem = gameState.currentTrick?.find(t => t.playerId === player.id);
               const playedCard = trickItem?.card;
 
-              // Card dimensions matching reference screenshot
-              const slotWidth = totalPlayers <= 4 ? 'w-14 sm:w-16' : totalPlayers <= 6 ? 'w-12 sm:w-13' : 'w-10 sm:w-11';
-              const slotHeight = totalPlayers <= 4 ? 'h-20 sm:h-24' : totalPlayers <= 6 ? 'h-18 sm:h-20' : 'h-15 sm:h-17';
+              // Dynamic card & slot dimensions scaling according to player count
+              const dims = getCenterSlotDims(totalPlayers);
 
               return (
                 <div key={`deck-slot-${player.id}`} className="flex flex-col items-center flex-shrink-0">
                   {/* The Card / Deck Slot Box */}
                   <div
-                    className={`${slotWidth} ${slotHeight} rounded-xl border-2 transition-all duration-200 relative flex items-center justify-center shadow-lg ${
+                    className={`${dims.slotBox} rounded-xl border-2 transition-all duration-200 relative flex items-center justify-center shadow-lg ${
                       player.theme.deckBorder
                     } ${
                       isSlotTurn
@@ -489,16 +528,16 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     }`}
                   >
                     {playedCard ? (
-                      /* FACE-UP PLAYED CARD (Clean White Body, Crisp Suit & Rank, Matches "4 of Spades" screenshot) */
+                      /* FACE-UP PLAYED CARD (Clean White Body, Crisp Suit & Rank, Matches reference screenshot) */
                       <div className="w-full h-full rounded-lg bg-white border border-slate-300 flex flex-col justify-between p-1 select-none shadow-md overflow-hidden animate-card-drop">
                         {/* Top-Left Rank & Suit */}
                         <div className="flex flex-col items-start leading-none">
-                          <span className={`text-xs sm:text-sm font-black ${
+                          <span className={`${dims.rankText} font-black ${
                             playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
                           }`}>
                             {playedCard.value}
                           </span>
-                          <span className={`text-[10px] sm:text-xs ${
+                          <span className={`${dims.suitCornerText} ${
                             playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
                           }`}>
                             {playedCard.suit === 'SPADES' ? '♠' : playedCard.suit === 'HEARTS' ? '♥' : playedCard.suit === 'CLUBS' ? '♣' : '♦'}
@@ -507,7 +546,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
                         {/* Centered Large Suit Emblem */}
                         <div className="w-full flex items-center justify-center my-auto">
-                          <span className={`text-base sm:text-xl font-black filter drop-shadow-sm ${
+                          <span className={`${dims.centerSuitText} font-black filter drop-shadow-sm ${
                             playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
                           }`}>
                             {playedCard.suit === 'SPADES' ? '♠' : playedCard.suit === 'HEARTS' ? '♥' : playedCard.suit === 'CLUBS' ? '♣' : '♦'}
@@ -516,7 +555,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
                         {/* Bottom-Right Inverted Rank */}
                         <div className="flex flex-col items-end leading-none rotate-180">
-                          <span className={`text-[10px] sm:text-xs font-black ${
+                          <span className={`${dims.suitCornerText} font-black ${
                             playedCard.suit === 'HEARTS' || playedCard.suit === 'DIAMONDS' ? 'text-red-600' : 'text-slate-950'
                           }`}>
                             {playedCard.value}
@@ -530,7 +569,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                       >
                         {/* Inner Glossy Border */}
                         <div className="w-full h-full rounded-md border border-white/40 flex items-center justify-center">
-                          <div className="w-3 h-3 rounded-full bg-white/20 border border-white/40" />
+                          <div className={`${dims.innerCircleSize} rounded-full bg-white/20 border border-white/40`} />
                         </div>
                       </div>
                     )}
@@ -541,25 +580,15 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     {isViewerSlot ? (
                       <div className="flex flex-col items-center">
                         <span className="text-amber-400 text-xs sm:text-sm font-black leading-none">▲</span>
-                        <span className="text-white text-xs sm:text-sm font-black">{slotNumber}</span>
+                        <span className={`text-white ${dims.slotNumberText}`}>{slotNumber}</span>
                       </div>
                     ) : (
-                      <span className="text-white text-xs sm:text-sm font-bold opacity-90">{slotNumber}</span>
+                      <span className={`text-white ${dims.slotNumberText} opacity-90`}>{slotNumber}</span>
                     )}
                   </div>
                 </div>
               );
             })}
-
-            {/* ANGLED BROWN CARD BACK ON RIGHT (Matching Reference Screenshot) */}
-            <div
-              className="ml-2 sm:ml-4 flex-shrink-0 w-11 sm:w-13 h-16 sm:h-19 rounded-xl bg-gradient-to-br from-[#7a3e1d] via-[#5c2a10] to-[#3a1808] border-2 border-amber-600/80 shadow-2xl rotate-18 flex items-center justify-center p-1"
-              title="Donkey Master Deck"
-            >
-              <div className="w-full h-full rounded-lg border border-amber-400/40 flex items-center justify-center text-amber-200/60 text-[9px] font-black text-center leading-tight">
-                🫏
-              </div>
-            </div>
           </div>
 
           {/* Right Arrow Button for Deck Slots */}
@@ -587,15 +616,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             </div>
           </div>
         )}
-
-        {/* Turn Status / Action Pill */}
-        <div className="mt-2 flex items-center gap-2">
-          {gameState.lastAction && !isCutAnimating && (
-            <div className="px-3 py-0.5 rounded-full bg-black/60 border border-purple-400/40 text-purple-200 text-[9px] sm:text-[10px] font-bold shadow-md max-w-[240px] truncate text-center">
-              {gameState.lastAction}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* 5. INVALID CARD NOTICE ERROR BANNER */}
