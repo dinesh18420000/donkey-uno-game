@@ -305,6 +305,15 @@ export class RoomManager {
       return;
     }
 
+    // If disconnected player was host, transfer host to next active human
+    if (room.hostId === player.id) {
+      const nextHuman = room.players.find(p => !p.isBot && !p.isDisconnected);
+      if (nextHuman) {
+        room.hostId = nextHuman.id;
+        nextHuman.isHost = true;
+      }
+    }
+
     this.broadcastState(room);
 
     if (room.status === 'playing') {
