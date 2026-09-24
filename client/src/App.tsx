@@ -60,7 +60,7 @@ export function App() {
   const isInGame = gameState && (gameState.status === 'playing' || gameState.status === 'game_over');
 
   return (
-    <div className="relative w-full h-full max-w-lg mx-auto bg-slate-950 overflow-hidden flex flex-col shadow-2xl">
+    <div className="relative w-full h-full max-w-lg md:max-w-2xl lg:max-w-4xl mx-auto bg-slate-950 overflow-hidden flex flex-col shadow-2xl">
       {/* DISCONNECTION / BOT TAKEOVER NOTICE BANNER */}
       {showReconnectingBanner && (
         <div className="absolute top-0 left-0 right-0 z-50 p-2.5 bg-gradient-to-r from-red-600 to-amber-600 text-white text-xs font-bold flex items-center justify-between shadow-2xl animate-pulse">

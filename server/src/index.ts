@@ -146,6 +146,12 @@ io.on('connection', socket => {
     roomManager.startGame(roomCode, hostPlayerId);
   });
 
+  // Change game type inside room/family table
+  socket.on('setGameType', ({ roomCode, hostPlayerId, gameType }, callback) => {
+    const success = roomManager.setGameType(roomCode, hostPlayerId, gameType);
+    callback?.({ success });
+  });
+
   // Replay game
   socket.on('replayGame', ({ roomCode, hostPlayerId }) => {
     roomManager.replayGame(roomCode, hostPlayerId);

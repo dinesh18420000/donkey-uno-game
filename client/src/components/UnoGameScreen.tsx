@@ -17,7 +17,13 @@ import {
   LogOut,
   Clock,
   AlertTriangle,
-  Eye
+  Eye,
+  LayoutGrid,
+  Layers,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -46,11 +52,51 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
   const [isWatching, setIsWatching] = useState<boolean>(false);
   const [secondsRemaining, setSecondsRemaining] = useState<number>(30);
+  const [viewMode, setViewMode] = useState<'grid' | 'fan'>('grid');
+  const [sortByColor, setSortByColor] = useState<boolean>(true);
+  const handScrollRef = React.useRef<HTMLDivElement>(null);
 
   const myId = socketService.playerId;
   const me = gameState.players.find(p => p.id === myId);
   const opponents = gameState.players.filter(p => p.id !== myId);
   const isMyTurn = gameState.currentTurnPlayerId === myId;
+  const myHand = (gameState.myHand as UnoCard[]) || [];
+
+  const COLOR_ORDER: Record<UnoColor, number> = {
+    red: 1,
+    blue: 2,
+    green: 3,
+    yellow: 4,
+    wild: 5
+  };
+
+  const displayHand = React.useMemo(() => {
+    if (!sortByColor) return myHand;
+    return [...myHand].sort((a, b) => {
+      const colDiff = (COLOR_ORDER[a.color] || 99) - (COLOR_ORDER[b.color] || 99);
+      if (colDiff !== 0) return colDiff;
+      const aVal = a.type === 'number' ? (a.value ?? 0) : 100;
+      const bVal = b.type === 'number' ? (b.value ?? 0) : 100;
+      if (aVal !== bVal) return aVal - bVal;
+      return a.type.localeCompare(b.type);
+    });
+  }, [myHand, sortByColor]);
+
+  const getFanMarginLeft = (totalCards: number, idx: number): string => {
+    if (idx === 0) return '0px';
+    if (totalCards <= 5) return '-14px';
+    if (totalCards <= 8) return '-26px';
+    if (totalCards <= 12) return '-36px';
+    if (totalCards <= 16) return '-44px';
+    return '-50px';
+  };
+
+  const scrollHand = (dir: 'left' | 'right') => {
+    if (handScrollRef.current) {
+      const scrollAmt = dir === 'left' ? -220 : 220;
+      handScrollRef.current.scrollBy({ left: scrollAmt, behavior: 'smooth' });
+    }
+  };
 
   // 30-Second Turn Countdown
   useEffect(() => {
@@ -69,6 +115,26 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
 
     return () => clearInterval(interval);
   }, [gameState.turnExpiresAt, isMyTurn]);
+
+  // Listen for emotes from teammates and opponents
+  useEffect(() => {
+    const socket = socketService.connect();
+    const handleRemoteEmote = ({ playerId, emote }: { playerId: string; emote: string }) => {
+      setActiveEmotes(prev => ({ ...prev, [playerId]: emote }));
+      setTimeout(() => {
+        setActiveEmotes(prev => {
+          const copy = { ...prev };
+          delete copy[playerId];
+          return copy;
+        });
+      }, 3000);
+    };
+
+    socket.on('playerEmote', handleRemoteEmote);
+    return () => {
+      socket.off('playerEmote', handleRemoteEmote);
+    };
+  }, []);
 
   const toggleSound = () => {
     sounds.enabled = !soundEnabled;
@@ -154,7 +220,6 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     }
   }, [isGameOver, winner, myId]);
 
-  const myHand = (gameState.myHand as UnoCard[]) || [];
   const mercyRatio = Math.min((myHand.length / 25) * 100, 100);
 
   return (
@@ -244,7 +309,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
           {/* DRAW PILE */}
           <div
             onClick={isMyTurn ? handleDrawCard : undefined}
-            className={`relative w-18 h-26 sm:w-22 sm:h-30 rounded-2xl bg-gradient-to-br from-slate-900 to-black border-2 border-slate-600 shadow-2xl flex flex-col items-center justify-center transition-all ${
+            className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-gradient-to-br from-slate-900 to-black border-2 border-slate-600 shadow-2xl flex flex-col items-center justify-center transition-all ${
               isMyTurn
                 ? 'cursor-pointer hover:scale-105 active:scale-95 ring-4 ring-yellow-400 animate-turn-pulse shadow-yellow-400/50'
                 : 'opacity-70'
@@ -330,26 +395,122 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
         </div>
       </div>
 
-      {/* BOTTOM PLAYER HAND (Horizontal Fan) */}
-      <div className="relative z-10 w-full overflow-x-auto py-2 px-2 no-scrollbar">
-        <div className="flex items-center gap-1 sm:gap-2 min-w-max px-4">
-          {myHand.map((card, idx) => (
-            <div
-              key={card.id}
-              style={{
-                marginLeft: idx === 0 ? '0px' : '-22px',
-                zIndex: idx + 10
-              }}
-            >
+      {/* HAND VIEW CONTROLS BAR (Allows seeing ALL cards with 1 tap!) */}
+      <div className="relative z-10 w-full max-w-3xl mx-auto px-4 py-1 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-black text-amber-300">
+            My Cards ({myHand.length})
+          </span>
+          {myHand.length > 7 && (
+            <span className="text-[10px] font-bold bg-amber-400/20 text-amber-200 border border-amber-400/40 px-2 py-0.5 rounded-full">
+              {viewMode === 'grid' ? 'Showing All Cards' : 'Swipe / Scroll to See All'}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {/* Sort Color Button */}
+          <button
+            onClick={() => setSortByColor(!sortByColor)}
+            className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 border transition-all active:scale-95 ${
+              sortByColor
+                ? 'bg-purple-900/80 border-purple-400 text-amber-300 shadow-sm'
+                : 'bg-white/10 border-white/20 text-slate-300 hover:text-white'
+            }`}
+            title="Organize cards by color"
+          >
+            <ArrowUpDown className="w-3 h-3" />
+            <span>Sort Color</span>
+          </button>
+
+          {/* View Mode Toggle: Grid (Show All) vs Fan */}
+          <button
+            onClick={() => setViewMode(viewMode === 'fan' ? 'grid' : 'fan')}
+            className="px-2.5 py-1 rounded-xl text-[11px] font-black bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 flex items-center gap-1 shadow-md active:scale-95 transition-all"
+            title={viewMode === 'fan' ? 'Switch to Grid View to see all cards at once' : 'Switch to Fan View'}
+          >
+            {viewMode === 'fan' ? (
+              <>
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Show All Cards</span>
+              </>
+            ) : (
+              <>
+                <Layers className="w-3.5 h-3.5" />
+                <span>Fan View</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* BOTTOM PLAYER HAND: GRID VIEW (SHOW ALL) OR DYNAMIC FAN VIEW */}
+      {viewMode === 'grid' ? (
+        /* ALL CARDS GRID VIEW (Wraps into organized rows, ZERO cards cut off!) */
+        <div className="relative z-10 w-full max-w-3xl mx-auto overflow-y-auto max-h-52 sm:max-h-60 py-2 px-3 no-scrollbar">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+            {displayHand.map((card) => (
               <UnoCardView
+                key={card.id}
                 card={card}
                 isSelected={selectedCard?.id === card.id}
                 onClick={() => handleCardClick(card)}
               />
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* HORIZONTAL FAN VIEW (With dynamic overlap, desktop mouse wheel & scroll arrows) */
+        <div className="relative z-10 w-full max-w-3xl mx-auto py-1 px-1">
+          {myHand.length > 7 && (
+            <>
+              <button
+                onClick={() => scrollHand('left')}
+                className="absolute left-1 top-1/2 -translate-y-1/2 z-30 p-1.5 rounded-full bg-slate-900/90 border border-amber-400/60 text-amber-300 shadow-xl active:scale-90 hover:bg-slate-800"
+                title="Scroll Left"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => scrollHand('right')}
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-30 p-1.5 rounded-full bg-slate-900/90 border border-amber-400/60 text-amber-300 shadow-xl active:scale-90 hover:bg-slate-800"
+                title="Scroll Right"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
+          <div
+            ref={handScrollRef}
+            onWheel={(e) => {
+              if (handScrollRef.current) {
+                handScrollRef.current.scrollLeft += e.deltaY;
+              }
+            }}
+            className="w-full overflow-x-auto py-2 px-6 no-scrollbar cursor-grab"
+          >
+            <div className="flex items-center justify-center min-w-max px-2">
+              {displayHand.map((card, idx) => (
+                <div
+                  key={card.id}
+                  style={{
+                    marginLeft: getFanMarginLeft(displayHand.length, idx),
+                    zIndex: selectedCard?.id === card.id ? 100 : idx + 10
+                  }}
+                  className="transition-all duration-150 hover:z-50"
+                >
+                  <UnoCardView
+                    card={card}
+                    isSelected={selectedCard?.id === card.id}
+                    onClick={() => handleCardClick(card)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* BOTTOM ACTION BAR (With Safe-Area padding for mobile navigation bar) */}
       <div className="relative z-20 w-full px-3 pt-2 safe-bottom bg-gradient-to-t from-black via-black/95 to-black/80 flex items-center justify-between border-t border-red-500/30">
@@ -378,17 +539,53 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
           )}
         </div>
 
-        {/* User Profile Avatar */}
-        {me && (
-          <PlayerAvatar
-            player={me}
-            isCurrentTurn={isMyTurn}
-            isSelf={true}
-            colorTheme="orange"
-            activeEmote={activeEmotes[myId]}
-            turnExpiresAt={gameState.turnExpiresAt}
-            turnDuration={gameState.turnDuration}
-          />
+        {/* If Spectating / Cleared Hand / Knocked Out */}
+        {!!me?.rank || me?.isMercyEliminated ? (
+          <div className="flex-1 mx-2 flex items-center justify-between px-3.5 py-2 rounded-2xl bg-rose-950/70 border border-amber-400/40 backdrop-blur-md shadow-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl animate-pulse">
+                {me?.isMercyEliminated ? '☠️' : '🏆'}
+              </span>
+              <div className="text-left">
+                <div className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                  <span>SPECTATING MATCH</span>
+                  {me?.rank ? (
+                    <span className="text-[10px] bg-emerald-500 text-white px-1.5 py-0.2 rounded-full font-bold">
+                      Winner! Rank #{me.rank}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.2 rounded-full font-bold">
+                      Mercy Knockout
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] text-rose-200">
+                  Watching live until all players finish...
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowExitConfirm(true)}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition-all"
+            >
+              Exit
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* User Profile Avatar */}
+            {me && (
+              <PlayerAvatar
+                player={me}
+                isCurrentTurn={isMyTurn}
+                isSelf={true}
+                colorTheme="orange"
+                activeEmote={activeEmotes[myId]}
+                turnExpiresAt={gameState.turnExpiresAt}
+                turnDuration={gameState.turnDuration}
+              />
+            )}
+          </>
         )}
 
         {/* Action Button: DEAL CARD (when card selected) OR DRAW (when no card selected) */}

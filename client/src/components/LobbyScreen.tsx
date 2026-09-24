@@ -200,6 +200,70 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
           </div>
         </div>
 
+        {/* Game Mode Selector (Host can switch anytime inside family table / room before starting!) */}
+        <div className="w-full max-w-md my-2 p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-purple-500/30 shadow-lg">
+          <div className="flex items-center justify-between mb-1.5 px-0.5">
+            <span className="text-[11px] font-black uppercase tracking-wider text-purple-200">
+              Selected Game Mode
+            </span>
+            {isHost ? (
+              <span className="text-[10px] font-bold text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30">
+                👑 Host can switch
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold text-purple-300">
+                Set by Host
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => {
+                if (isHost && gameState.gameType !== 'donkey') {
+                  socketService.setGameType(gameState.roomCode, 'donkey');
+                }
+              }}
+              disabled={!isHost}
+              className={`p-2.5 rounded-xl border-2 flex items-center gap-2 transition-all ${
+                gameState.gameType === 'donkey'
+                  ? 'bg-gradient-to-r from-purple-800 to-indigo-800 border-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] ring-2 ring-amber-400/40 text-white'
+                  : isHost
+                  ? 'bg-black/30 border-white/15 text-slate-300 hover:bg-white/10 hover:border-white/30 cursor-pointer active:scale-95'
+                  : 'bg-black/20 border-white/5 text-slate-500 cursor-not-allowed opacity-60'
+              }`}
+            >
+              <span className="text-2xl">🫏</span>
+              <div className="text-left">
+                <div className="text-xs font-black">Donkey Master</div>
+                <div className="text-[10px] text-purple-200">52 Cards • Penalty Cut</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                if (isHost && gameState.gameType !== 'uno_no_mercy') {
+                  socketService.setGameType(gameState.roomCode, 'uno_no_mercy');
+                }
+              }}
+              disabled={!isHost}
+              className={`p-2.5 rounded-xl border-2 flex items-center gap-2 transition-all ${
+                gameState.gameType === 'uno_no_mercy'
+                  ? 'bg-gradient-to-r from-red-800 to-rose-900 border-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] ring-2 ring-amber-400/40 text-white'
+                  : isHost
+                  ? 'bg-black/30 border-white/15 text-slate-300 hover:bg-white/10 hover:border-white/30 cursor-pointer active:scale-95'
+                  : 'bg-black/20 border-white/5 text-slate-500 cursor-not-allowed opacity-60'
+              }`}
+            >
+              <span className="text-2xl">🔥</span>
+              <div className="text-left">
+                <div className="text-xs font-black">UNO No Mercy</div>
+                <div className="text-[10px] text-rose-200">168 Cards • +10 Stacking</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Connected Players Grid (Supports up to 10 players) */}
         <div className="w-full max-w-md flex-1">
           <div className="flex items-center justify-between mb-2">
@@ -233,11 +297,11 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
                     {p.name} {p.id === socketService.playerId ? '(You)' : ''}
                   </div>
                   <div className="text-[10px] text-purple-300 font-semibold">
-                    {p.isHost ? '👑 Host' : p.isBot ? '🤖 Bot' : 'Player'}
+                    {p.id === gameState.hostId ? '👑 Host' : p.isBot ? '🤖 Bot' : 'Player'}
                   </div>
                 </div>
 
-                {isHost && !p.isHost && (
+                {isHost && p.id !== gameState.hostId && (
                   <button
                     onClick={() => socketService.removePlayer(gameState.roomCode, p.id)}
                     className="absolute top-1 right-1 p-1 text-red-400 hover:text-red-300"

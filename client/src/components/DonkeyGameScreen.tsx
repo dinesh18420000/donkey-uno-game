@@ -70,6 +70,26 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     return () => clearInterval(interval);
   }, [gameState.currentTurnPlayerId, gameState.roundNumber, gameState.turnExpiresAt, isMyTurn]);
 
+  // Listen for emotes from teammates and opponents
+  useEffect(() => {
+    const socket = socketService.connect();
+    const handleRemoteEmote = ({ playerId, emote }: { playerId: string; emote: string }) => {
+      setActiveEmotes(prev => ({ ...prev, [playerId]: emote }));
+      setTimeout(() => {
+        setActiveEmotes(prev => {
+          const copy = { ...prev };
+          delete copy[playerId];
+          return copy;
+        });
+      }, 3000);
+    };
+
+    socket.on('playerEmote', handleRemoteEmote);
+    return () => {
+      socket.off('playerEmote', handleRemoteEmote);
+    };
+  }, []);
+
   // Reset isWatching when a new round / match starts
   useEffect(() => {
     if (gameState.status === 'playing' && me?.cardsCount && me.cardsCount > 0) {

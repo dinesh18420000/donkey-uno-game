@@ -295,9 +295,14 @@ export class RoomManager {
         p.cardsCount = 0;
         p.hand = [];
       });
-      // Make this player host
+      // Make this incoming player host if previous host is gone
       room.hostId = playerId;
-      room.players.forEach(p => { p.isHost = (p.id === playerId); });
+      room.players.forEach(p => { p.isHost = (p.id === room.hostId); });
+    }
+
+    // Ensure room has an active host
+    if (!room.players.some(p => p.id === room.hostId && !p.isDisconnected)) {
+      room.hostId = playerId;
     }
 
     // 3. Check if player already exists in room (reconnection)
@@ -309,6 +314,7 @@ export class RoomManager {
       existingPlayer.name = playerName || existingPlayer.name.replace(' (Bot)', '');
       existingPlayer.avatar = avatar || existingPlayer.avatar;
       this.socketToPlayerMap.set(socketId, { roomCode: familyCode, playerId });
+      room.players.forEach(p => { p.isHost = (p.id === room.hostId); });
       this.broadcastState(room);
       return { success: true, roomCode: familyCode };
     }
@@ -332,6 +338,7 @@ export class RoomManager {
       room.players.push(spectator);
       this.socketToPlayerMap.set(socketId, { roomCode: familyCode, playerId });
       room.lastAction = `${spectator.name} joined as a spectator!`;
+      room.players.forEach(p => { p.isHost = (p.id === room.hostId); });
       this.broadcastState(room);
       return { success: true, roomCode: familyCode };
     }
@@ -341,25 +348,40 @@ export class RoomManager {
       return { success: false, roomCode: familyCode, error: 'Family table is full (10 players max).' };
     }
 
+    const isFirstPlayer = room.players.length === 0;
+    if (isFirstPlayer) {
+      room.hostId = playerId;
+    }
+
     const newPlayer: Player = {
       id: playerId,
       name: playerName || `Player ${room.players.length + 1}`,
       avatar: avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=P${room.players.length + 1}`,
       socketId,
-      isHost: room.players.length === 0 || room.hostId === playerId,
+      isHost: isFirstPlayer || room.hostId === playerId,
       isBot: false,
       isDisconnected: false,
       cardsCount: 0,
       hand: []
     };
-    if (room.players.length === 0) {
-      room.hostId = playerId;
-    }
+
     room.players.push(newPlayer);
     this.socketToPlayerMap.set(socketId, { roomCode: familyCode, playerId });
     room.lastAction = `${newPlayer.name} joined the family table!`;
+    room.players.forEach(p => { p.isHost = (p.id === room.hostId); });
     this.broadcastState(room);
     return { success: true, roomCode: familyCode };
+  }
+
+  public setGameType(roomCode: string, hostPlayerId: string, gameType: GameType): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room || room.hostId !== hostPlayerId || room.status !== 'waiting') return false;
+    room.gameType = gameType;
+    const gameName = gameType === 'donkey' ? 'Donkey Master 🫏' : 'UNO Show \'Em No Mercy 🔥';
+    const host = room.players.find(p => p.id === hostPlayerId);
+    room.lastAction = `${host ? host.name : 'Host'} selected ${gameName}`;
+    this.broadcastState(room);
+    return true;
   }
 
   public handleDisconnect(socketId: string): void {
@@ -810,7 +832,7 @@ export class RoomManager {
           id: p.id,
           name: p.name,
           avatar: p.avatar,
-          isHost: p.isHost,
+          isHost: p.id === room.hostId,
           isBot: p.isBot,
           isDisconnected: p.isDisconnected,
           cardsCount: p.cardsCount,

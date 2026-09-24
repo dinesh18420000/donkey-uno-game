@@ -216,6 +216,10 @@ class SocketService {
     });
   }
 
+  public setGameType(roomCode: string, gameType: GameType, callback?: (res: { success: boolean }) => void) {
+    this.connect().emit('setGameType', { roomCode, hostPlayerId: this.playerId, gameType }, callback);
+  }
+
   public startGame(roomCode: string) {
     this.connect().emit('startGame', { roomCode, hostPlayerId: this.playerId });
   }
