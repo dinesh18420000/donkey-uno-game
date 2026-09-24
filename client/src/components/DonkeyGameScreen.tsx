@@ -66,8 +66,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-24 sm:w-28 h-36 sm:h-42 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]',
       rankText: 'text-base sm:text-lg',
-      suitCornerText: 'text-xs sm:text-sm',
-      centerSuitText: 'text-3xl sm:text-4xl',
+      suitCornerText: 'text-sm sm:text-base',
+      centerSuitText: 'text-5xl sm:text-6xl',
       innerCircleSize: 'w-7 h-7',
       slotNumberText: 'text-sm sm:text-base font-black',
     };
@@ -77,7 +77,7 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
       slotBox: 'w-20 sm:w-24 h-32 sm:h-38 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.7),0_4px_8px_rgba(0,0,0,0.5)]',
       rankText: 'text-sm sm:text-base',
       suitCornerText: 'text-xs sm:text-sm',
-      centerSuitText: 'text-2xl sm:text-3xl',
+      centerSuitText: 'text-4xl sm:text-5xl',
       innerCircleSize: 'w-6 h-6',
       slotNumberText: 'text-xs sm:text-sm font-black',
     };
@@ -86,8 +86,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-[72px] sm:w-[84px] h-[108px] sm:h-[126px] shadow-[0_10px_22px_-3px_rgba(0,0,0,0.65),0_4px_6px_rgba(0,0,0,0.4)]',
       rankText: 'text-xs sm:text-sm',
-      suitCornerText: 'text-[11px] sm:text-xs',
-      centerSuitText: 'text-2xl sm:text-3xl',
+      suitCornerText: 'text-xs sm:text-sm',
+      centerSuitText: 'text-3xl sm:text-4xl',
       innerCircleSize: 'w-5 h-5',
       slotNumberText: 'text-xs sm:text-sm font-bold',
     };
@@ -96,8 +96,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-14 sm:w-16 h-22 sm:h-24 shadow-[0_8px_16px_-2px_rgba(0,0,0,0.55)]',
       rankText: 'text-xs',
-      suitCornerText: 'text-[10px] sm:text-xs',
-      centerSuitText: 'text-lg sm:text-xl',
+      suitCornerText: 'text-[11px] sm:text-xs',
+      centerSuitText: 'text-2xl sm:text-3xl',
       innerCircleSize: 'w-4 h-4',
       slotNumberText: 'text-xs font-bold',
     };
@@ -106,8 +106,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
     return {
       slotBox: 'w-12 sm:w-13 h-18 sm:h-20 shadow-[0_6px_12px_rgba(0,0,0,0.5)]',
       rankText: 'text-[10px] sm:text-xs',
-      suitCornerText: 'text-[9px] sm:text-[10px]',
-      centerSuitText: 'text-base sm:text-lg',
+      suitCornerText: 'text-[10px] sm:text-[11px]',
+      centerSuitText: 'text-xl sm:text-2xl',
       innerCircleSize: 'w-3 h-3',
       slotNumberText: 'text-[11px] font-bold',
     };
@@ -115,8 +115,8 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   return {
     slotBox: 'w-10 sm:w-11 h-15 sm:h-17 shadow-[0_5px_10px_rgba(0,0,0,0.5)]',
     rankText: 'text-[9px] sm:text-[10px]',
-    suitCornerText: 'text-[8px] sm:text-[9px]',
-    centerSuitText: 'text-sm sm:text-base',
+    suitCornerText: 'text-[9px] sm:text-[10px]',
+    centerSuitText: 'text-lg sm:text-xl',
     innerCircleSize: 'w-2.5 h-2.5',
     slotNumberText: 'text-[10px] font-bold',
   };

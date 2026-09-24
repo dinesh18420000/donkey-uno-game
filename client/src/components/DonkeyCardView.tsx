@@ -43,11 +43,11 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
         } ${isValid ? 'cursor-pointer active:scale-95 hover:-translate-y-1 hover:shadow-lg' : 'opacity-40 cursor-not-allowed'}`}
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
-        <div className={`text-sm font-black leading-none ${textColor} relative z-10`}>
+        <div className={`text-base font-black leading-none ${textColor} relative z-10`}>
           {card.value}
-          <div className="text-xs">{suitSymbol}</div>
+          <div className="text-sm font-black mt-0.5">{suitSymbol}</div>
         </div>
-        <div className={`text-center text-xl font-black leading-none ${textColor} filter drop-shadow-sm relative z-10`}>{suitSymbol}</div>
+        <div className={`text-center text-3xl font-black leading-none ${textColor} filter drop-shadow-sm relative z-10`}>{suitSymbol}</div>
       </div>
     );
   }
@@ -74,25 +74,25 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
       {/* Top Left Value & Suit - LARGE & BOLD */}
       <div className={`relative z-10 flex flex-col items-center w-fit leading-none ${textColor} filter drop-shadow-sm`}>
         <span className="text-xl sm:text-2xl font-black tracking-tight">{card.value}</span>
-        <span className="text-sm sm:text-base font-extrabold mt-0.5">{suitSymbol}</span>
+        <span className="text-base sm:text-lg font-black mt-0.5">{suitSymbol}</span>
       </div>
 
       {/* Center Giant Suit Icon with 3D drop-shadow */}
       <div className={`absolute inset-0 flex items-center justify-center pointer-events-none ${textColor}`}>
         {isAceOfSpades ? (
           <div className="flex flex-col items-center justify-center">
-            <span className="text-4xl sm:text-5xl filter drop-shadow-md leading-none text-slate-950 font-black">♠</span>
-            <span className="text-[7px] font-black uppercase tracking-widest text-purple-700 bg-purple-100 px-1 py-0.2 rounded-full shadow-sm mt-0.5">LEAD</span>
+            <span className="text-5xl sm:text-6xl filter drop-shadow-md leading-none text-slate-950 font-black">♠</span>
+            <span className="text-[7px] font-black uppercase tracking-widest text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-full shadow-sm mt-0.5">LEAD</span>
           </div>
         ) : (
-          <span className="text-3xl sm:text-4xl opacity-85 filter drop-shadow-md leading-none font-black">{suitSymbol}</span>
+          <span className="text-5xl sm:text-6xl opacity-90 filter drop-shadow-md leading-none font-black">{suitSymbol}</span>
         )}
       </div>
 
       {/* Bottom Right Value & Suit (Inverted) */}
       <div className={`relative z-10 flex flex-col items-center w-fit self-end leading-none rotate-180 ${textColor} filter drop-shadow-sm`}>
         <span className="text-xl sm:text-2xl font-black tracking-tight">{card.value}</span>
-        <span className="text-sm sm:text-base font-extrabold mt-0.5">{suitSymbol}</span>
+        <span className="text-base sm:text-lg font-black mt-0.5">{suitSymbol}</span>
       </div>
     </div>
   );

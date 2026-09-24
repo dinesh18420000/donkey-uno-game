@@ -192,114 +192,121 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
           </div>
         </div>
       ) : (
-        /* SUIT COLUMNS VIEW (4 Columns with high-contrast, fully visible numbers!) */
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-2 items-end">
-          {SUITS.map(({ suit, symbol, color, borderSlot, bgSlot }) => {
-            // Sort ascending: 2, 3 ... 10, J, Q, K, A
-            const suitCards = hand
-              .filter(c => c.suit === suit)
-              .sort((a, b) => a.rank - b.rank);
+        /* SUIT COLUMNS VIEW (4 Columns with equal card distance and enlarged symbols) */
+        (() => {
+          // Compute max card count across all 4 suits to ensure UNIFORM equal distance across all columns
+          const maxSuitCards = Math.max(1, ...SUITS.map(({ suit }) => hand.filter(c => c.suit === suit).length));
+          const CARD_HEIGHT = 56;
+          // Fixed uniform step distance for EVERY card in EVERY column
+          const uniformStep = maxSuitCards > 6 ? Math.max(15, Math.floor((172 - CARD_HEIGHT) / (maxSuitCards - 1))) : 20;
+          const containerHeight = Math.max(130, Math.min(176, (maxSuitCards - 1) * uniformStep + CARD_HEIGHT));
 
-            const isColumnLead = leadSuit === suit;
-            const canCut = isMyTurn && leadSuit && !hasLeadSuit && suitCards.length > 0;
-            const count = suitCards.length;
+          return (
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 items-end">
+              {SUITS.map(({ suit, symbol, color, borderSlot, bgSlot }) => {
+                // Sort ascending: 2, 3 ... 10, J, Q, K, A
+                const suitCards = hand
+                  .filter(c => c.suit === suit)
+                  .sort((a, b) => a.rank - b.rank);
 
-            // Height and spacing tuned so EVERY card number is 100% visible, perfectly fitting above footer
-            const containerHeight = Math.max(130, Math.min(170, count > 0 ? (count - 1) * 16 + 50 : 130));
-            const cardHeight = 48;
-            const stepOffset = count > 1 ? (containerHeight - cardHeight) / (count - 1) : 0;
+                const isColumnLead = leadSuit === suit;
+                const canCut = isMyTurn && leadSuit && !hasLeadSuit && suitCards.length > 0;
+                const count = suitCards.length;
 
-            return (
-              <div
-                key={suit}
-                className={`relative flex flex-col rounded-2xl p-1 sm:p-1.5 transition-all border-2 backdrop-blur-md shadow-[inset_0_2px_8px_rgba(0,0,0,0.6),0_6px_16px_rgba(0,0,0,0.4)] ${bgSlot} ${borderSlot} ${
-                  isColumnLead ? 'ring-4 ring-amber-400 shadow-[0_0_20px_rgba(250,204,21,0.85)]' : ''
-                } ${canCut ? 'ring-4 ring-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.85)] animate-pulse' : ''}`}
-              >
-                {/* Vertical luminous casino light strip behind column */}
-                <div className="absolute inset-0 bg-gradient-to-t from-cyan-400/20 via-blue-500/10 to-transparent rounded-2xl pointer-events-none" />
+                return (
+                  <div
+                    key={suit}
+                    className={`relative flex flex-col rounded-2xl p-1 sm:p-1.5 transition-all border-2 backdrop-blur-md shadow-[inset_0_2px_8px_rgba(0,0,0,0.6),0_6px_16px_rgba(0,0,0,0.4)] ${bgSlot} ${borderSlot} ${
+                      isColumnLead ? 'ring-4 ring-amber-400 shadow-[0_0_20px_rgba(250,204,21,0.85)]' : ''
+                    } ${canCut ? 'ring-4 ring-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.85)] animate-pulse' : ''}`}
+                  >
+                    {/* Vertical luminous casino light strip behind column */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-cyan-400/20 via-blue-500/10 to-transparent rounded-2xl pointer-events-none" />
 
-                {/* Top Header of the Column: Symbol & Card Count with 3D Pill */}
-                <div className="flex items-center justify-between px-1 mb-1 text-xs font-black text-white">
-                  <span className={`text-base font-black ${color === 'text-red-600' ? 'text-red-400' : 'text-slate-100'} filter drop-shadow`}>
-                    {symbol}
-                  </span>
-                  <span className="bg-gradient-to-b from-slate-900 to-black px-1.5 py-0.2 rounded-full text-[10px] sm:text-[11px] text-amber-300 font-mono font-black border border-white/20 shadow-inner">
-                    {count}
-                  </span>
-                </div>
-
-                {/* Faint Suit Watermark Outline in slot background */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15 overflow-hidden">
-                  <span className={`text-6xl sm:text-7xl font-black select-none ${color}`}>{symbol}</span>
-                </div>
-
-                {/* Cascade Stack Container */}
-                <div
-                  className="relative w-full overflow-visible z-10"
-                  style={{ height: `${containerHeight}px` }}
-                >
-                  {count > 0 ? (
-                    suitCards.map((card, idx) => {
-                      const isSelected = selectedCardId === card.id;
-                      const isLastCard = idx === count - 1;
-                      const topPos = idx * stepOffset;
-                      const isShaking = shakingCardId === card.id;
-
-                      return (
-                        <div
-                          key={card.id}
-                          onClick={() => handleCardClick(card)}
-                          style={{
-                            position: 'absolute',
-                            top: `${isSelected ? Math.max(0, topPos - 14) : topPos}px`,
-                            left: 0,
-                            right: 0,
-                            height: isLastCard ? `${cardHeight}px` : `${stepOffset + 14}px`,
-                            zIndex: isSelected ? 100 : idx + 5
-                          }}
-                          className={`rounded-xl bg-gradient-to-b from-white via-[#fcfdfe] to-[#edf2f7] border-t-2 border-t-white border-l border-l-white/90 border-r-2 border-r-slate-300 border-b-2 border-b-slate-400 shadow-[0_4px_10px_rgba(0,0,0,0.35)] transition-all duration-150 select-none overflow-hidden cursor-pointer ${
-                            isSelected
-                              ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_16px_32px_rgba(250,204,21,0.9),0_8px_16px_rgba(0,0,0,0.5)] -translate-y-3.5 scale-105 z-50 border-amber-400'
-                              : 'hover:z-40 hover:-translate-y-1.5 hover:scale-102 active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] border-slate-300 hover:border-amber-400'
-                          } ${
-                            isShaking
-                              ? 'animate-card-shake ring-4 ring-red-500 bg-red-50'
-                              : ''
-                          }`}
-                        >
-                          {/* 3D Gloss Sheen */}
-                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
-
-                          {/* Card Header Strip: 100% PROMINENT & TOP-ANCHORED */}
-                          <div className="h-6 px-1.5 flex items-center justify-between bg-gradient-to-b from-white via-white to-slate-100/90 border-b border-slate-200 relative z-10">
-                            <div className={`flex items-center gap-1 ${color} leading-none filter drop-shadow-sm`}>
-                              <span className="text-sm sm:text-base font-black tracking-tight">{card.value}</span>
-                              <span className="text-xs sm:text-sm font-extrabold">{symbol}</span>
-                            </div>
-                          </div>
-
-                          {/* On the bottom-most card of the stack, display the iconic suit emblem */}
-                          {isLastCard && (
-                            <div className={`w-full h-6 flex items-center justify-center ${color} relative z-10`}>
-                              <span className="text-xl filter drop-shadow leading-none font-black">{symbol}</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    /* Empty Suit Placeholder with faint watermark */
-                    <div className="w-full h-full flex flex-col items-center justify-center text-white/30 border-2 border-dashed border-white/20 rounded-xl relative shadow-inner">
-                      <span className="text-3xl opacity-50 filter drop-shadow">{symbol}</span>
-                      <span className="text-[10px] font-bold mt-1 uppercase opacity-50 tracking-wider">Empty</span>
+                    {/* Top Header of the Column: Symbol & Card Count with 3D Pill */}
+                    <div className="flex items-center justify-between px-1 mb-1 text-xs font-black text-white">
+                      <span className={`text-xl sm:text-2xl font-black ${color === 'text-red-600' ? 'text-red-400' : 'text-slate-100'} filter drop-shadow`}>
+                        {symbol}
+                      </span>
+                      <span className="bg-gradient-to-b from-slate-900 to-black px-2 py-0.2 rounded-full text-[10px] sm:text-[11px] text-amber-300 font-mono font-black border border-white/20 shadow-inner">
+                        {count}
+                      </span>
                     </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+
+                    {/* Faint Suit Watermark Outline in slot background */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 overflow-hidden">
+                      <span className={`text-7xl sm:text-8xl font-black select-none ${color}`}>{symbol}</span>
+                    </div>
+
+                    {/* Cascade Stack Container (Uniform height & equal card distances) */}
+                    <div
+                      className="relative w-full overflow-visible z-10"
+                      style={{ height: `${containerHeight}px` }}
+                    >
+                      {count > 0 ? (
+                        suitCards.map((card, idx) => {
+                          const isSelected = selectedCardId === card.id;
+                          const isLastCard = idx === count - 1;
+                          // Exact equal distance spacing for every card
+                          const topPos = idx * uniformStep;
+                          const isShaking = shakingCardId === card.id;
+
+                          return (
+                            <div
+                              key={card.id}
+                              onClick={() => handleCardClick(card)}
+                              style={{
+                                position: 'absolute',
+                                top: `${isSelected ? Math.max(0, topPos - 16) : topPos}px`,
+                                left: 0,
+                                right: 0,
+                                height: `${CARD_HEIGHT}px`,
+                                zIndex: isSelected ? 100 : idx + 5
+                              }}
+                              className={`rounded-xl bg-gradient-to-b from-white via-[#fcfdfe] to-[#edf2f7] border-t-2 border-t-white border-l border-l-white/90 border-r-2 border-r-slate-300 border-b-2 border-b-slate-400 shadow-[0_4px_10px_rgba(0,0,0,0.35)] transition-all duration-150 select-none overflow-hidden cursor-pointer ${
+                                isSelected
+                                  ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_16px_32px_rgba(250,204,21,0.9),0_8px_16px_rgba(0,0,0,0.5)] -translate-y-3.5 scale-105 z-50 border-amber-400'
+                                  : 'hover:z-40 hover:-translate-y-1.5 hover:scale-102 active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] border-slate-300 hover:border-amber-400'
+                              } ${
+                                isShaking
+                                  ? 'animate-card-shake ring-4 ring-red-500 bg-red-50'
+                                  : ''
+                              }`}
+                            >
+                              {/* 3D Gloss Sheen */}
+                              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent pointer-events-none" />
+
+                              {/* Card Header Strip: LARGE, BOLD & EQUAL SPACING */}
+                              <div className="h-7 px-1.5 sm:px-2 flex items-center justify-between bg-gradient-to-b from-white via-white to-slate-100/90 border-b border-slate-200/80 relative z-10">
+                                <div className={`flex items-center gap-1.5 ${color} leading-none filter drop-shadow-sm`}>
+                                  <span className="text-sm sm:text-base font-black tracking-tight">{card.value}</span>
+                                  <span className="text-base sm:text-lg font-black leading-none">{symbol}</span>
+                                </div>
+                              </div>
+
+                              {/* On the bottom-most card of the stack, display the prominent large suit emblem */}
+                              {isLastCard && (
+                                <div className={`w-full flex items-center justify-center ${color} relative z-10 mt-1`}>
+                                  <span className="text-2xl sm:text-3xl filter drop-shadow leading-none font-black">{symbol}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        /* Empty Suit Placeholder with faint watermark */
+                        <div className="w-full h-full flex flex-col items-center justify-center text-white/30 border-2 border-dashed border-white/20 rounded-xl relative shadow-inner">
+                          <span className="text-4xl opacity-50 filter drop-shadow font-black">{symbol}</span>
+                          <span className="text-[10px] font-bold mt-1 uppercase opacity-50 tracking-wider">Empty</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()
       )}
     </div>
   );
