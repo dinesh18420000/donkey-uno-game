@@ -6,6 +6,7 @@ import { PlayerAvatar } from './PlayerAvatar';
 import { DonkeyHand } from './DonkeyHand';
 import { DonkeyCardView } from './DonkeyCardView';
 import { RankCardModal } from './RankCardModal';
+import { getOpponentSeatStyle } from '../utils/tableSeating';
 import { sounds } from '../utils/audio';
 import {
   Volume2,
@@ -318,99 +319,103 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         </div>
       )}
 
-      {/* AUTHENTIC CIRCULAR CASINO GREEN FELT TABLE ARENA */}
-      <div className="relative z-10 mx-auto my-1 w-[96%] max-w-lg rounded-[2.5rem] sm:rounded-[3.2rem] bg-gradient-to-b from-[#0d5c2e] via-[#084220] to-[#042412] border-[5px] sm:border-[6px] border-[#451e11] ring-2 ring-amber-600/50 shadow-[inset_0_0_35px_rgba(0,0,0,0.85),0_12px_35px_rgba(0,0,0,0.7)] p-2 sm:p-3 overflow-hidden flex flex-col items-center justify-between min-h-[190px] sm:min-h-[220px]">
+      {/* AUTHENTIC CIRCULAR CASINO GREEN FELT TABLE ARENA (Perimeter Seating around the table) */}
+      <div className="relative z-10 mx-auto my-1 w-full max-w-lg h-[245px] sm:h-[280px] flex items-center justify-center px-1">
         
-        {/* Revolving Central Neon-Green Turn Direction Arrow Track */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-60">
-          <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full border-2 border-dashed border-emerald-400/50 flex items-center justify-center animate-green-arrow-cw">
-            <div className="absolute -top-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e]">➤</div>
-            <div className="absolute -bottom-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-180">➤</div>
-            <div className="absolute -right-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-90">➤</div>
-            <div className="absolute -left-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] -rotate-90">➤</div>
+        {/* The Oval Green Felt Table */}
+        <div className="relative w-[90%] h-[84%] rounded-[2.5rem] sm:rounded-[3.2rem] bg-gradient-to-b from-[#0d5c2e] via-[#084220] to-[#042412] border-[5px] sm:border-[6px] border-[#451e11] ring-2 ring-amber-600/50 shadow-[inset_0_0_35px_rgba(0,0,0,0.85),0_12px_35px_rgba(0,0,0,0.7)] flex flex-col items-center justify-center overflow-hidden">
+          
+          {/* Revolving Central Neon-Green Turn Direction Arrow Track */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden opacity-60">
+            <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 border-dashed border-emerald-400/50 flex items-center justify-center animate-green-arrow-cw">
+              <div className="absolute -top-3 text-emerald-400 text-lg font-black filter drop-shadow-[0_0_10px_#22c55e]">➤</div>
+              <div className="absolute -bottom-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-180">➤</div>
+              <div className="absolute -right-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] rotate-90">➤</div>
+              <div className="absolute -left-3 text-emerald-400 text-xl font-black filter drop-shadow-[0_0_10px_#22c55e] -rotate-90">➤</div>
+            </div>
           </div>
-        </div>
 
-        {/* TOP OPPONENTS ROW SEATED AT TABLE RIM */}
-        <div className="relative z-10 w-full px-1">
-          <div
-            className="flex items-center justify-center gap-2.5 sm:gap-4 overflow-x-auto py-1 no-scrollbar"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {opponents.map((opp, idx) => {
-              const colors: ('blue' | 'pink' | 'green' | 'yellow' | 'orange' | 'purple')[] = [
-                'blue', 'pink', 'green', 'yellow', 'orange', 'purple'
-              ];
-              const themeColor = colors[idx % colors.length];
-
-              return (
-                <PlayerAvatar
-                  key={opp.id}
-                  player={opp}
-                  isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
-                  isBeforeMe={playerBeforeMe?.id === opp.id}
-                  isAfterMe={playerAfterMe?.id === opp.id}
-                  colorTheme={themeColor}
-                  activeEmote={activeEmotes[opp.id]}
-                  turnExpiresAt={gameState.turnExpiresAt}
-                  turnDuration={gameState.turnDuration}
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        {/* CENTER TRICK PLAY AREA (With Deal-to-Table & Cut Sweep Animations) */}
-        <div className="relative z-10 flex flex-col items-center justify-center my-1 px-3 min-h-[85px] w-full">
-          {/* Active Cards in Trick */}
-          <div className="relative z-20 flex flex-wrap items-center justify-center gap-2 max-w-sm">
-            {gameState.currentTrick.length > 0 ? (
-              gameState.currentTrick.map((play, idx) => (
-                <div
-                  key={`${play.playerId}_${play.card.id}_${idx}`}
-                  className={`flex flex-col items-center transition-all ${
-                    isCutAnimating ? 'animate-cut-sweep' : 'animate-deal-to-table'
-                  }`}
-                  style={{
-                    transform: `rotate(${(idx - (gameState.currentTrick.length - 1) / 2) * 8}deg)`
-                  }}
-                >
-                  <div className="text-[9px] font-black bg-slate-950/90 px-1.5 py-0.5 rounded-full mb-0.5 text-white border border-amber-400/40 shadow-md">
-                    {play.playerName} {play.isCut ? '💥 CUT!' : ''}
+          {/* CENTER TRICK PLAY AREA */}
+          <div className="relative z-10 flex flex-col items-center justify-center px-2 max-w-[210px] sm:max-w-xs">
+            {/* Active Cards in Trick */}
+            <div className="relative z-20 flex flex-wrap items-center justify-center gap-1.5 max-w-[200px] sm:max-w-xs">
+              {gameState.currentTrick.length > 0 ? (
+                gameState.currentTrick.map((play, idx) => (
+                  <div
+                    key={`${play.playerId}_${play.card.id}_${idx}`}
+                    className={`flex flex-col items-center transition-all ${
+                      isCutAnimating ? 'animate-cut-sweep' : 'animate-deal-to-table'
+                    }`}
+                    style={{
+                      transform: `rotate(${(idx - (gameState.currentTrick.length - 1) / 2) * 8}deg)`
+                    }}
+                  >
+                    <div className="text-[8px] sm:text-[9px] font-black bg-slate-950/90 px-1 py-0.2 rounded-full mb-0.5 text-white border border-amber-400/40 shadow-md">
+                      {play.playerName} {play.isCut ? '💥 CUT!' : ''}
+                    </div>
+                    <DonkeyCardView card={play.card} isCompact={true} />
                   </div>
-                  <DonkeyCardView card={play.card} isCompact={true} />
+                ))
+              ) : (
+                <div className="text-center py-1.5 px-3 rounded-2xl bg-black/60 border border-emerald-400/40 backdrop-blur-md shadow-md text-[11px] font-bold text-emerald-200">
+                  {isMyTurn
+                    ? (isFirstTrick ? '♠ You hold Ace of Spades! Tap to lead.' : 'Lead any card to start trick.')
+                    : `Waiting for ${currentTurnPlayer?.name || 'opponent'} to play...`}
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-1.5 px-3.5 rounded-2xl bg-black/60 border border-emerald-400/40 backdrop-blur-md shadow-md text-xs font-bold text-emerald-200">
-                {isMyTurn
-                  ? (isFirstTrick ? '♠ You hold Ace of Spades! Tap to lead.' : 'Lead any card to start trick.')
-                  : `Waiting for ${currentTurnPlayer?.name || 'opponent'} to play...`}
+              )}
+            </div>
+
+            {/* DYNAMIC CUT ANIMATION OVERLAY: All cards fly to victim */}
+            {isCutAnimating && (
+              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none">
+                <div className="animate-cut-sweep flex flex-col items-center">
+                  <div className="text-3xl filter drop-shadow">🎴🎴🎴</div>
+                  <div className="mt-1 px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs sm:text-sm border-2 border-yellow-300 shadow-2xl flex items-center gap-1.5 animate-bounce whitespace-nowrap">
+                    <span>💥 CUT!</span>
+                    <span>All Trick Cards Swept to {cutVictimName || 'Victim'}!</span>
+                    <span>🫏</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Last Action Announcement Pill */}
+            {gameState.lastAction && !isCutAnimating && (
+              <div className="mt-1 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/50 text-amber-300 text-[9px] sm:text-[10px] font-bold shadow-lg max-w-[200px] sm:max-w-xs truncate text-center">
+                {gameState.lastAction}
               </div>
             )}
           </div>
-
-          {/* DYNAMIC CUT ANIMATION OVERLAY: All cards fly to victim */}
-          {isCutAnimating && (
-            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none">
-              <div className="animate-cut-sweep flex flex-col items-center">
-                <div className="text-3xl filter drop-shadow">🎴🎴🎴</div>
-                <div className="mt-1 px-3 py-1 rounded-full bg-red-600 text-white font-black text-xs sm:text-sm border-2 border-yellow-300 shadow-2xl flex items-center gap-1.5 animate-bounce">
-                  <span>💥 CUT!</span>
-                  <span>All Trick Cards Swept to {cutVictimName || 'Victim'}!</span>
-                  <span>🫏</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Last Action Announcement Pill */}
-          {gameState.lastAction && !isCutAnimating && (
-            <div className="mt-1 px-3 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/50 text-amber-300 text-[10px] font-bold shadow-lg max-w-sm truncate text-center">
-              {gameState.lastAction}
-            </div>
-          )}
         </div>
+
+        {/* INDIVIDUAL OPPONENT PROFILES SEATED SEPARATELY AROUND THE TABLE PERIMETER */}
+        {opponents.map((opp, idx) => {
+          const colors: ('blue' | 'pink' | 'green' | 'yellow' | 'orange' | 'purple')[] = [
+            'blue', 'pink', 'green', 'yellow', 'orange', 'purple'
+          ];
+          const themeColor = colors[idx % colors.length];
+
+          return (
+            <div
+              key={opp.id}
+              style={getOpponentSeatStyle(idx, opponents.length)}
+              className="absolute z-20 pointer-events-auto"
+            >
+              <PlayerAvatar
+                player={opp}
+                size="sm"
+                namePosition="top"
+                isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
+                isBeforeMe={playerBeforeMe?.id === opp.id}
+                isAfterMe={playerAfterMe?.id === opp.id}
+                colorTheme={themeColor}
+                activeEmote={activeEmotes[opp.id]}
+                turnExpiresAt={gameState.turnExpiresAt}
+                turnDuration={gameState.turnDuration}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* BOTTOM USER HAND (4-Suit Cascade where ALL cards are visible simultaneously) */}

@@ -6,6 +6,8 @@ interface PlayerAvatarProps {
   player: PlayerPublic;
   isCurrentTurn: boolean;
   isSelf?: boolean;
+  size?: 'sm' | 'md';
+  namePosition?: 'top' | 'bottom';
   colorTheme?: 'blue' | 'pink' | 'green' | 'yellow' | 'orange' | 'purple';
   activeEmote?: string | null;
   turnExpiresAt?: number;
@@ -29,6 +31,8 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
   player,
   isCurrentTurn,
   isSelf,
+  size = 'md',
+  namePosition = 'bottom',
   colorTheme = 'blue',
   activeEmote,
   turnExpiresAt,
@@ -111,10 +115,21 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         </div>
       )}
 
+      {/* Name Label (Above Avatar if namePosition === 'top') */}
+      {namePosition === 'top' && (
+        <div
+          className={`mb-1 px-2 py-0.5 rounded text-[10px] sm:text-xs font-black shadow-md max-w-[78px] sm:max-w-[95px] truncate text-center ${
+            isSelf ? 'bg-amber-500 text-slate-950 font-black' : theme.pill
+          }`}
+        >
+          {player.name}
+        </div>
+      )}
+
       {/* Avatar Circle Container */}
       <div className="relative">
         <div
-          className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full p-1 transition-all ${
+          className={`${size === 'sm' ? 'w-11 h-11 sm:w-13 sm:h-13' : 'w-14 h-14 sm:w-16 sm:h-16'} rounded-full p-0.5 sm:p-1 transition-all ${
             isCurrentTurn
               ? 'turn-halo-yellow ring-4 sm:ring-[5px] ring-yellow-400 bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 shadow-[0_0_30px_#facc15] scale-110'
               : theme.glow
@@ -124,7 +139,7 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
             {player.avatar && player.avatar.startsWith('http') ? (
               <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-gradient-to-tr from-purple-900 to-indigo-800 flex items-center justify-center font-black text-white text-base">
+              <div className={`w-full h-full bg-gradient-to-tr from-purple-900 to-indigo-800 flex items-center justify-center font-black text-white ${size === 'sm' ? 'text-xs sm:text-sm' : 'text-base'}`}>
                 {initials}
               </div>
             )}
@@ -135,9 +150,9 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         {(player.isBot || player.isDisconnected) && (
           <div
             title={player.isDisconnected ? "Disconnected: Bot is playing" : "AI Bot"}
-            className="absolute -bottom-1 -left-1 w-6 h-6 rounded-full bg-indigo-600 border border-white flex items-center justify-center text-white shadow-md"
+            className="absolute -bottom-1 -left-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-indigo-600 border border-white flex items-center justify-center text-white shadow-md"
           >
-            <Bot className="w-3.5 h-3.5" />
+            <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </div>
         )}
 
@@ -145,16 +160,16 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         {player.isDisconnected && (
           <div
             title="Connection dropped - Bot active"
-            className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-600 border border-white flex items-center justify-center text-white shadow-md animate-pulse"
+            className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-red-600 border border-white flex items-center justify-center text-white shadow-md animate-pulse"
           >
-            <WifiOff className="w-3.5 h-3.5" />
+            <WifiOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </div>
         )}
 
         {/* Card Count Pill Badge */}
         {!player.rank && !player.isMercyEliminated && (
           <div
-            className={`absolute -bottom-1.5 -right-1.5 px-2 py-0.5 text-[11px] font-black rounded-full border border-white text-white shadow-md ${
+            className={`absolute -bottom-1 -right-1 px-1.5 py-0.2 sm:px-2 sm:py-0.5 text-[9px] sm:text-[11px] font-black rounded-full border border-white text-white shadow-md ${
               player.cardsCount >= 20 ? 'bg-red-600 animate-pulse' : 'bg-slate-950/90'
             }`}
           >
@@ -163,14 +178,16 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         )}
       </div>
 
-      {/* Name Label */}
-      <div
-        className={`mt-1.5 px-2.5 py-0.5 rounded-lg text-white text-xs font-black shadow-md max-w-[95px] truncate text-center ${
-          isSelf ? 'bg-amber-500 text-slate-950 font-black' : theme.pill
-        }`}
-      >
-        {player.name}
-      </div>
+      {/* Name Label (Below Avatar if namePosition === 'bottom') */}
+      {namePosition === 'bottom' && (
+        <div
+          className={`mt-1.5 px-2.5 py-0.5 rounded-lg text-white text-xs font-black shadow-md max-w-[95px] truncate text-center ${
+            isSelf ? 'bg-amber-500 text-slate-950 font-black' : theme.pill
+          }`}
+        >
+          {player.name}
+        </div>
+      )}
 
       {/* Turn Relationship Badges: Before You / After You / Playing Now */}
       {!player.rank && !player.isMercyEliminated && (
