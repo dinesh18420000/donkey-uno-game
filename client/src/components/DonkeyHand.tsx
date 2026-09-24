@@ -70,17 +70,16 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
 
   const getInvalidReason = (card: DonkeyCard): string | null => {
     if (!isMyTurn) {
-      return "⏳ It's not your turn! Please wait for your turn.";
+      return "Wait for your turn ⏳";
     }
     if (isFirstTrick) {
       if (!(card.suit === 'SPADES' && card.value === 'A')) {
-        return "♠ Ace of Spades (♠ A) must lead the first trick! Please play ♠ A.";
+        return "Must play ♠ Ace of Spades";
       }
     }
     if (leadSuit && hasLeadSuit && card.suit !== leadSuit) {
-      const leadSym = leadSuit === 'SPADES' ? '♠ Spades' : leadSuit === 'HEARTS' ? '♥ Hearts' : leadSuit === 'CLUBS' ? '♣ Clubs' : '♦ Diamonds';
-      const cardSym = card.suit === 'SPADES' ? '♠' : card.suit === 'HEARTS' ? '♥' : card.suit === 'CLUBS' ? '♣' : '♦';
-      return `⚠️ Lead suit is ${leadSym}! You hold ${leadSym} in hand, so you cannot play ${cardSym} ${card.value}.`;
+      const suitName = leadSuit === 'SPADES' ? 'Spades ♠' : leadSuit === 'HEARTS' ? 'Hearts ♥' : leadSuit === 'CLUBS' ? 'Clubs ♣' : 'Diamonds ♦';
+      return `Must play ${suitName}`;
     }
     return null;
   };
@@ -90,11 +89,23 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
   };
 
   const handleCardClick = (card: DonkeyCard) => {
-    sounds.playCardSelect();
     const errorMsg = getInvalidReason(card);
     if (errorMsg) {
+      // 1. Subtle gentle card nudge (less vibrate)
       setShakingCardId(card.id);
-      setTimeout(() => setShakingCardId(null), 500);
+      setTimeout(() => setShakingCardId(null), 250);
+
+      // 2. Gentle haptic pulse on mobile (tiny 20ms micro-vibrate)
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try {
+          navigator.vibrate(20);
+        } catch {}
+      }
+
+      // 3. Cute bubble pop sound effect
+      sounds.playPop();
+
+      // 4. Trigger small pop-in bubble tooltip
       const symbol = card.suit === 'SPADES' ? '♠' : card.suit === 'HEARTS' ? '♥' : card.suit === 'CLUBS' ? '♣' : '♦';
       if (onInvalidMove) {
         onInvalidMove({ message: errorMsg, card, symbol });
@@ -102,6 +113,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
       return;
     }
 
+    sounds.playCardSelect();
     if (selectedCardId === card.id) {
       onPlayCard(card);
     } else {
@@ -202,13 +214,13 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                 return (
                   <div
                     key={suit}
-                    className={`relative flex flex-col rounded-2xl p-1 transition-all duration-300 border ${
-                      shouldShadowThisSuit
-                        ? 'opacity-25 grayscale-[70%] brightness-40 pointer-events-none border-white/5 bg-black/40'
-                        : isColumnLead
-                        ? 'border-amber-400 bg-amber-400/20 ring-4 ring-amber-400 shadow-[0_0_24px_rgba(250,204,21,0.8)] scale-102 z-20'
+                    className={`relative flex flex-col rounded-2xl p-1 transition-all duration-200 border ${
+                      isColumnLead
+                        ? 'border-amber-400 bg-amber-400/15 ring-2 ring-amber-400/80 shadow-[0_0_18px_rgba(250,204,21,0.6)] scale-[1.01] z-20'
                         : canCut
-                        ? 'border-rose-500 bg-rose-500/10 ring-2 ring-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)] animate-pulse'
+                        ? 'border-rose-500/80 bg-rose-500/10 ring-2 ring-rose-500/60 shadow-[0_0_14px_rgba(244,63,94,0.4)] animate-pulse'
+                        : shouldShadowThisSuit
+                        ? 'border-purple-950/40 bg-black/25'
                         : 'border-white/10 bg-black/15'
                     }`}
                   >
@@ -251,22 +263,29 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
                                 height: `${CARD_HEIGHT}px`,
                                 zIndex: isSelected ? 100 : idx + 5
                               }}
-                              className={`rounded-xl bg-white border border-slate-200/90 shadow-[0_4px_10px_rgba(0,0,0,0.32)] transition-all duration-150 select-none overflow-hidden cursor-pointer flex flex-col justify-between ${
+                              className={`rounded-xl bg-white border border-slate-200/90 shadow-[0_3px_8px_rgba(0,0,0,0.25)] transition-all duration-150 select-none overflow-hidden cursor-pointer flex flex-col justify-between ${
                                 isCardShadowed
-                                  ? 'opacity-20 grayscale-[80%] brightness-40 shadow-none pointer-events-none cursor-not-allowed'
+                                  ? 'brightness-[0.84] opacity-85'
                                   : isColumnLead && isMyTurn
-                                  ? 'ring-2 ring-amber-400 shadow-[0_0_16px_rgba(250,204,21,0.85)] brightness-105'
+                                  ? 'ring-2 ring-amber-400 shadow-[0_0_14px_rgba(250,204,21,0.85)] brightness-105'
                                   : ''
                               } ${
                                 isSelected
                                   ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_16px_32px_rgba(250,204,21,0.9),0_8px_16px_rgba(0,0,0,0.5)] -translate-y-3.5 scale-105 z-50 border-amber-400'
+                                  : isCardShadowed
+                                  ? 'hover:-translate-y-0.5 active:scale-98'
                                   : 'hover:z-40 hover:-translate-y-1.5 hover:scale-102 active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:border-amber-400'
                               } ${
                                 isShaking
-                                  ? 'animate-card-shake ring-4 ring-red-500 bg-red-50'
+                                  ? 'animate-card-shake ring-2 ring-rose-500/80'
                                   : ''
                               }`}
                             >
+                              {/* Soft shaded overlay for disabled cards (clearly visible, exactly matches screenshot) */}
+                              {isCardShadowed && (
+                                <div className="absolute inset-0 bg-slate-950/15 pointer-events-none z-20" />
+                              )}
+
                               {/* Card Header Strip: Bold Rank on Left, Small Suit Icon on Right (Exact Donkey Master Match) */}
                               <div className="h-6 sm:h-7 px-1.5 sm:px-2 pt-0.5 flex items-center justify-between leading-none relative z-10">
                                 <span className={`text-lg sm:text-xl font-[900] tracking-tight ${rankColor} drop-shadow-[0_0.5px_0_currentColor] select-none`}>

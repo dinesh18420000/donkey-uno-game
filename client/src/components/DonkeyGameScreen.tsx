@@ -219,6 +219,15 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     prevClearedRef.current = hasPlayerCleared;
   }, [hasPlayerCleared]);
 
+  // Auto-dismiss invalid card small pop tooltip after 1.6s
+  useEffect(() => {
+    if (!invalidCardNotice) return;
+    const timer = setTimeout(() => {
+      setInvalidCardNotice(null);
+    }, 1600);
+    return () => clearTimeout(timer);
+  }, [invalidCardNotice]);
+
   // Turn countdown timer: green when normal, red when <= 6s
   useEffect(() => {
     if (gameState.turnExpiresAt && gameState.turnExpiresAt > Date.now()) {
@@ -650,22 +659,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         )}
       </div>
 
-      {/* 5. INVALID CARD NOTICE ERROR BANNER */}
+      {/* 5. SMALL POPUP TOOLTIP ON INVALID CARD TOUCH */}
       {invalidCardNotice && (
-        <div className="relative z-30 w-full max-w-md mx-auto px-3 my-0.5 animate-bounce">
-          <div className="p-2 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 border-2 border-white shadow-2xl flex items-center justify-between gap-2 text-white">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-lg filter drop-shadow">⚠️</span>
-              <span className="text-xs sm:text-sm font-black leading-tight text-white drop-shadow truncate">
-                {invalidCardNotice.message}
-              </span>
-            </div>
-            <button
-              onClick={() => setInvalidCardNotice(null)}
-              className="p-1 rounded-full bg-black/40 hover:bg-black/60 text-white active:scale-95 flex-shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+        <div className="relative z-40 flex justify-center w-full px-4 -mb-1 pointer-events-none animate-pop-in">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-black text-xs shadow-[0_4px_18px_rgba(0,0,0,0.8),0_0_12px_rgba(250,204,21,0.6)] backdrop-blur-md">
+            <span className="text-sm filter drop-shadow">{invalidCardNotice.symbol}</span>
+            <span className="leading-none drop-shadow">{invalidCardNotice.message}</span>
           </div>
         </div>
       )}

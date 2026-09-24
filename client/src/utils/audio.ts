@@ -220,6 +220,31 @@ class SoundEffects {
     });
   }
 
+  // 10. Cute Bubble Pop (When invalid card is tapped)
+  public playPop() {
+    if (!this.enabled) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    // Frequency sweeps smoothly down from 750Hz to 320Hz for a crisp bubble pop
+    osc.frequency.setValueAtTime(750, now);
+    osc.frequency.exponentialRampToValueAtTime(320, now + 0.07);
+
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.07);
+  }
+
   // --- Organic Procedural Foley Synthesizers (High-Quality Fallbacks) ---
 
   // Realistic card paper friction / tap synthesis using bandpass filtered noise
