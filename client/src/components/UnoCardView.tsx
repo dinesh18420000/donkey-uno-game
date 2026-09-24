@@ -196,7 +196,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         } ${
           isValid
             ? 'cursor-pointer active:scale-95 border-white/80'
-            : 'opacity-30 grayscale-[85%] brightness-75 border-slate-600/60 cursor-not-allowed shadow-none pointer-events-none'
+            : 'opacity-60 brightness-[0.6] border-slate-600/60 cursor-not-allowed shadow-none pointer-events-none'
         }`}
       >
         <span className={`text-[11px] font-black leading-none ${theme.cornerText}`}>{cornerSym}</span>
@@ -216,11 +216,20 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       } ${
         isValid
           ? 'cursor-pointer hover:-translate-y-1.5 active:scale-95 hover:shadow-2xl border-white/95'
-          : 'opacity-30 grayscale-[85%] brightness-75 border-slate-600/60 cursor-not-allowed shadow-none pointer-events-none'
+          : 'opacity-65 brightness-[0.55] border-slate-500/50 cursor-not-allowed shadow-none pointer-events-none'
       }`}
     >
       {/* Gloss reflection overlay */}
       <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
+
+      {/* DISABLED OVERLAY: dark tint + ban icon (only when invalid) */}
+      {!isValid && (
+        <div className="absolute inset-0 z-30 rounded-2xl bg-black/35 flex items-center justify-center pointer-events-none">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-[3px] border-red-400/80 flex items-center justify-center">
+            <div className="w-full h-[3px] bg-red-400/80 rounded-full transform -rotate-45" />
+          </div>
+        </div>
+      )}
 
       {/* Top Left Corner Pip */}
       <div className={`relative z-10 text-xs sm:text-sm font-black leading-none tracking-tight ${theme.cornerText}`}>
