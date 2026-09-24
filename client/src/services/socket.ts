@@ -30,8 +30,8 @@ class SocketService {
 
     const savedServer = localStorage.getItem('donkey_uno_server_url');
     const envServer = (import.meta as any).env?.VITE_SERVER_URL;
-    // Default to saved server, env server, or local fallback
-    this.serverUrl = savedServer || envServer || `${window.location.protocol}//${window.location.hostname}:3001`;
+    // Default to saved server, env server, or live 24/7 cloud URL on Render
+    this.serverUrl = savedServer || envServer || 'https://donkey-uno-server.onrender.com';
   }
 
   public setServerUrl(url: string) {
