@@ -167,8 +167,8 @@ namespace DonkeyUno.Editor
             // Gold icon box
             GameObject logoBox = CreatePanel("LogoBox", lobbyGO.transform,
                 new Color(0.95f, 0.70f, 0.12f), new Vector2(44, 44));
-            SetAnchors(logoBox.rectTransform, new Vector2(0,1), new Vector2(0,1), new Vector2(0,1));
-            logoBox.rectTransform.anchoredPosition = new Vector2(20, -72);
+            SetAnchors(logoBox.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(0,1), new Vector2(0,1));
+            logoBox.GetComponent<RectTransform>().anchoredPosition = new Vector2(20, -72);
             TextMeshProUGUI logoEmoji = CreateText("Emoji", logoBox.transform, "🃏", 22, C_DARK_TXT);
             StretchToParent(logoEmoji.rectTransform);
 
@@ -190,9 +190,9 @@ namespace DonkeyUno.Editor
             // ── MAIN PANEL — glass card ────────────────────────────────────────
             // MainPanel = the whole scrollable area that is shown pre-game
             GameObject mainPanel = CreatePanel("MainPanel", lobbyGO.transform, C_GLASS, Vector2.zero);
-            SetAnchors(mainPanel.rectTransform, new Vector2(0,0), new Vector2(1,1), new Vector2(0.5f,0.5f));
-            mainPanel.rectTransform.offsetMin = new Vector2(12, 12);
-            mainPanel.rectTransform.offsetMax = new Vector2(-12, -110);
+            SetAnchors(mainPanel.GetComponent<RectTransform>(), new Vector2(0,0), new Vector2(1,1), new Vector2(0.5f,0.5f));
+            mainPanel.GetComponent<RectTransform>().offsetMin = new Vector2(12, 12);
+            mainPanel.GetComponent<RectTransform>().offsetMax = new Vector2(-12, -110);
             Image mainBorder = mainPanel.GetComponent<Image>();
             mainBorder.color = C_GLASS;
 
@@ -209,8 +209,8 @@ namespace DonkeyUno.Editor
             // Avatar circle placeholder
             GameObject avatarCircle = CreatePanel("AvatarCircle", mainPanel.transform,
                 new Color(0.1f, 0.3f, 0.5f), new Vector2(56, 56));
-            SetAnchors(avatarCircle.rectTransform, new Vector2(0,1), new Vector2(0,1), new Vector2(0,1));
-            avatarCircle.rectTransform.anchoredPosition = new Vector2(40, -56);
+            SetAnchors(avatarCircle.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(0,1), new Vector2(0,1));
+            avatarCircle.GetComponent<RectTransform>().anchoredPosition = new Vector2(40, -56);
             TextMeshProUGUI avatarTxt = CreateText("AvatarTxt", avatarCircle.transform, "🤖", 26, Color.white);
             StretchToParent(avatarTxt.rectTransform);
 
@@ -243,9 +243,9 @@ namespace DonkeyUno.Editor
             // Donkey mode card
             GameObject donkeyCard = CreatePanel("DonkeyModeCard", mainPanel.transform,
                 C_DONKEY, Vector2.zero);
-            SetAnchors(donkeyCard.rectTransform, new Vector2(0,1), new Vector2(0.5f,1), new Vector2(0.5f,1));
-            donkeyCard.rectTransform.offsetMin = new Vector2(12, -232);
-            donkeyCard.rectTransform.offsetMax = new Vector2(-4, -178);
+            SetAnchors(donkeyCard.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(0.5f,1), new Vector2(0.5f,1));
+            donkeyCard.GetComponent<RectTransform>().offsetMin = new Vector2(12, -232);
+            donkeyCard.GetComponent<RectTransform>().offsetMax = new Vector2(-4, -178);
             TextMeshProUGUI donkeyEmoji = CreateText("DonkeyEmoji", donkeyCard.transform, "🫏", 22, Color.white);
             donkeyEmoji.rectTransform.anchoredPosition = new Vector2(-50, 8);
             TextMeshProUGUI donkeyName = CreateText("DonkeyName", donkeyCard.transform, "Donkey Master", 12, Color.white);
@@ -258,9 +258,9 @@ namespace DonkeyUno.Editor
             // Uno mode card
             GameObject unoCard = CreatePanel("UnoModeCard", mainPanel.transform,
                 C_UNO_RED, Vector2.zero);
-            SetAnchors(unoCard.rectTransform, new Vector2(0.5f,1), new Vector2(1,1), new Vector2(0.5f,1));
-            unoCard.rectTransform.offsetMin = new Vector2(4, -232);
-            unoCard.rectTransform.offsetMax = new Vector2(-12, -178);
+            SetAnchors(unoCard.GetComponent<RectTransform>(), new Vector2(0.5f,1), new Vector2(1,1), new Vector2(0.5f,1));
+            unoCard.GetComponent<RectTransform>().offsetMin = new Vector2(4, -232);
+            unoCard.GetComponent<RectTransform>().offsetMax = new Vector2(-12, -178);
             TextMeshProUGUI unoEmoji = CreateText("UnoEmoji", unoCard.transform, "🔥", 22, Color.white);
             unoEmoji.rectTransform.anchoredPosition = new Vector2(-50, 8);
             TextMeshProUGUI unoName = CreateText("UnoName", unoCard.transform, "UNO No Mercy", 12, Color.white);
@@ -308,9 +308,9 @@ namespace DonkeyUno.Editor
 
             TextMeshProUGUI familyHint = CreateText("FamilyHint", mainPanel.transform,
                 "⭐ No code needed! Instant 1-tap join (Up to 10 players)", 9, C_TXT_GREEN);
-            SetAnchors(familyHint.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            familyHint.rectTransform.sizeDelta = new Vector2(-24, 18);
-            familyHint.rectTransform.anchoredPosition = new Vector2(0, -350);
+            SetAnchors(familyHint.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
+            familyHint.GetComponent<RectTransform>().sizeDelta = new Vector2(-24, 18);
+            familyHint.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -350);
 
             // Status feedback (shows "Joining Family Table…" etc.)
             TextMeshProUGUI statusFeedback = CreateText("StatusFeedback", mainPanel.transform,
@@ -356,9 +356,9 @@ namespace DonkeyUno.Editor
             // WAITING ROOM PANEL  (shown after joining / creating a room)
             // ─────────────────────────────────────────────────────────────────
             GameObject waitPanel = CreatePanel("WaitingRoomPanel", lobbyGO.transform, C_BG_MID, Vector2.zero);
-            SetAnchors(waitPanel.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f));
-            waitPanel.rectTransform.offsetMin = Vector2.zero;
-            waitPanel.rectTransform.offsetMax = Vector2.zero;
+            SetAnchors(waitPanel.GetComponent<RectTransform>(), Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f));
+            waitPanel.GetComponent<RectTransform>().offsetMin = Vector2.zero;
+            waitPanel.GetComponent<RectTransform>().offsetMax = Vector2.zero;
             waitPanel.SetActive(false);
 
             // Waiting room header row
@@ -380,23 +380,23 @@ namespace DonkeyUno.Editor
             // Open table message
             TextMeshProUGUI openTableMsg = CreateText("OpenTableMsg", waitPanel.transform,
                 "🏠 OPEN TABLE FOR FAMILY & FRIENDS\nAny family member opening the app joins automatically!", 11, C_TXT_GREEN);
-            SetAnchors(openTableMsg.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            openTableMsg.rectTransform.sizeDelta = new Vector2(-24, 44);
-            openTableMsg.rectTransform.anchoredPosition = new Vector2(0, -148);
+            SetAnchors(openTableMsg.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
+            openTableMsg.GetComponent<RectTransform>().sizeDelta = new Vector2(-24, 44);
+            openTableMsg.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -148);
 
             // Bot note
             TextMeshProUGUI botNote = CreateText("BotNote", waitPanel.transform,
                 "🤖 If anyone disconnects, a bot holds their turn until they return!", 10, new Color(0.8f,0.7f,1f));
-            SetAnchors(botNote.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            botNote.rectTransform.sizeDelta = new Vector2(-24, 28);
-            botNote.rectTransform.anchoredPosition = new Vector2(0, -182);
+            SetAnchors(botNote.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
+            botNote.GetComponent<RectTransform>().sizeDelta = new Vector2(-24, 28);
+            botNote.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -182);
 
             // Players list
             TextMeshProUGUI playersList = CreateText("PlayersList", waitPanel.transform,
                 "Connected Players:\n\n• Waiting for players...", 13, Color.white);
-            SetAnchors(playersList.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            playersList.rectTransform.sizeDelta = new Vector2(-24, 240);
-            playersList.rectTransform.anchoredPosition = new Vector2(0, -340);
+            SetAnchors(playersList.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
+            playersList.GetComponent<RectTransform>().sizeDelta = new Vector2(-24, 240);
+            playersList.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -340);
             playersList.alignment = TextAlignmentOptions.Left;
             playersList.overflowMode = TextOverflowModes.ScrollRect;
 
@@ -421,9 +421,9 @@ namespace DonkeyUno.Editor
             // Waiting-for-host hint
             TextMeshProUGUI waitingHint = CreateText("WaitingHint", waitPanel.transform,
                 "Waiting for host to start game...", 12, C_TXT_PURP);
-            SetAnchors(waitingHint.rectTransform, new Vector2(0,0), new Vector2(1,0), new Vector2(0.5f,0));
-            waitingHint.rectTransform.sizeDelta = new Vector2(-24, 36);
-            waitingHint.rectTransform.anchoredPosition = new Vector2(0, 96);
+            SetAnchors(waitingHint.GetComponent<RectTransform>(), new Vector2(0,0), new Vector2(1,0), new Vector2(0.5f,0));
+            waitingHint.GetComponent<RectTransform>().sizeDelta = new Vector2(-24, 36);
+            waitingHint.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 96);
 
             // Leave Room Button (bottom-left)
             Button leaveBtn = CreateButton("LeaveButton", waitPanel.transform,
@@ -482,9 +482,9 @@ namespace DonkeyUno.Editor
             // Header strip
             GameObject headerStrip = CreatePanel("HeaderStrip", donkeyGO.transform,
                 new Color(0.02f, 0.06f, 0.14f, 0.9f), Vector2.zero);
-            SetAnchors(headerStrip.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            headerStrip.rectTransform.sizeDelta = new Vector2(0, 60);
-            headerStrip.rectTransform.anchoredPosition = Vector2.zero;
+            SetAnchors(headerStrip.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
+            headerStrip.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 60);
+            headerStrip.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
 
             TextMeshProUGUI turnText = CreateText("TurnStatus", headerStrip.transform,
                 "🫏 DONKEY MASTER — Waiting to start...", 15, C_GOLD);
@@ -507,9 +507,9 @@ namespace DonkeyUno.Editor
             // Cut banner
             GameObject cutGO = CreatePanel("CutBanner", donkeyGO.transform,
                 new Color(0.9f, 0.1f, 0.15f, 0.92f), Vector2.zero);
-            SetAnchors(cutGO.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            cutGO.rectTransform.sizeDelta = new Vector2(0, 48);
-            cutGO.rectTransform.anchoredPosition = new Vector2(0, -64);
+            SetAnchors(cutGO.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
+            cutGO.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 48);
+            cutGO.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -64);
             TextMeshProUGUI cutText = CreateText("CutText", cutGO.transform,
                 "⚡ CUT BY OPPONENT!", 16, Color.white);
             cutText.fontStyle = FontStyles.Bold;
@@ -526,9 +526,9 @@ namespace DonkeyUno.Editor
             // Bottom bar
             GameObject bottomBar = CreatePanel("BottomBar", donkeyGO.transform,
                 new Color(0.02f, 0.04f, 0.10f, 0.96f), Vector2.zero);
-            SetAnchors(bottomBar.rectTransform, new Vector2(0,0), new Vector2(1,0), new Vector2(0.5f,0));
-            bottomBar.rectTransform.sizeDelta = new Vector2(0, 72);
-            bottomBar.rectTransform.anchoredPosition = Vector2.zero;
+            SetAnchors(bottomBar.GetComponent<RectTransform>(), new Vector2(0,0), new Vector2(1,0), new Vector2(0.5f,0));
+            bottomBar.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 72);
+            bottomBar.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
 
             // DEAL button — prominent gold
             Button dealBtn = CreateButton("DealButton", bottomBar.transform,
@@ -596,9 +596,9 @@ namespace DonkeyUno.Editor
             // Header strip
             GameObject headerStrip = CreatePanel("HeaderStrip", unoGO.transform,
                 new Color(0.06f, 0.02f, 0.12f, 0.92f), Vector2.zero);
-            SetAnchors(headerStrip.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            headerStrip.rectTransform.sizeDelta = new Vector2(0, 58);
-            headerStrip.rectTransform.anchoredPosition = Vector2.zero;
+            SetAnchors(headerStrip.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
+            headerStrip.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 58);
+            headerStrip.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
 
             TextMeshProUGUI turnText = CreateText("TurnStatus", headerStrip.transform,
                 "🔥 UNO NO MERCY — Waiting to start...", 15, C_GOLD);
@@ -608,9 +608,9 @@ namespace DonkeyUno.Editor
             // Stacking Banner
             GameObject stackBanner = CreatePanel("StackingBanner", unoGO.transform,
                 new Color(0.92f, 0.12f, 0.22f, 0.95f), Vector2.zero);
-            SetAnchors(stackBanner.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            stackBanner.rectTransform.sizeDelta = new Vector2(0, 44);
-            stackBanner.rectTransform.anchoredPosition = new Vector2(0, -60);
+            SetAnchors(stackBanner.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
+            stackBanner.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 44);
+            stackBanner.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -60);
             TextMeshProUGUI stackText = CreateText("StackText", stackBanner.transform,
                 "🔥 +10 STACK ACTIVE!", 16, Color.white);
             stackText.fontStyle = FontStyles.Bold;
@@ -674,9 +674,9 @@ namespace DonkeyUno.Editor
             // Bottom bar
             GameObject bottomBar = CreatePanel("BottomBar", unoGO.transform,
                 new Color(0.04f, 0.02f, 0.08f, 0.96f), Vector2.zero);
-            SetAnchors(bottomBar.rectTransform, new Vector2(0,0), new Vector2(1,0), new Vector2(0.5f,0));
-            bottomBar.rectTransform.sizeDelta = new Vector2(0, 64);
-            bottomBar.rectTransform.anchoredPosition = Vector2.zero;
+            SetAnchors(bottomBar.GetComponent<RectTransform>(), new Vector2(0,0), new Vector2(1,0), new Vector2(0.5f,0));
+            bottomBar.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 64);
+            bottomBar.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
 
             TextMeshProUGUI lastAction = CreateText("LastAction", bottomBar.transform, "", 10, C_TXT_PURP);
             SetAnchors(lastAction.rectTransform, new Vector2(0,0), new Vector2(0.45f,1), new Vector2(0,0.5f));
@@ -993,3 +993,4 @@ namespace DonkeyUno.Editor
         }
     }
 }
+
