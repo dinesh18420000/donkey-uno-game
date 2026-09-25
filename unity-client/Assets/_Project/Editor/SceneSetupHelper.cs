@@ -234,6 +234,12 @@ namespace DonkeyUno.Editor
             Image bg = lobbyGO.AddComponent<Image>();
             bg.color = new Color(0.08f, 0.06f, 0.15f, 0.98f);
 
+            // Connection Status Badge (Matching Web App!)
+            TextMeshProUGUI connBadge = CreateText("ConnectionBadge", lobbyGO.transform, "🟡 CONNECTING TO GAME SERVER...", 14, new Color(1f, 0.85f, 0.2f));
+            RectTransform rtBadge = connBadge.GetComponent<RectTransform>();
+            rtBadge.anchoredPosition = new Vector2(0, 415);
+            rtBadge.sizeDelta = new Vector2(600, 30);
+
             // Title
             TextMeshProUGUI title = CreateText("Title", lobbyGO.transform, "DONKEY MASTER & UNO NO MERCY", 34, new Color(1f, 0.84f, 0.25f));
             title.fontStyle = FontStyles.Bold;
@@ -247,68 +253,87 @@ namespace DonkeyUno.Editor
             rtSub.anchoredPosition = new Vector2(0, 310);
             rtSub.sizeDelta = new Vector2(600, 30);
 
-            // Profile Panel
-            GameObject panel = CreatePanel("MainPanel", lobbyGO.transform, new Color(0.12f, 0.1f, 0.24f, 0.9f), new Vector2(500, 480));
+            // Profile Panel (MainPanel)
+            GameObject panel = CreatePanel("MainPanel", lobbyGO.transform, new Color(0.12f, 0.1f, 0.24f, 0.9f), new Vector2(520, 560));
             RectTransform rtPanel = panel.GetComponent<RectTransform>();
-            rtPanel.anchoredPosition = new Vector2(0, 40);
+            rtPanel.anchoredPosition = new Vector2(0, 20);
 
             // Player Name Input
-            var nameInput = CreateInputField("NameInput", panel.transform, "Enter your name...", "Thala", new Vector2(0, 160), new Vector2(400, 48));
+            var nameInput = CreateInputField("NameInput", panel.transform, "Enter your name...", "Thala", new Vector2(0, 210), new Vector2(420, 48));
             
             // Server URL Input
-            var serverInput = CreateInputField("ServerInput", panel.transform, "Server URL...", "http://localhost:3001", new Vector2(0, 100), new Vector2(400, 48));
+            var serverInput = CreateInputField("ServerInput", panel.transform, "Server URL...", "http://localhost:3001", new Vector2(0, 150), new Vector2(420, 48));
 
             // Game Type Dropdown
             GameObject ddGO = new GameObject("GameTypeDropdown", typeof(RectTransform), typeof(Image), typeof(TMP_Dropdown));
             ddGO.transform.SetParent(panel.transform, false);
             RectTransform rtDD = ddGO.GetComponent<RectTransform>();
-            rtDD.anchoredPosition = new Vector2(0, 40);
-            rtDD.sizeDelta = new Vector2(400, 48);
+            rtDD.anchoredPosition = new Vector2(0, 90);
+            rtDD.sizeDelta = new Vector2(420, 48);
             ddGO.GetComponent<Image>().color = new Color(0.18f, 0.15f, 0.35f);
             TMP_Dropdown dropdown = ddGO.GetComponent<TMP_Dropdown>();
             dropdown.options.Add(new TMP_Dropdown.OptionData("UNO No Mercy (🔥 168 Cards • Stacking)"));
             dropdown.options.Add(new TMP_Dropdown.OptionData("Donkey Master (🫏 52 Cards • Penalty Cut)"));
 
             // Max Players Slider
-            var slider = CreateSlider("MaxPlayersSlider", panel.transform, 2, 10, 4, new Vector2(0, -20), new Vector2(300, 24));
+            var slider = CreateSlider("MaxPlayersSlider", panel.transform, 2, 10, 4, new Vector2(0, 30), new Vector2(300, 24));
             TextMeshProUGUI maxPlayersText = CreateText("MaxPlayersText", panel.transform, "Max Players: 4", 14, Color.white);
-            maxPlayersText.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 5);
+            maxPlayersText.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 55);
+
+            // 1-TAP FAMILY & FRIENDS TABLE BUTTON (Matching Web App!)
+            var familyBtn = CreateButton("FamilyTableButton", panel.transform, "JOIN FAMILY & FRIENDS TABLE 🏠", new Color(0.12f, 0.85f, 0.42f), new Color(0.02f, 0.15f, 0.05f), new Vector2(0, -30), new Vector2(420, 54));
+            TextMeshProUGUI fTxt = familyBtn.GetComponentInChildren<TextMeshProUGUI>();
+            fTxt.fontStyle = FontStyles.Bold;
+
+            // Status Feedback Text
+            TextMeshProUGUI statusFeedback = CreateText("StatusFeedback", panel.transform, "", 14, new Color(1f, 0.85f, 0.2f));
+            statusFeedback.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -65);
+            statusFeedback.GetComponent<RectTransform>().sizeDelta = new Vector2(420, 24);
 
             // CREATE ROOM Button
-            var createBtn = CreateButton("CreateRoomButton", panel.transform, "CREATE ROOM", new Color(0.95f, 0.72f, 0.1f), new Color(0.1f, 0.05f, 0.02f), new Vector2(0, -75), new Vector2(400, 52));
+            var createBtn = CreateButton("CreateRoomButton", panel.transform, "CREATE PRIVATE ROOM", new Color(0.95f, 0.72f, 0.1f), new Color(0.1f, 0.05f, 0.02f), new Vector2(0, -105), new Vector2(420, 46));
 
             // Room Code Input & Join Button
-            var roomInput = CreateInputField("RoomCodeInput", panel.transform, "Room Code...", "", new Vector2(-105, -145), new Vector2(180, 48));
-            var joinBtn = CreateButton("JoinRoomButton", panel.transform, "JOIN ROOM", new Color(0.2f, 0.6f, 0.95f), Color.white, new Vector2(105, -145), new Vector2(180, 48));
+            var roomInput = CreateInputField("RoomCodeInput", panel.transform, "6-DIGIT CODE", "", new Vector2(-115, -170), new Vector2(180, 48));
+            var joinBtn = CreateButton("JoinRoomButton", panel.transform, "JOIN ROOM", new Color(0.2f, 0.6f, 0.95f), Color.white, new Vector2(115, -170), new Vector2(180, 48));
 
             // Waiting Room Panel
-            GameObject waitPanel = CreatePanel("WaitingRoomPanel", lobbyGO.transform, new Color(0.1f, 0.08f, 0.2f, 0.96f), new Vector2(550, 420));
+            GameObject waitPanel = CreatePanel("WaitingRoomPanel", lobbyGO.transform, new Color(0.1f, 0.08f, 0.2f, 0.96f), new Vector2(550, 450));
             waitPanel.SetActive(false);
 
             TextMeshProUGUI roomCodeDisplay = CreateText("RoomCodeDisplay", waitPanel.transform, "ROOM CODE: ----", 24, new Color(1f, 0.84f, 0.25f));
-            roomCodeDisplay.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 150);
+            roomCodeDisplay.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 165);
+
+            TextMeshProUGUI gameModeBadge = CreateText("GameModeBadge", waitPanel.transform, "🫏 DONKEY MASTER", 16, new Color(0.3f, 0.85f, 1f));
+            gameModeBadge.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 130);
 
             TextMeshProUGUI playersList = CreateText("PlayersList", waitPanel.transform, "Connected Players:\n• Waiting for players...", 16, Color.white);
             RectTransform rtPL = playersList.GetComponent<RectTransform>();
-            rtPL.anchoredPosition = new Vector2(0, 40);
-            rtPL.sizeDelta = new Vector2(450, 150);
+            rtPL.anchoredPosition = new Vector2(0, 30);
+            rtPL.sizeDelta = new Vector2(450, 160);
 
-            var addBotBtn = CreateButton("AddBotButton", waitPanel.transform, "+ Add Computer Bot", new Color(0.4f, 0.25f, 0.75f), Color.white, new Vector2(0, -80), new Vector2(320, 44));
-            var startBtn = CreateButton("StartGameButton", waitPanel.transform, "START GAME ▶", new Color(0.15f, 0.8f, 0.35f), Color.white, new Vector2(0, -140), new Vector2(320, 50));
-            var leaveBtn = CreateButton("LeaveButton", waitPanel.transform, "Leave Room", new Color(0.4f, 0.15f, 0.15f), Color.white, new Vector2(0, -195), new Vector2(200, 36));
+            var addBotBtn = CreateButton("AddBotButton", waitPanel.transform, "+ Add Computer Bot", new Color(0.4f, 0.25f, 0.75f), Color.white, new Vector2(0, -85), new Vector2(320, 44));
+            var startBtn = CreateButton("StartGameButton", waitPanel.transform, "START GAME ▶", new Color(0.15f, 0.8f, 0.35f), Color.white, new Vector2(0, -145), new Vector2(320, 50));
+            var leaveBtn = CreateButton("LeaveButton", waitPanel.transform, "Leave Room", new Color(0.4f, 0.15f, 0.15f), Color.white, new Vector2(0, -200), new Vector2(200, 36));
 
             // Wire serialized fields on LobbyUI
             SerializedObject so = new SerializedObject(lobbyUI);
+            so.FindProperty("mainPanel").objectReferenceValue = panel;
+            so.FindProperty("waitingRoomPanel").objectReferenceValue = waitPanel;
+            so.FindProperty("connectionBadgeText").objectReferenceValue = connBadge;
+            so.FindProperty("statusFeedbackText").objectReferenceValue = statusFeedback;
             so.FindProperty("nameInputField").objectReferenceValue = nameInput;
             so.FindProperty("serverUrlInputField").objectReferenceValue = serverInput;
+            so.FindProperty("joinFamilyTableButton").objectReferenceValue = familyBtn;
+            so.FindProperty("joinFamilyTableButtonText").objectReferenceValue = fTxt;
             so.FindProperty("gameTypeDropdown").objectReferenceValue = dropdown;
             so.FindProperty("maxPlayersSlider").objectReferenceValue = slider;
             so.FindProperty("maxPlayersText").objectReferenceValue = maxPlayersText;
             so.FindProperty("createRoomButton").objectReferenceValue = createBtn;
             so.FindProperty("roomCodeInputField").objectReferenceValue = roomInput;
             so.FindProperty("joinRoomButton").objectReferenceValue = joinBtn;
-            so.FindProperty("waitingRoomPanel").objectReferenceValue = waitPanel;
             so.FindProperty("roomCodeDisplayText").objectReferenceValue = roomCodeDisplay;
+            so.FindProperty("gameModeBadgeText").objectReferenceValue = gameModeBadge;
             so.FindProperty("playersListText").objectReferenceValue = playersList;
             so.FindProperty("addBotButton").objectReferenceValue = addBotBtn;
             so.FindProperty("startGameButton").objectReferenceValue = startBtn;

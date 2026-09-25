@@ -12,12 +12,22 @@ using DonkeyUno.Core;
 
 namespace DonkeyUno.Networking
 {
+    public enum ConnectionState
+    {
+        Disconnected,
+        Connecting,
+        Connected
+    }
+
     public class SocketService : MonoBehaviour
     {
         public static SocketService Instance { get; private set; }
 
+        public const string CloudServerUrl = "https://donkey-uno-server.onrender.com";
+        public const string LocalServerUrl = "http://localhost:3001";
+
         [Header("Server Configuration")]
-        [SerializeField] private string serverUrl = "https://donkey-uno-server.onrender.com";
+        [SerializeField] private string serverUrl = "http://localhost:3001";
         public string ServerUrl => serverUrl;
 
         [Header("Player Profile")]
@@ -28,14 +38,20 @@ namespace DonkeyUno.Networking
         // Action Events
         public event Action OnConnected;
         public event Action<string> OnDisconnected;
+        public event Action<string> OnStatusMessage;
         public event Action<ClientGameState> OnGameStateReceived;
-        public event Action<string, string, string> OnPlayerEmoteReceived; // playerId, playerName, emote
+        public event Action<string, string, string> OnPlayerEmoteReceived;
         public event Action<string> OnGameTerminated;
+
+        public ConnectionState State { get; private set; } = ConnectionState.Disconnected;
+        public bool IsConnected => State == ConnectionState.Connected;
 
         private ClientWebSocket _webSocket;
         private CancellationTokenSource _cts;
-        private bool _isConnected;
+        private bool _isNamespaceConnected;
+        private bool _isConnectingRoutineRunning;
         private readonly Queue<Action> _mainThreadQueue = new Queue<Action>();
+        private readonly Queue<string> _pendingQueue = new Queue<string>();
         private readonly object _queueLock = new object();
 
         private void Awake()
@@ -69,7 +85,7 @@ namespace DonkeyUno.Networking
             {
                 if (Application.isMobilePlatform && (savedServer.Contains("localhost") || savedServer.Contains("127.0.0.1")))
                 {
-                    serverUrl = "https://donkey-uno-server.onrender.com";
+                    serverUrl = CloudServerUrl;
                 }
                 else
                 {
@@ -78,12 +94,13 @@ namespace DonkeyUno.Networking
             }
             else
             {
-                serverUrl = "https://donkey-uno-server.onrender.com";
+                serverUrl = Application.isMobilePlatform ? CloudServerUrl : LocalServerUrl;
             }
         }
 
         public void SetServerUrl(string url)
         {
+            if (string.IsNullOrEmpty(url)) url = CloudServerUrl;
             serverUrl = url;
             PlayerPrefs.SetString("donkey_uno_server_url", url);
             PlayerPrefs.Save();
@@ -124,9 +141,13 @@ namespace DonkeyUno.Networking
 
         public void OnWebGLOpen()
         {
-            _isConnected = true;
+            State = ConnectionState.Connected;
+            _isNamespaceConnected = true;
             Debug.Log("[SocketService WebGL] Connected to game server!");
-            EnqueueMainThread(() => OnConnected?.Invoke());
+            EnqueueMainThread(() => {
+                OnConnected?.Invoke();
+                FlushPendingQueue();
+            });
         }
 
         public void OnWebGLMessage(string msg)
@@ -141,16 +162,18 @@ namespace DonkeyUno.Networking
 
         public void OnWebGLClose(string reason)
         {
-            _isConnected = false;
+            State = ConnectionState.Disconnected;
+            _isNamespaceConnected = false;
             EnqueueMainThread(() => OnDisconnected?.Invoke(reason));
         }
 #endif
 
         public void Connect()
         {
-            if (_isConnected || _webSocket != null) return;
+            if (State == ConnectionState.Connected || _isConnectingRoutineRunning) return;
 
 #if UNITY_WEBGL && !UNITY_EDITOR
+            State = ConnectionState.Connecting;
             string webglUrl = serverUrl.Replace("http://", "ws://").Replace("https://", "wss://");
             if (!webglUrl.EndsWith("/")) webglUrl += "/";
             webglUrl += "socket.io/?EIO=4&transport=websocket";
@@ -163,31 +186,73 @@ namespace DonkeyUno.Networking
 
         private IEnumerator ConnectAsyncRoutine()
         {
+            _isConnectingRoutineRunning = true;
+            State = ConnectionState.Connecting;
+            EnqueueMainThread(() => OnStatusMessage?.Invoke($"Connecting to {serverUrl}..."));
+
             string wsUrl = serverUrl.Replace("http://", "ws://").Replace("https://", "wss://");
             if (!wsUrl.EndsWith("/")) wsUrl += "/";
             wsUrl += "socket.io/?EIO=4&transport=websocket";
 
+            _cts?.Cancel();
             _cts = new CancellationTokenSource();
+            _webSocket?.Dispose();
             _webSocket = new ClientWebSocket();
 
-            var connectTask = _webSocket.ConnectAsync(new Uri(wsUrl), _cts.Token);
-            while (!connectTask.IsCompleted)
+            Task connectTask = null;
+            try
             {
+                connectTask = _webSocket.ConnectAsync(new Uri(wsUrl), _cts.Token);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[SocketService] Initial connect call failed: {ex.Message}");
+            }
+
+            float timeout = 4.0f;
+            float elapsed = 0f;
+
+            while (connectTask != null && !connectTask.IsCompleted && elapsed < timeout)
+            {
+                elapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
 
-            if (connectTask.IsFaulted || _webSocket.State != WebSocketState.Open)
+            bool failed = connectTask == null || connectTask.IsFaulted || _webSocket.State != WebSocketState.Open;
+
+            if (failed)
             {
-                Debug.LogError($"[SocketService] Connection failed: {connectTask.Exception?.Message}");
-                EnqueueMainThread(() => OnDisconnected?.Invoke("Connection failed"));
+                Debug.LogWarning($"[SocketService] Connection to {serverUrl} failed.");
+
+                // Auto-fallback: If localhost failed, switch to Render cloud server automatically!
+                if (serverUrl.Contains("localhost") || serverUrl.Contains("127.0.0.1"))
+                {
+                    Debug.Log($"[SocketService] Local server unreachable. Auto-fallback to Cloud: {CloudServerUrl}");
+                    serverUrl = CloudServerUrl;
+                    EnqueueMainThread(() => OnStatusMessage?.Invoke("Localhost offline. Connecting to Cloud Server..."));
+                    _webSocket?.Dispose();
+                    _webSocket = null;
+                    _isConnectingRoutineRunning = false;
+                    yield return new WaitForSeconds(0.3f);
+                    yield return ConnectAsyncRoutine();
+                    yield break;
+                }
+
+                State = ConnectionState.Disconnected;
+                _isConnectingRoutineRunning = false;
+                _webSocket?.Dispose();
+                _webSocket = null;
+                EnqueueMainThread(() => {
+                    OnDisconnected?.Invoke("Server unreachable");
+                    OnStatusMessage?.Invoke("Cannot reach server. Tap to retry.");
+                });
                 yield break;
             }
 
-            _isConnected = true;
-            Debug.Log("[SocketService] Connected to game server!");
-            EnqueueMainThread(() => OnConnected?.Invoke());
+            Debug.Log($"[SocketService] WebSocket open. Handshaking Socket.IO namespace with {serverUrl}...");
+            _isConnectingRoutineRunning = false;
 
-            // Start listen loop
+            // Start background listening loop
             Task.Run(ReceiveLoop, _cts.Token);
         }
 
@@ -198,7 +263,7 @@ namespace DonkeyUno.Networking
 
             try
             {
-                while (_webSocket.State == WebSocketState.Open && !_cts.IsCancellationRequested)
+                while (_webSocket != null && _webSocket.State == WebSocketState.Open && !_cts.IsCancellationRequested)
                 {
                     var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
 
@@ -220,11 +285,12 @@ namespace DonkeyUno.Networking
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[SocketService] Receive loop stopped: {ex.Message}");
+                Debug.LogWarning($"[SocketService] Receive loop ended: {ex.Message}");
             }
             finally
             {
-                _isConnected = false;
+                State = ConnectionState.Disconnected;
+                _isNamespaceConnected = false;
                 EnqueueMainThread(() => OnDisconnected?.Invoke("Disconnected"));
             }
         }
@@ -233,21 +299,33 @@ namespace DonkeyUno.Networking
         {
             if (string.IsNullOrEmpty(msg)) return;
 
-            // Engine.IO packet types:
-            // 0: Handshake
-            // 2: Ping from server -> respond with Pong '3'
+            // Engine.IO Packet Types:
+            // 0: Handshake -> Send Socket.IO connect '40'
+            // 2: Ping from server -> reply Pong '3'
             // 3: Pong
-            // 40: Socket.io connected
-            // 42: Socket.io custom event: 42["eventName", payload]
+            // 40: Socket.IO connected acknowledgment
+            // 42: Custom Socket.IO event: 42["eventName", payload]
             if (msg.StartsWith("0"))
             {
-                // Respond with Socket.IO connect packet "40"
+                // Engine.IO handshake received. Request Socket.IO root namespace connection
                 SendRaw("40");
             }
             else if (msg == "2")
             {
-                // Heartbeat Pong response
+                // Heartbeat ping from server
                 SendRaw("3");
+            }
+            else if (msg.StartsWith("40"))
+            {
+                // Connected to Socket.IO namespace!
+                Debug.Log("[SocketService] Socket.IO namespace handshake established!");
+                _isNamespaceConnected = true;
+                State = ConnectionState.Connected;
+                EnqueueMainThread(() => {
+                    OnConnected?.Invoke();
+                    OnStatusMessage?.Invoke($"Online: {(serverUrl.Contains("render") ? "Cloud Server" : "Local Server")}");
+                    FlushPendingQueue();
+                });
             }
             else if (msg.StartsWith("42"))
             {
@@ -301,18 +379,40 @@ namespace DonkeyUno.Networking
 
         public void Emit(string eventName, object payload)
         {
-#if UNITY_WEBGL && !UNITY_EDITOR
-            if (!_isConnected) return;
             var array = new JArray { eventName, JToken.FromObject(payload) };
             string packet = "42" + array.ToString(Formatting.None);
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (State != ConnectionState.Connected) return;
             WebSocketSend(packet);
             return;
 #else
-            if (!_isConnected || _webSocket == null || _webSocket.State != WebSocketState.Open) return;
-            var array = new JArray { eventName, JToken.FromObject(payload) };
-            string packet = "42" + array.ToString(Formatting.None);
+            if (!_isNamespaceConnected || _webSocket == null || _webSocket.State != WebSocketState.Open)
+            {
+                Debug.Log($"[SocketService] Not yet connected to server. Queueing event: {eventName}");
+                lock (_pendingQueue)
+                {
+                    _pendingQueue.Enqueue(packet);
+                }
+                Connect();
+                return;
+            }
+
             SendRaw(packet);
 #endif
+        }
+
+        private void FlushPendingQueue()
+        {
+            lock (_pendingQueue)
+            {
+                while (_pendingQueue.Count > 0)
+                {
+                    string packet = _pendingQueue.Dequeue();
+                    Debug.Log($"[SocketService] Sending queued packet: {packet}");
+                    SendRaw(packet);
+                }
+            }
         }
 
         private async void SendRaw(string packet)
@@ -338,13 +438,15 @@ namespace DonkeyUno.Networking
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
             WebSocketClose();
-            _isConnected = false;
+            State = ConnectionState.Disconnected;
+            _isNamespaceConnected = false;
             return;
 #else
             _cts?.Cancel();
             _webSocket?.Dispose();
             _webSocket = null;
-            _isConnected = false;
+            State = ConnectionState.Disconnected;
+            _isNamespaceConnected = false;
 #endif
         }
 
@@ -404,7 +506,7 @@ namespace DonkeyUno.Networking
                 playerId = PlayerId,
                 cardId,
                 chosenColor = chosenColor?.ToString(),
-                swapTargetPlayerId = swapTargetId,
+                swapTargetId,
                 callUno
             });
         }
@@ -421,12 +523,7 @@ namespace DonkeyUno.Networking
 
         public void CatchUno(string roomCode, string targetPlayerId)
         {
-            Emit("catchUno", new
-            {
-                roomCode,
-                catcherPlayerId = PlayerId,
-                targetPlayerId
-            });
+            Emit("catchUno", new { roomCode, catcherPlayerId = PlayerId, targetPlayerId });
         }
 
         public void PlayDonkeyCard(string roomCode, string cardId)
@@ -436,13 +533,7 @@ namespace DonkeyUno.Networking
 
         public void SendEmote(string roomCode, string emote)
         {
-            Emit("sendEmote", new
-            {
-                roomCode,
-                playerId = PlayerId,
-                playerName = PlayerName,
-                emote
-            });
+            Emit("playerEmote", new { roomCode, playerId = PlayerId, playerName = PlayerName, emote });
         }
 
         public void LeaveRoom(string roomCode)
