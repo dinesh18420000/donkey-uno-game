@@ -188,13 +188,23 @@ io.on('connection', socket => {
   });
 
   // Play UNO Card
-  socket.on('playUnoCard', ({ roomCode, playerId, cardId, chosenColor, swapTargetPlayerId }) => {
-    roomManager.playUnoCard(roomCode, playerId, cardId, chosenColor, swapTargetPlayerId);
+  socket.on('playUnoCard', ({ roomCode, playerId, cardId, chosenColor, swapTargetPlayerId, callUno }) => {
+    roomManager.playUnoCard(roomCode, playerId, cardId, chosenColor, swapTargetPlayerId, callUno);
   });
 
   // Draw UNO Card
   socket.on('drawUnoCard', ({ roomCode, playerId }) => {
     roomManager.drawUnoCard(roomCode, playerId);
+  });
+
+  // Call UNO
+  socket.on('callUno', ({ roomCode, playerId }) => {
+    roomManager.callUno(roomCode, playerId);
+  });
+
+  // Catch UNO
+  socket.on('catchUno', ({ roomCode, catcherPlayerId, targetPlayerId }) => {
+    roomManager.catchUno(roomCode, catcherPlayerId, targetPlayerId);
   });
 
   // Quick Emotes / Chat

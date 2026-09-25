@@ -21,6 +21,7 @@ export type UnoCardType =
   | 'wild_draw6'
   | 'wild_draw10'
   | 'wild_reverse_draw4'
+  | 'reverse_draw2'
   | 'pass_0'
   | 'swap_7';
 
@@ -44,6 +45,7 @@ export function isUnoCard(card: any): card is UnoCard {
 export function getDrawCardPenalty(type: UnoCardType): number {
   switch (type) {
     case 'draw2': return 2;
+    case 'reverse_draw2': return 2;
     case 'draw4': return 4;
     case 'wild_reverse_draw4': return 4;
     case 'wild_draw6': return 6;
@@ -84,6 +86,7 @@ export interface PlayerPublic {
   isDonkey?: boolean;
   isMercyEliminated?: boolean;
   isSpectator?: boolean;
+  calledUno?: boolean;
 }
 
 export type GameType = 'donkey' | 'uno_no_mercy';

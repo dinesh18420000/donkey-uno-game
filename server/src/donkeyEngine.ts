@@ -44,6 +44,7 @@ function shuffle<T>(array: T[]): T[] {
 
 export function dealDonkeyCards(players: Player[]): { startingPlayerIndex: number } {
   const deck = createDonkeyDeck();
+  const activeParticipants = players.filter(p => !p.isSpectator);
   players.forEach(p => {
     p.hand = [];
     p.cardsCount = 0;
@@ -51,17 +52,17 @@ export function dealDonkeyCards(players: Player[]): { startingPlayerIndex: numbe
     p.isDonkey = false;
   });
 
-  // Deal cards evenly
+  // Deal cards evenly to active players only
   let pIdx = 0;
-  while (deck.length > 0) {
+  while (deck.length > 0 && activeParticipants.length > 0) {
     const card = deck.pop()!;
-    players[pIdx].hand.push(card);
-    pIdx = (pIdx + 1) % players.length;
+    activeParticipants[pIdx].hand.push(card);
+    pIdx = (pIdx + 1) % activeParticipants.length;
   }
 
   // Sort each player's hand: Suit order (♠, ♥, ♣, ♦), then descending rank
   const suitOrder: Record<Suit, number> = { SPADES: 1, HEARTS: 2, CLUBS: 3, DIAMONDS: 4 };
-  players.forEach(p => {
+  activeParticipants.forEach(p => {
     (p.hand as DonkeyCard[]).sort((a, b) => {
       if (a.suit !== b.suit) return suitOrder[a.suit] - suitOrder[b.suit];
       return b.rank - a.rank;
@@ -120,6 +121,10 @@ export interface DonkeyTurnResult {
   trickFinished: boolean;
   cardsPickedUpByPlayerId?: string;
   cardsCountPickedUp?: number;
+  cutterPlayerId?: string;
+  cutterName?: string;
+  victimPlayerId?: string;
+  victimName?: string;
   trickWinnerPlayerId?: string;
   nextLeadPlayerIndex: number;
   message: string;
@@ -191,13 +196,17 @@ export function resolveDonkeyPlay(
       trickFinished: true,
       cardsPickedUpByPlayerId: victim.id,
       cardsCountPickedUp: cardsToPick.length,
+      cutterPlayerId: player.id,
+      cutterName: player.name,
+      victimPlayerId: victim.id,
+      victimName: victim.name,
       nextLeadPlayerIndex: victimIndex,
       message: `💥 CUT! ${player.name} threw ${card.suit} ${card.value}. ${victim.name} picked up ${cardsToPick.length} cards!`
     };
   }
 
   // If everyone with cards has played this trick:
-  const activePlayers = players.filter(p => !p.rank);
+  const activePlayers = players.filter(p => !p.rank && !p.isSpectator);
   if (currentTrick.length >= activePlayers.length) {
     // Clean trick! No cut. Find highest card winner
     let winnerId = currentTrick[0].playerId;
@@ -245,7 +254,7 @@ export function getNextActivePlayerIndex(players: Player[], currentIdx: number, 
   let loops = 0;
   while (loops < len) {
     const p = players[idx];
-    if (!p.rank && !p.isMercyEliminated && p.hand.length > 0) {
+    if (!p.rank && !p.isMercyEliminated && !p.isSpectator && p.hand.length > 0) {
       return idx;
     }
     idx = (idx + direction + len) % len;
@@ -255,16 +264,20 @@ export function getNextActivePlayerIndex(players: Player[], currentIdx: number, 
 }
 
 export function checkAndAssignRanks(players: Player[]): void {
-  const activeWithoutRank = players.filter(p => !p.rank && p.cardsCount === 0);
-  let nextRank = Math.max(0, ...players.map(p => p.rank || 0)) + 1;
+  // CRITICAL: Spectators/Watchers must NEVER be assigned a rank!
+  const activeWithoutRank = players.filter(p => !p.rank && p.cardsCount === 0 && !p.isSpectator);
+  // Calculate next rank starting from highest existing rank among non-spectator players
+  const existingRanks = players.filter(p => !p.isSpectator && p.rank && p.rank !== 999).map(p => p.rank || 0);
+  let nextRank = (existingRanks.length > 0 ? Math.max(...existingRanks) : 0) + 1;
 
   for (const p of activeWithoutRank) {
     p.rank = nextRank++;
   }
 
   // Check if only 1 player remains holding cards -> They are DONKEY!
-  const remainingPlayers = players.filter(p => !p.rank && p.cardsCount > 0);
-  if (remainingPlayers.length === 1 && players.length > 1) {
+  const remainingPlayers = players.filter(p => !p.rank && p.cardsCount > 0 && !p.isSpectator);
+  const activeGameParticipants = players.filter(p => !p.isSpectator);
+  if (remainingPlayers.length === 1 && activeGameParticipants.length > 1) {
     remainingPlayers[0].isDonkey = true;
     remainingPlayers[0].rank = 999; // Donkey
   }

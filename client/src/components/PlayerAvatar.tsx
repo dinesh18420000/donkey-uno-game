@@ -18,6 +18,7 @@ interface PlayerAvatarProps {
   isBeforeMe?: boolean;
   isAfterMe?: boolean;
   actionNotice?: { type: 'draw' | 'play'; text: string } | null;
+  hideName?: boolean;
 }
 
 export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
@@ -33,7 +34,8 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
   onSelect,
   isBeforeMe,
   isAfterMe,
-  actionNotice
+  actionNotice,
+  hideName
 }) => {
   const theme =
     PLAYER_THEME_DETAILS[(colorTheme as PlayerColorTheme)] ||
@@ -254,10 +256,23 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
             🃏{player.cardsCount}
           </div>
         )}
+
+        {/* Uno Call Alert Status */}
+        {player.cardsCount === 1 && !player.rank && !player.isMercyEliminated && (
+          <div
+            className={`absolute -bottom-2 -left-1 px-1.5 py-0.2 rounded-full font-black text-[7px] sm:text-[8px] border shadow-xl z-30 ${
+              player.calledUno
+                ? 'bg-emerald-600 text-white border-emerald-300'
+                : 'bg-red-600 text-white border-white animate-bounce'
+            }`}
+          >
+            {player.calledUno ? '📢 UNO!' : '🚨 NO UNO!'}
+          </div>
+        )}
       </div>
 
       {/* Name Label (Below Avatar if namePosition === 'bottom') */}
-      {namePosition === 'bottom' && (
+      {namePosition === 'bottom' && (!hideName || isSelf) && (
         <div
           className={`mt-0.5 rounded font-black shadow-md truncate text-center ${nameMaxW} ${
             isSelf ? 'bg-amber-500 text-slate-950' : theme.pill

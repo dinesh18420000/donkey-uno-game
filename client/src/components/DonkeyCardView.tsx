@@ -10,7 +10,7 @@ interface DonkeyCardViewProps {
   onClick?: () => void;
 }
 
-export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
+const DonkeyCardViewComponent: React.FC<DonkeyCardViewProps> = ({
   card,
   isSelected,
   isValid = true,
@@ -78,3 +78,5 @@ export const DonkeyCardView: React.FC<DonkeyCardViewProps> = ({
     </div>
   );
 };
+
+export const DonkeyCardView = React.memo(DonkeyCardViewComponent);

@@ -248,19 +248,33 @@ class SocketService {
     roomCode: string,
     cardId: string,
     chosenColor?: UnoColor,
-    swapTargetPlayerId?: string
+    swapTargetPlayerId?: string,
+    callUno?: boolean
   ) {
     this.connect().emit('playUnoCard', {
       roomCode,
       playerId: this.playerId,
       cardId,
       chosenColor,
-      swapTargetPlayerId
+      swapTargetPlayerId,
+      callUno
     });
   }
 
   public drawUnoCard(roomCode: string) {
     this.connect().emit('drawUnoCard', { roomCode, playerId: this.playerId });
+  }
+
+  public callUno(roomCode: string) {
+    this.connect().emit('callUno', { roomCode, playerId: this.playerId });
+  }
+
+  public catchUno(roomCode: string, targetPlayerId: string) {
+    this.connect().emit('catchUno', {
+      roomCode,
+      catcherPlayerId: this.playerId,
+      targetPlayerId
+    });
   }
 
   public sendEmote(roomCode: string, emote: string) {

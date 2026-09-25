@@ -23,11 +23,12 @@ import {
   getDrawCardPenalty,
   execute0PassHands,
   execute7SwapHands,
-  checkMercyRule
+  checkMercyRule,
+  getNextUnoTurnIndex
 } from './unoEngine.js';
 
 const HUMAN_TURN_TIME_MS = 30000; // 30 seconds max play time
-const BOT_TURN_TIME_MS = 1500;     // 1.5s for fast bot turns
+const BOT_TURN_TIME_MS = 750;      // 0.75s for smooth, fast, responsive bot turns
 
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
@@ -224,6 +225,7 @@ export class RoomManager {
       p.rank = undefined;
       p.isDonkey = false;
       p.isMercyEliminated = false;
+      p.isSpectator = false;
       p.cardsCount = 0;
       p.hand = [];
     });
@@ -668,7 +670,7 @@ export class RoomManager {
     } else {
       const move = chooseUnoBotCard(currentPlayer, room.activeUnoCard!, room.activeUnoColor!, room.drawStackCount);
       if (move) {
-        this.playUnoCard(roomCode, botPlayerId, move.card.id, move.chosenColor, move.swapTargetPlayerId);
+        this.playUnoCard(roomCode, botPlayerId, move.card.id, move.chosenColor, move.swapTargetPlayerId, move.callUno);
       } else {
         this.drawUnoCard(roomCode, botPlayerId);
       }
@@ -714,15 +716,17 @@ export class RoomManager {
     if (result.trickFinished) {
       this.broadcastState(room);
 
-      // Brief pause to admire the table before starting next trick
+      // Smooth pause: 1100ms for clean trick, 1600ms for dramatic cut
+      const pauseDuration = result.isCut ? 1600 : 1100;
       setTimeout(() => {
         room.currentTrick = [];
         room.leadSuit = undefined;
         room.currentTurnIndex = result.nextLeadPlayerIndex;
         room.roundNumber++;
 
-        const remaining = room.players.filter(p => !p.rank && p.cardsCount > 0);
-        if (remaining.length <= 1) {
+        const remaining = room.players.filter(p => !p.rank && p.cardsCount > 0 && !p.isSpectator);
+        const activeParticipants = room.players.filter(p => !p.isSpectator);
+        if (remaining.length <= 1 && activeParticipants.length > 1) {
           room.status = 'game_over';
           if (remaining.length === 1) {
             remaining[0].isDonkey = true;
@@ -734,7 +738,7 @@ export class RoomManager {
           this.startTurnTimer(room);
         }
         this.broadcastState(room);
-      }, 1800);
+      }, pauseDuration);
       return true;
     } else {
       room.currentTurnIndex = result.nextLeadPlayerIndex;
@@ -750,7 +754,8 @@ export class RoomManager {
     playerId: string,
     cardId: string,
     chosenColor?: UnoColor,
-    swapTargetPlayerId?: string
+    swapTargetPlayerId?: string,
+    callUno?: boolean
   ): boolean {
     const room = this.rooms.get(roomCode);
     if (!room || room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return false;
@@ -788,15 +793,15 @@ export class RoomManager {
       actionMsg += ` & discarded ${discards.length} matching cards!`;
     } else if (card.type === 'skip_everyone') {
       actionMsg += ` & SKIPPED EVERYONE!`;
-    } else if (card.type === 'reverse') {
+    } else if (card.type === 'reverse' || card.type === 'reverse_draw2' || card.type === 'wild_reverse_draw4') {
       room.direction = (room.direction * -1) as 1 | -1;
-      actionMsg += ` (Reversed play)`;
+      actionMsg += ` ⇄ (Reversed direction)`;
     } else if (card.type === 'pass_0') {
       execute0PassHands(room.players, room.direction);
       actionMsg += ` 🔄 ALL HANDS PASSED!`;
     } else if (card.type === 'swap_7') {
       const target = room.players.find(p => p.id === swapTargetPlayerId) ||
-        room.players.find(p => p.id !== currentPlayer.id && !p.rank && !p.isMercyEliminated);
+        room.players.find(p => p.id !== currentPlayer.id && !p.rank && !p.isMercyEliminated && !p.isSpectator);
       if (target) {
         execute7SwapHands(currentPlayer, target);
         actionMsg += ` 🔁 SWAPPED HANDS with ${target.name}!`;
@@ -809,6 +814,15 @@ export class RoomManager {
       actionMsg += ` 🔥 Penalty stack: +${room.drawStackCount}!`;
     }
 
+    if (currentPlayer.cardsCount === 1) {
+      currentPlayer.calledUno = !!callUno;
+      if (currentPlayer.calledUno) {
+        actionMsg += ` 📢 Said UNO!`;
+      }
+    } else {
+      currentPlayer.calledUno = false;
+    }
+
     if (currentPlayer.cardsCount === 0) {
       currentPlayer.rank = 1;
       room.status = 'game_over';
@@ -817,9 +831,12 @@ export class RoomManager {
       return true;
     }
 
-    if (card.type !== 'skip_everyone') {
-      const step = card.type === 'skip' ? 2 : 1;
-      room.currentTurnIndex = getNextActivePlayerIndex(room.players, room.currentTurnIndex, (room.direction * step) as 1 | -1);
+    if (card.type === 'skip_everyone') {
+      // Keeps the turn on current player
+    } else if (card.type === 'skip') {
+      room.currentTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 2);
+    } else {
+      room.currentTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
     }
 
     room.lastAction = actionMsg;
@@ -857,6 +874,7 @@ export class RoomManager {
       }
     }
     currentPlayer.cardsCount = currentPlayer.hand.length;
+    currentPlayer.calledUno = false;
     room.deckRemainingCount = room.unoDeck.length;
 
     let msg = `${currentPlayer.name} drew ${countToDraw} card(s).`;
@@ -866,7 +884,7 @@ export class RoomManager {
       msg += ` ☠️ MERCY RULE! ${currentPlayer.name} exceeded 25 cards and is ELIMINATED!`;
     }
 
-    const active = room.players.filter(p => !p.rank && !p.isMercyEliminated);
+    const active = room.players.filter(p => !p.rank && !p.isMercyEliminated && !p.isSpectator);
     if (active.length <= 1) {
       room.status = 'game_over';
       if (active.length === 1) {
@@ -877,10 +895,59 @@ export class RoomManager {
       return true;
     }
 
-    room.currentTurnIndex = getNextActivePlayerIndex(room.players, room.currentTurnIndex, room.direction);
+    room.currentTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
     room.lastAction = msg;
 
     this.startTurnTimer(room);
+    this.broadcastState(room);
+    return true;
+  }
+
+  // --- UNO CALL ACTION ---
+  public callUno(roomCode: string, playerId: string): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room || room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return false;
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player || player.cardsCount !== 1) return false;
+
+    player.calledUno = true;
+    room.lastAction = `📢 ${player.name} CALLED UNO!`;
+    this.broadcastState(room);
+    return true;
+  }
+
+  // --- UNO CATCH ACTION ---
+  public catchUno(roomCode: string, catcherPlayerId: string, targetPlayerId: string): boolean {
+    const room = this.rooms.get(roomCode);
+    if (!room || room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return false;
+
+    const catcher = room.players.find(p => p.id === catcherPlayerId);
+    const target = room.players.find(p => p.id === targetPlayerId);
+    if (!target || target.cardsCount !== 1 || target.calledUno) return false;
+
+    for (let i = 0; i < 2; i++) {
+      if (room.unoDeck.length === 0 && room.discardPile.length > 1) {
+        const top = room.discardPile.pop()!;
+        room.unoDeck = room.discardPile.sort(() => Math.random() - 0.5);
+        room.discardPile = [top];
+      }
+      if (room.unoDeck.length > 0) {
+        target.hand.push(room.unoDeck.pop()!);
+      }
+    }
+    target.cardsCount = target.hand.length;
+    target.calledUno = false;
+    room.deckRemainingCount = room.unoDeck.length;
+
+    let msg = `🚨 ${catcher?.name || 'Someone'} CAUGHT ${target.name} NOT SAYING UNO! (+2 cards penalty)`;
+
+    const isKO = checkMercyRule(target, room.discardPile);
+    if (isKO) {
+      msg += ` ☠️ MERCY RULE! ${target.name} exceeded 25 cards and is ELIMINATED!`;
+    }
+
+    room.lastAction = msg;
     this.broadcastState(room);
     return true;
   }
@@ -910,7 +977,8 @@ export class RoomManager {
           rank: p.rank,
           isDonkey: p.isDonkey,
           isMercyEliminated: p.isMercyEliminated,
-          isSpectator: p.isSpectator || false
+          isSpectator: p.isSpectator || false,
+          calledUno: p.calledUno || false
         })),
         currentTurnPlayerId: currentActivePlayer ? currentActivePlayer.id : '',
         direction: room.direction,

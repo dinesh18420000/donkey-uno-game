@@ -21,6 +21,7 @@ export type UnoCardType =
   | 'wild_draw6'
   | 'wild_draw10'
   | 'wild_reverse_draw4'
+  | 'reverse_draw2'
   | 'pass_0'
   | 'swap_7';
 
@@ -55,6 +56,7 @@ export interface Player {
   isDonkey?: boolean;
   isMercyEliminated?: boolean;
   isSpectator?: boolean;
+  calledUno?: boolean;
 }
 
 export type GameType = 'donkey' | 'uno_no_mercy';
@@ -114,6 +116,8 @@ export interface ClientGameState {
     rank?: number;
     isDonkey?: boolean;
     isMercyEliminated?: boolean;
+    isSpectator?: boolean;
+    calledUno?: boolean;
   }[];
   currentTurnPlayerId: string;
   direction: 1 | -1;

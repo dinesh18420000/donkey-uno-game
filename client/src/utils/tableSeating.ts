@@ -233,6 +233,61 @@ export function getTableSeatPosition(
   };
 }
 
+export function getLandscapeUnoSeatPosition(
+  totalPlayers: number,
+  playerIndex: number
+): TableSeatPosition {
+  const count = Math.max(2, Math.min(10, totalPlayers));
+  const idx = ((playerIndex % count) + count) % count;
+
+  // Local player (idx = 0) is at 90° (bottom)
+  const angleDeg = (90 + idx * (360 / count)) % 360;
+  const angleRad = (angleDeg * Math.PI) / 180;
+
+  // Landscape ellipse radii (horizontal width is wider than vertical height):
+  const cx = 50;
+  const cy = 44;
+
+  let rAvatarX = 42;
+  let rAvatarY = 32;
+
+  if (count <= 4) {
+    rAvatarX = 40;
+    rAvatarY = 30;
+  } else if (count <= 7) {
+    rAvatarX = 42;
+    rAvatarY = 32;
+  } else {
+    // 8 to 10 players
+    rAvatarX = 44;
+    rAvatarY = 34;
+  }
+
+  const avatarX = Math.round((cx + rAvatarX * Math.cos(angleRad)) * 10) / 10;
+  const avatarY = Math.round((cy + rAvatarY * Math.sin(angleRad)) * 10) / 10;
+
+  const cardRotation = Math.round(angleDeg - 90);
+
+  return {
+    avatarStyle: {
+      position: 'absolute',
+      left: `${avatarX}%`,
+      top: `${avatarY}%`,
+      transform: 'translate(-50%, -50%)',
+      zIndex: 20
+    },
+    cardSlotStyle: {
+      position: 'absolute',
+      left: `${avatarX}%`,
+      top: `${avatarY}%`,
+      transform: `translate(-50%, -50%) rotate(${cardRotation}deg)`,
+      zIndex: 10
+    },
+    angleDeg,
+    cardRotation
+  };
+}
+
 export function getAvatarSizeForCount(totalPlayers: number): 'xs' | 'sm' | 'md' {
   if (totalPlayers <= 4) return 'md';
   if (totalPlayers <= 7) return 'sm';

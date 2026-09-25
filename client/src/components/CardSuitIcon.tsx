@@ -8,7 +8,7 @@ interface CardSuitIconProps {
   glossy?: boolean;
 }
 
-export const CardSuitIcon: React.FC<CardSuitIconProps> = ({
+const CardSuitIconComponent: React.FC<CardSuitIconProps> = ({
   suit,
   className = '',
   size = 24,
@@ -206,3 +206,5 @@ export const CardSuitIcon: React.FC<CardSuitIconProps> = ({
     </svg>
   );
 };
+
+export const CardSuitIcon = React.memo(CardSuitIconComponent);

@@ -139,22 +139,24 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const myId = socketService.playerId;
   const me = gameState.players.find(p => p.id === myId);
 
-  // Filter active competing players (or keep those currently playing in active trick)
+  // Filter active competing players (Exclude spectators so watchers are not seated as players)
   const rawActive = gameState.players.filter(p => {
+    if (p.isSpectator) return false;
     if (!p.rank && !p.isMercyEliminated) return true;
     if (gameState.currentTrick?.some(t => t.playerId === p.id)) return true;
     return false;
   });
-  const activePlayers = rawActive.length >= 2 ? rawActive : gameState.players;
+  const nonSpectatorPlayers = gameState.players.filter(p => !p.isSpectator);
+  const activePlayers = rawActive.length >= 2 ? rawActive : (nonSpectatorPlayers.length > 0 ? nonSpectatorPlayers : gameState.players);
 
   // CYCLIC / CIRCULAR QUEUE ROTATION:
   // Viewer is ALWAYS displayIndex = 0 (first slot), followed in cyclic order by others.
   const orderedPlayers = rotatePlayersForViewer(activePlayers, myId);
   const totalPlayers = orderedPlayers.length;
 
-  // Safe winners who have already cleared cards
+  // Safe winners who have already cleared cards (EXCLUDE spectators so watchers are never listed as safe)
   const finishedWinners = gameState.players
-    .filter(p => p.rank && !p.isDonkey && p.cardsCount === 0)
+    .filter(p => !p.isSpectator && p.rank && !p.isDonkey && p.cardsCount === 0)
     .sort((a, b) => (a.rank || 0) - (b.rank || 0));
 
   const isMyTurn = gameState.currentTurnPlayerId === myId;
@@ -166,27 +168,47 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   // Turn order: who plays before me and who plays after me among ACTIVE players
   const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(activePlayers, myId, 1);
 
-  // Animated feedback for Donkey Cut (all cards swept to victim)
+  // Animated feedback for Donkey Cut (all cards swept to victim with music)
   const [isCutAnimating, setIsCutAnimating] = useState<boolean>(false);
-  const [cutVictimName, setCutVictimName] = useState<string>('');
+  const [cutDetails, setCutDetails] = useState<{
+    cutterName: string;
+    victimName: string;
+    cardsCount: number;
+    victimId?: string;
+  } | null>(null);
   const prevLastActionRef = React.useRef<string>(gameState.lastAction || '');
 
   useEffect(() => {
     const action = gameState.lastAction || '';
     if (action !== prevLastActionRef.current && (action.includes('CUT!') || action.includes('picked up'))) {
       prevLastActionRef.current = action;
+
+      // Extract cutter and victim details: "💥 CUT! {cutter} threw {suit} {val}. {victim} picked up {count} cards!"
+      const cutterMatch = action.match(/CUT!\s+([^\s]+)\s+threw/i);
+      const victimMatch = action.match(/([^\s]+)\s+picked\s+up\s+(\d+)\s+cards/i);
+      const cutterName = cutterMatch ? cutterMatch[1] : '';
+      const victimName = victimMatch ? victimMatch[1] : '';
+      const cardsCount = victimMatch ? parseInt(victimMatch[2], 10) : (gameState.currentTrick?.length || 4);
+      const victimPlayer = gameState.players.find(p => p.name === victimName);
+
+      setCutDetails({
+        cutterName,
+        victimName,
+        cardsCount,
+        victimId: victimPlayer?.id
+      });
       setIsCutAnimating(true);
-      const match = action.match(/(\w+) picked up/i);
-      if (match) setCutVictimName(match[1]);
-      sounds.playCutSound();
+      // Play loud, punchy disadvantage music stinger!
+      sounds.playCutMusic();
+
       setTimeout(() => {
         setIsCutAnimating(false);
-        setCutVictimName('');
-      }, 1400);
+        setCutDetails(null);
+      }, 1600);
     } else {
       prevLastActionRef.current = action;
     }
-  }, [gameState.lastAction]);
+  }, [gameState.lastAction, gameState.currentTrick, gameState.players]);
 
   // Turn notification bell: pleasant casino chime when your turn arrives
   const prevIsMyTurnRef = useRef<boolean>(false);
@@ -228,7 +250,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     return () => clearTimeout(timer);
   }, [invalidCardNotice]);
 
-  // Turn countdown timer: green when normal, red when <= 6s
+  // Turn countdown timer: green when normal, red when <= 6s (Optimized 1000ms tick to eliminate lag)
   useEffect(() => {
     if (gameState.turnExpiresAt && gameState.turnExpiresAt > Date.now()) {
       const remaining = Math.max(0, Math.ceil((gameState.turnExpiresAt - Date.now()) / 1000));
@@ -240,10 +262,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     const interval = setInterval(() => {
       if (gameState.turnExpiresAt) {
         const remaining = Math.max(0, Math.ceil((gameState.turnExpiresAt - Date.now()) / 1000));
-        setTurnSeconds(remaining);
-        if (remaining === 5 && isMyTurn) {
-          sounds.playUnoWarning();
-        }
+        setTurnSeconds(prev => {
+          if (prev === remaining) return prev;
+          if (remaining === 5 && isMyTurn) {
+            sounds.playUnoWarning();
+          }
+          return remaining;
+        });
       } else {
         setTurnSeconds(prev => {
           if (prev <= 1) return 0;
@@ -253,7 +278,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           return prev - 1;
         });
       }
-    }, 300);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [gameState.currentTurnPlayerId, gameState.roundNumber, gameState.turnExpiresAt, isMyTurn]);
@@ -355,6 +380,51 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   return (
     <div className="casino-blue-table relative w-full h-full flex flex-col justify-between overflow-hidden text-white select-none">
       
+      {/* 1. TOP HEADER BAR WITH MOBILE SAFE-AREA (Guarantees profile icons never overlap notification bar) */}
+      <div className="relative z-25 w-full px-3 safe-top py-1.5 flex items-center justify-between bg-black/60 backdrop-blur-md border-b border-cyan-500/30 gap-2">
+        {/* Left: Donkey Master Title & Room Code */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-xl filter drop-shadow">🫏</span>
+          <div className="leading-tight">
+            <span className="text-xs sm:text-sm font-black tracking-wider text-amber-300">DONKEY MASTER</span>
+            <div className="text-[9px] text-cyan-200 font-mono font-bold">CODE: {gameState.roomCode}</div>
+          </div>
+        </div>
+
+        {/* Center: Trick Status & Lead Suit */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {gameState.leadSuit && (
+            <div className="flex items-center gap-1 bg-amber-400/20 border border-amber-400/60 px-2 py-0.5 rounded-full text-[10px] font-black text-amber-200 flex-shrink-0">
+              <span>Lead:</span>
+              <span className="text-xs">
+                {gameState.leadSuit === 'SPADES' ? '♠' : gameState.leadSuit === 'HEARTS' ? '♥' : gameState.leadSuit === 'CLUBS' ? '♣' : '♦'}
+              </span>
+              <span>{gameState.leadSuit}</span>
+            </div>
+          )}
+          <span className="text-[10px] text-slate-300 font-bold bg-slate-900/80 px-2 py-0.5 rounded-full border border-white/10 flex-shrink-0">
+            Round {gameState.roundNumber}
+          </span>
+        </div>
+
+        {/* Right: Sound & Settings buttons */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={toggleSound}
+            className="w-8 h-8 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/20 text-cyan-300 hover:text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+            title={soundEnabled ? 'Mute Audio' : 'Unmute Audio'}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-red-400" />}
+          </button>
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="w-8 h-8 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/20 text-cyan-300 hover:text-white flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+            title="Room Settings & Exit"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
       {/* 2. SAFE / FINISHED WINNERS BANNER (When players win/rank out) */}
       {finishedWinners.length > 0 && !isGameOver && (
@@ -376,8 +446,16 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         </div>
       )}
 
+      {/* SPECTATOR BADGE (If user joined mid-game to watch as spectator) */}
+      {me?.isSpectator && !isGameOver && (
+        <div className="relative z-15 w-fit mx-auto px-3.5 py-1 my-1 rounded-full bg-indigo-950/90 border border-indigo-400/80 text-indigo-200 text-xs font-black flex items-center gap-1.5 shadow-lg">
+          <Eye className="w-3.5 h-3.5 text-indigo-300" />
+          <span>Watching Match Live (Spectator Mode)</span>
+        </div>
+      )}
+
       {/* SPECTATOR BADGE (If player cleared hand and is watching) */}
-      {isWatching && !isGameOver && (
+      {!me?.isSpectator && isWatching && !isGameOver && (
         <div className="relative z-15 w-fit mx-auto px-3 py-0.5 my-0.5 rounded-full bg-emerald-950/80 border border-emerald-400 text-emerald-300 text-[11px] font-black flex items-center gap-1.5 animate-pulse">
           <Eye className="w-3.5 h-3.5" />
           <span>Watching Match Live (Rank #{me?.rank} Safe)</span>
@@ -385,7 +463,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       )}
 
       {/* 3. TOP PLAYER AVATARS ROW (Supports up to 10 players, cyclic viewer rotation, NO overlapping) */}
-      <div className="relative z-20 w-full max-w-xl mx-auto px-2 pt-1 pb-1">
+      <div className="relative z-20 w-full max-w-xl mx-auto px-2 pt-2 pb-1">
         <div className="relative flex items-center justify-center">
           {/* Scroll Left Button (if > 5 players) */}
           {totalPlayers > 5 && (
@@ -406,6 +484,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             {orderedPlayers.map((player) => {
               const isTurn = gameState.currentTurnPlayerId === player.id;
               const isSelf = player.displayIndex === 0;
+              const isVictim = isCutAnimating && (player.name === cutDetails?.victimName || player.id === cutDetails?.victimId);
 
               return (
                 <div
@@ -413,6 +492,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                   className="flex flex-col items-center flex-shrink-0 relative transition-transform"
                   style={{ minWidth: totalPlayers <= 4 ? '70px' : totalPlayers <= 7 ? '58px' : '48px' }}
                 >
+                  {/* Penalty Disadvantage Badge if Victim of Cut */}
+                  {isVictim && (
+                    <div className="absolute -top-7 z-40 px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[9px] shadow-2xl animate-bounce border-2 border-yellow-300 whitespace-nowrap">
+                      💥 +{cutDetails?.cardsCount} Penalty!
+                    </div>
+                  )}
+
                   {/* Floating Emote */}
                   {activeEmotes[player.id] && (
                     <div className="absolute -top-10 z-40 text-3xl animate-bounce filter drop-shadow">
@@ -442,7 +528,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                   >
                     <div
                       className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 transition-all duration-300 relative ${
-                        isTurn
+                        isVictim
+                          ? 'animate-penalty-pulse ring-4 ring-red-500 shadow-[0_0_25px_#ef4444]'
+                          : isTurn
                           ? isTimeLow
                             ? 'animate-gentle-turn-red ring-2 ring-red-500'
                             : 'animate-gentle-turn-green ring-2 ring-emerald-400'
@@ -451,7 +539,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                           : 'ring-2 ring-white/60 shadow-[0_2px_6px_rgba(0,0,0,0.4)]'
                       }`}
                       style={{
-                        borderColor: !isTurn ? player.theme.accentHex : undefined
+                        borderColor: !isTurn && !isVictim ? player.theme.accentHex : undefined
                       }}
                     >
                       {/* Inner Profile Disc: Pure solid theme color! NO symbols, NO letters, NO text, NO profile images */}
@@ -505,9 +593,14 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* 4. CENTER 3D CARD ARENA TABLE (Felt Stadium Mat with 3D Depth, Neon Edge, & Slots) */}
       <div className="relative z-10 w-full max-w-xl mx-auto px-2 py-1 my-auto flex flex-col items-center">
-        {/* 3D Oval Felt Table Surface */}
-        <div className="relative w-full rounded-[28px] sm:rounded-[36px] p-2.5 sm:p-3.5 bg-gradient-to-b from-[#0a2f6e]/90 via-[#061e47]/95 to-[#03112b]/95 border-2 border-cyan-400/40 shadow-[inset_0_4px_22px_rgba(6,182,212,0.25),0_15px_35px_rgba(0,0,0,0.6)] backdrop-blur-sm flex flex-col items-center overflow-hidden">
-          
+        {/* 3D Oval Felt Table Surface (Shakes and turns red during cut strike) */}
+        <div
+          className={`relative w-full rounded-[28px] sm:rounded-[36px] p-2.5 sm:p-3.5 bg-gradient-to-b from-[#0a2f6e]/90 via-[#061e47]/95 to-[#03112b]/95 border-2 transition-all duration-300 ${
+            isCutAnimating
+              ? 'animate-cut-shake border-red-500 shadow-[0_0_35px_rgba(239,68,68,0.7),inset_0_4px_22px_rgba(239,68,68,0.4)]'
+              : 'border-cyan-400/40 shadow-[inset_0_4px_22px_rgba(6,182,212,0.25),0_15px_35px_rgba(0,0,0,0.6)]'
+          } backdrop-blur-sm flex flex-col items-center overflow-hidden`}
+        >
           {/* Subtle Top Table Felt Spotlight Glow */}
           <div className="absolute inset-x-8 top-0 h-20 bg-gradient-to-b from-cyan-400/30 via-blue-500/10 to-transparent rounded-t-[28px] pointer-events-none" />
 
@@ -635,15 +728,47 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           </div>
         </div>
 
-        {/* CUT ANIMATION OVERLAY (When a player is forced to pick up cards) */}
+        {/* DRAMATIC CUT ANIMATION OVERLAY (Disadvantage animation & music feedback) */}
         {isCutAnimating && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none">
-            <div className="animate-cut-sweep flex flex-col items-center">
-              <div className="text-4xl filter drop-shadow">🎴🎴🎴</div>
-              <div className="mt-1 px-4 py-1.5 rounded-full bg-red-600 text-white font-black text-xs sm:text-sm border-2 border-yellow-300 shadow-2xl flex items-center gap-1.5 animate-bounce whitespace-nowrap">
-                <span>💥 CUT!</span>
-                <span>All Trick Cards Swept to {cutVictimName || 'Victim'}!</span>
-                <span>🫏</span>
+          <div className="absolute inset-0 z-35 flex flex-col items-center justify-center pointer-events-none p-3 overflow-hidden">
+            {/* Red / Amber Slashing Laser Streak */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-[140%] h-2 bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_30px_#ef4444] animate-laser-slash" />
+            </div>
+
+            {/* 3D Dramatic Cut Announcement Card */}
+            <div className="animate-cut-banner max-w-xs sm:max-w-sm w-full p-4 rounded-3xl bg-gradient-to-b from-red-600 via-rose-950 to-slate-950 border-3 border-amber-400 shadow-[0_0_50px_rgba(239,68,68,0.85),inset_0_2px_8px_rgba(255,255,255,0.4)] text-center flex flex-col items-center">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <span className="text-2xl sm:text-3xl animate-bounce">💥</span>
+                <h3 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-400 tracking-wider filter drop-shadow">
+                  CARD CUT!
+                </h3>
+                <span className="text-2xl sm:text-3xl animate-bounce">💥</span>
+              </div>
+
+              {cutDetails?.cutterName && (
+                <div className="text-xs sm:text-sm font-black text-amber-200 flex items-center justify-center gap-1 mt-0.5">
+                  <span>⚡</span>
+                  <span><strong className="text-white">{cutDetails.cutterName}</strong> broke the lead suit!</span>
+                </div>
+              )}
+
+              {/* Disadvantage Callout Badge */}
+              <div className="mt-2 py-2 px-3 rounded-2xl bg-black/70 border border-red-500/80 flex items-center justify-center gap-2 shadow-inner">
+                <span className="text-2xl">⚠️</span>
+                <div className="text-left leading-tight">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-rose-300 block">
+                    Disadvantage Penalty
+                  </span>
+                  <span className="text-xs sm:text-sm font-black text-white">
+                    <strong className="text-amber-300">{cutDetails?.victimName || 'Victim'}</strong> takes all <strong>+{cutDetails?.cardsCount || 'all'}</strong> penalty cards!
+                  </span>
+                </div>
+              </div>
+
+              {/* Sweeping cards indicator */}
+              <div className="mt-2 text-2xl animate-cut-sweep">
+                🎴🎴🎴🎴
               </div>
             </div>
           </div>
@@ -662,7 +787,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* 6. BOTTOM USER HAND (4-Suit Cascade: Spades, Hearts, Clubs, Diamonds - Matches Screenshot) */}
       <div className="relative z-10 w-full">
-        {me && me.cardsCount > 0 && (
+        {me && !me.isSpectator && me.cardsCount > 0 && (
           <DonkeyHand
             hand={(gameState.myHand as DonkeyCard[]) || []}
             leadSuit={gameState.leadSuit}
@@ -788,7 +913,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         </div>
 
         {/* Right: Prominent 3D Yellow "DEAL / PLAY" Action Button */}
-        {hasPlayerCleared ? (
+        {hasPlayerCleared || me?.isSpectator ? (
           <button
             onClick={() => setShowExitConfirm(true)}
             className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition-all shadow-md"

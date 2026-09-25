@@ -24,3 +24,14 @@ mingit.zip
 *.log
 .DS_Store
 Thumbs.db
+
+# Unity artifacts
+unity-client/[Ll]ibrary/
+unity-client/[Tt]emp/
+unity-client/[Oo]bj/
+unity-client/[Bb]uild/
+unity-client/[Bb]uilds/
+unity-client/[Ll]ogs/
+unity-client/UserSettings/
+unity-client/MemoryCaptures/
+
