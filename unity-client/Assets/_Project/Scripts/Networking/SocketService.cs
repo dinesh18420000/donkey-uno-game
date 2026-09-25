@@ -17,7 +17,7 @@ namespace DonkeyUno.Networking
         public static SocketService Instance { get; private set; }
 
         [Header("Server Configuration")]
-        [SerializeField] private string serverUrl = "http://localhost:3001";
+        [SerializeField] private string serverUrl = "https://donkey-uno-server.onrender.com";
         public string ServerUrl => serverUrl;
 
         [Header("Player Profile")]
@@ -67,7 +67,18 @@ namespace DonkeyUno.Networking
             string savedServer = PlayerPrefs.GetString("donkey_uno_server_url", "");
             if (!string.IsNullOrEmpty(savedServer))
             {
-                serverUrl = savedServer;
+                if (Application.isMobilePlatform && (savedServer.Contains("localhost") || savedServer.Contains("127.0.0.1")))
+                {
+                    serverUrl = "https://donkey-uno-server.onrender.com";
+                }
+                else
+                {
+                    serverUrl = savedServer;
+                }
+            }
+            else
+            {
+                serverUrl = "https://donkey-uno-server.onrender.com";
             }
         }
 
@@ -366,6 +377,17 @@ namespace DonkeyUno.Networking
                 playerId = PlayerId,
                 playerName = PlayerName,
                 avatar = AvatarId
+            });
+        }
+
+        public void JoinFamilyRoom(GameType gameType)
+        {
+            Emit("joinFamilyRoom", new
+            {
+                playerId = PlayerId,
+                playerName = PlayerName,
+                avatar = AvatarId,
+                gameType = gameType.ToString()
             });
         }
 
