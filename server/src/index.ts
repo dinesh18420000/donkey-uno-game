@@ -31,9 +31,11 @@ app.get('/api/reset-family', (req, res) => {
 });
 
 // Serve web client statically so Apple/iOS/Mac/PC users can play directly in browser
-const publicDir = fs.existsSync(path.join(__dirname, '../public'))
-  ? path.join(__dirname, '../public')
-  : path.join(__dirname, '../../client/dist');
+const clientDist = path.join(__dirname, '../../client/dist');
+const serverPublic = path.join(__dirname, '../public');
+const publicDir = fs.existsSync(path.join(clientDist, 'index.html'))
+  ? clientDist
+  : (fs.existsSync(serverPublic) ? serverPublic : clientDist);
 
 if (fs.existsSync(publicDir)) {
   console.log(`🌐 Serving web client from: ${publicDir}`);

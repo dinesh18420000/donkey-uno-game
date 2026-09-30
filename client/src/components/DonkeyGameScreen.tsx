@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { ClientGameState, DonkeyCard } from '../types';
+import type { ClientGameState, DonkeyCard, TrickPlay } from '../types';
 import { getTurnNeighbors } from '../types';
 import { socketService } from '../services/socket';
 import { DonkeyHand } from './DonkeyHand';
@@ -119,6 +119,27 @@ const getCenterSlotDims = (count: number): CenterSlotDims => {
   };
 };
 
+interface FlyingCardItem {
+  id: string;
+  card: DonkeyCard;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
+interface SweepCardItem {
+  id: string;
+  card: DonkeyCard;
+  slotX: number;
+  slotY: number;
+  centerX: number;
+  centerY: number;
+  victimX: number;
+  victimY: number;
+  stackRot: number;
+}
+
 export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, onExitToLobby }) => {
   const [selectedCard, setSelectedCard] = useState<DonkeyCard | null>(null);
   const [showEmotePicker, setShowEmotePicker] = useState<boolean>(false);
@@ -132,6 +153,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
   // 30-second turn countdown timer
   const [turnSeconds, setTurnSeconds] = useState<number>(30);
+
+  // States for Smooth Gameplay Animations
+  const [flyingPlayCards, setFlyingPlayCards] = useState<FlyingCardItem[]>([]);
+  const [cutSweepAnimation, setCutSweepAnimation] = useState<SweepCardItem[] | null>(null);
+  const prevTrickRef = useRef<TrickPlay[]>(gameState.currentTrick || []);
+  const lastTrickBeforeClearRef = useRef<TrickPlay[]>([]);
 
   const topAvatarsRef = useRef<HTMLDivElement>(null);
   const deckSlotsRef = useRef<HTMLDivElement>(null);
@@ -168,7 +195,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   // Turn order: who plays before me and who plays after me among ACTIVE players
   const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(activePlayers, myId, 1);
 
-  // Animated feedback for Donkey Cut (all cards swept to victim with music)
+  // Animated feedback for Donkey Cut (cards collected from slots, stack in center, sweep to victim profile, and bust)
   const [isCutAnimating, setIsCutAnimating] = useState<boolean>(false);
   const [cutDetails, setCutDetails] = useState<{
     cutterName: string;
@@ -180,44 +207,144 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
   useEffect(() => {
     const action = gameState.lastAction || '';
-    if (action !== prevLastActionRef.current && (action.includes('CUT!') || action.includes('picked up'))) {
+    const hasCut = action.includes('CUT!') || action.includes('picked up') || !!gameState.lastCutVictimId;
+
+    if (hasCut && action !== prevLastActionRef.current) {
       prevLastActionRef.current = action;
 
-      // Extract cutter and victim details: "💥 CUT! {cutter} threw {suit} {val}. {victim} picked up {count} cards!"
-      const cutterMatch = action.match(/CUT!\s+([^\s]+)\s+threw/i);
-      const victimMatch = action.match(/([^\s]+)\s+picked\s+up\s+(\d+)\s+cards/i);
-      const cutterName = cutterMatch ? cutterMatch[1] : '';
-      const victimName = victimMatch ? victimMatch[1] : '';
+      // 1. Identify victim via direct server field or robust regex
+      let victimId = gameState.lastCutVictimId;
+      let victimPlayer = victimId ? gameState.players.find(p => p.id === victimId) : undefined;
+
+      // Robust regex that correctly captures names with spaces:
+      // "💥 CUT! Cutter Name threw SPADES A. Victim Full Name picked up 4 cards!"
+      const victimMatch = action.match(/\.\s+(.+?)\s+picked\s+up\s+(\d+)\s+cards/i);
+      const cutterMatch = action.match(/CUT!\s+(.+?)\s+threw/i);
+      const cutterName = cutterMatch ? cutterMatch[1].trim() : '';
+      let victimName = victimPlayer?.name || '';
       const cardsCount = victimMatch ? parseInt(victimMatch[2], 10) : (gameState.currentTrick?.length || 4);
-      const victimPlayer = gameState.players.find(p => p.name === victimName);
+
+      if (!victimPlayer && victimMatch) {
+        const parsedName = victimMatch[1].trim();
+        victimPlayer = gameState.players.find(p => p.name.toLowerCase() === parsedName.toLowerCase());
+        if (victimPlayer) {
+          victimId = victimPlayer.id;
+          victimName = victimPlayer.name;
+        } else {
+          victimName = parsedName;
+        }
+      }
 
       setCutDetails({
         cutterName,
-        victimName,
+        victimName: victimPlayer?.name || victimName,
         cardsCount,
-        victimId: victimPlayer?.id
+        victimId: victimPlayer?.id || victimId
       });
       setIsCutAnimating(true);
-      // Play loud, punchy disadvantage music stinger!
       sounds.playCutMusic();
 
+      // 2. Collect cards on table and sweep to victim profile
+      const cardsToCollect = (gameState.currentTrick && gameState.currentTrick.length > 0)
+        ? gameState.currentTrick
+        : lastTrickBeforeClearRef.current;
+
+      if (cardsToCollect && cardsToCollect.length > 0) {
+        const targetVictimId = victimPlayer?.id || victimId;
+        let victimEl = targetVictimId ? document.getElementById(`avatar-${targetVictimId}`) : null;
+        if (!victimEl && targetVictimId === myId) {
+          victimEl = document.getElementById(`bottom-profile-${myId}`);
+        }
+        const vRect = victimEl?.getBoundingClientRect();
+        const victimX = vRect ? vRect.left + vRect.width / 2 : window.innerWidth / 2;
+        const victimY = vRect ? vRect.top + vRect.height / 2 : 80;
+
+        const tableEl = deckSlotsRef.current;
+        const tRect = tableEl?.getBoundingClientRect();
+        const centerX = tRect ? tRect.left + tRect.width / 2 : window.innerWidth / 2;
+        const centerY = tRect ? tRect.top + tRect.height / 2 : window.innerHeight * 0.42;
+
+        const sweepItems: SweepCardItem[] = cardsToCollect.map((play, idx) => {
+          const slotEl = document.getElementById(`deck-slot-${play.playerId}`);
+          const sRect = slotEl?.getBoundingClientRect();
+          const slotX = sRect ? sRect.left + sRect.width / 2 : centerX;
+          const slotY = sRect ? sRect.top + sRect.height / 2 : centerY;
+          const stackRot = ((idx * 8) % 19) - 9;
+
+          return {
+            id: `sweep-${play.card.id}-${idx}`,
+            card: play.card,
+            slotX,
+            slotY,
+            centerX,
+            centerY,
+            victimX,
+            victimY,
+            stackRot
+          };
+        });
+
+        setCutSweepAnimation(sweepItems);
+
+        // Sweep animation lasts 1250ms
+        setTimeout(() => {
+          setCutSweepAnimation(null);
+        }, 1300);
+      }
+
+      // Keep the BUSTED animation active for 3.2 seconds
       setTimeout(() => {
         setIsCutAnimating(false);
         setCutDetails(null);
-      }, 1600);
+      }, 3200);
     } else {
       prevLastActionRef.current = action;
     }
-  }, [gameState.lastAction, gameState.currentTrick, gameState.players]);
+  }, [gameState.lastAction, gameState.lastCutVictimId, gameState.players, myId]);
 
-  // Turn notification bell: pleasant casino chime when your turn arrives
-  const prevIsMyTurnRef = useRef<boolean>(false);
+  // Track incoming card plays and trigger smooth profile-to-deck flight animation
   useEffect(() => {
-    if (isMyTurn && !prevIsMyTurnRef.current && !isGameOver && !hasPlayerCleared) {
-      sounds.playTurnAlert();
+    const currentTrick = gameState.currentTrick || [];
+    const prevTrick = prevTrickRef.current;
+
+    if (currentTrick.length > prevTrick.length) {
+      const newPlays = currentTrick.slice(prevTrick.length);
+      const newFlights: FlyingCardItem[] = [];
+
+      newPlays.forEach(play => {
+        let avatarEl = play.playerId === myId ? document.getElementById(`bottom-profile-${myId}`) : null;
+        if (!avatarEl) {
+          avatarEl = document.getElementById(`avatar-${play.playerId}`);
+        }
+        const deckSlotEl = document.getElementById(`deck-slot-${play.playerId}`);
+
+        if (avatarEl && deckSlotEl) {
+          const aRect = avatarEl.getBoundingClientRect();
+          const dRect = deckSlotEl.getBoundingClientRect();
+          newFlights.push({
+            id: `flight-${play.card.id}-${Date.now()}-${Math.random()}`,
+            card: play.card,
+            startX: aRect.left + aRect.width / 2,
+            startY: aRect.top + aRect.height / 2,
+            endX: dRect.left + dRect.width / 2,
+            endY: dRect.top + dRect.height / 2
+          });
+        }
+      });
+
+      if (newFlights.length > 0) {
+        setFlyingPlayCards(prev => [...prev, ...newFlights]);
+        setTimeout(() => {
+          setFlyingPlayCards(prev => prev.filter(f => !newFlights.some(nf => nf.id === f.id)));
+        }, 460);
+      }
     }
-    prevIsMyTurnRef.current = isMyTurn;
-  }, [isMyTurn, isGameOver, hasPlayerCleared]);
+
+    if (currentTrick.length > 0) {
+      lastTrickBeforeClearRef.current = currentTrick;
+    }
+    prevTrickRef.current = currentTrick;
+  }, [gameState.currentTrick, myId]);
 
   // Card slap audio when opponents place cards on the table
   const prevTrickLengthRef = useRef<number>(gameState.currentTrick?.length || 0);
@@ -463,7 +590,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       )}
 
       {/* 3. TOP PLAYER AVATARS ROW (Supports up to 10 players, cyclic viewer rotation, NO overlapping) */}
-      <div className="relative z-20 w-full max-w-xl mx-auto px-2 pt-2 pb-1">
+      <div className="relative z-20 w-full max-w-xl mx-auto px-2 pt-0 pb-0">
         <div className="relative flex items-center justify-center">
           {/* Scroll Left Button (if > 5 players) */}
           {totalPlayers > 5 && (
@@ -479,24 +606,40 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           {/* Avatars Container */}
           <div
             ref={topAvatarsRef}
-            className="w-full flex items-start justify-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-1 px-2"
+            className="w-full flex items-start justify-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar pt-8 pb-2 px-2"
           >
             {orderedPlayers.map((player) => {
               const isTurn = gameState.currentTurnPlayerId === player.id;
               const isSelf = player.displayIndex === 0;
-              const isVictim = isCutAnimating && (player.name === cutDetails?.victimName || player.id === cutDetails?.victimId);
+              const isVictim = isCutAnimating && (
+                player.id === cutDetails?.victimId ||
+                (cutDetails?.victimName && player.name.toLowerCase() === cutDetails.victimName.toLowerCase())
+              );
 
               return (
                 <div
                   key={`top-avatar-${player.id}`}
+                  id={`avatar-${player.id}`}
                   className="flex flex-col items-center flex-shrink-0 relative transition-transform"
                   style={{ minWidth: totalPlayers <= 4 ? '70px' : totalPlayers <= 7 ? '58px' : '48px' }}
                 >
-                  {/* Penalty Disadvantage Badge if Victim of Cut */}
+                  {/* BUSTED Stamp Badge & Incoming Toast */}
                   {isVictim && (
-                    <div className="absolute -top-7 z-40 px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[9px] shadow-2xl animate-bounce border-2 border-yellow-300 whitespace-nowrap">
-                      💥 +{cutDetails?.cardsCount} Penalty!
+                    <div className="absolute -top-10 z-50 flex flex-col items-center pointer-events-none animate-busted-stamp whitespace-nowrap">
+                      <div className="px-3 py-1 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-red-700 border-2 border-yellow-300 text-white font-black text-xs sm:text-sm shadow-[0_0_25px_rgba(239,68,68,1)] flex items-center gap-1.5 animate-pulse">
+                        <span className="text-base animate-bounce">💥</span>
+                        <span className="tracking-wider">BUSTED!</span>
+                        <span className="text-[10px] bg-yellow-400 text-black px-1.5 py-0.5 rounded-full font-black">+{cutDetails?.cardsCount}</span>
+                      </div>
+                      <div className="text-[9px] font-black text-yellow-300 bg-black/85 px-2 py-0.5 rounded-full mt-0.5 border border-yellow-400/50 shadow animate-added-to-deck">
+                        📥 Added to Deck
+                      </div>
                     </div>
+                  )}
+
+                  {/* Red fiery shockwave aura when victim */}
+                  {isVictim && (
+                    <div className="absolute inset-0 -m-3 rounded-full bg-red-600/60 blur-md animate-ping pointer-events-none" />
                   )}
 
                   {/* Floating Emote */}
@@ -529,7 +672,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     <div
                       className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full p-0.5 transition-all duration-300 relative ${
                         isVictim
-                          ? 'animate-penalty-pulse ring-4 ring-red-500 shadow-[0_0_25px_#ef4444]'
+                          ? 'animate-busted-shudder animate-busted-aura'
                           : isTurn
                           ? isTimeLow
                             ? 'animate-gentle-turn-red ring-2 ring-red-500'
@@ -635,8 +778,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 // Dynamic card & slot dimensions scaling according to player count
                 const dims = getCenterSlotDims(totalPlayers);
 
+                const isCurrentlyFlying = playedCard ? flyingPlayCards.some(f => f.card.id === playedCard.id) : false;
+                const isCurrentlySweeping = cutSweepAnimation !== null;
+
                 return (
-                  <div key={`deck-slot-${player.id}`} className="flex flex-col items-center flex-shrink-0 relative">
+                  <div key={`deck-slot-${player.id}`} id={`deck-slot-${player.id}`} className="flex flex-col items-center flex-shrink-0 relative">
                     {/* The Card / Deck Slot Box */}
                     <div
                       className={`${dims.slotBox} rounded-xl border-2 transition-all duration-200 relative flex items-center justify-center shadow-lg ${
@@ -651,9 +797,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     >
                       {playedCard ? (
                         /* FACE-UP PLAYED CARD (Exact Donkey Master Match) */
-                        <div className={`w-full h-full rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1 sm:p-1.5 select-none shadow-[0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden relative ${
-                          isViewerSlot ? 'animate-deal-bottom' : 'animate-deal-top'
-                        }`}>
+                        <div 
+                          className={`w-full h-full rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1 sm:p-1.5 select-none shadow-[0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden relative transition-opacity duration-200 ${
+                            isCurrentlyFlying || isCurrentlySweeping ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                          }`}
+                        >
                           {/* Top Header Row: Left = Bold Rank, Right = Small Vector Suit */}
                           <div className="flex items-center justify-between w-full leading-none relative z-10 px-0.5">
                             <span className={`${dims.rankText} font-black tracking-tight ${
@@ -728,49 +876,87 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           </div>
         </div>
 
-        {/* DRAMATIC CUT ANIMATION OVERLAY (Disadvantage animation & music feedback) */}
-        {isCutAnimating && (
-          <div className="absolute inset-0 z-35 flex flex-col items-center justify-center pointer-events-none p-3 overflow-hidden">
-            {/* Red / Amber Slashing Laser Streak */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[140%] h-2 bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_30px_#ef4444] animate-laser-slash" />
-            </div>
-
-            {/* 3D Dramatic Cut Announcement Card */}
-            <div className="animate-cut-banner max-w-xs sm:max-w-sm w-full p-4 rounded-3xl bg-gradient-to-b from-red-600 via-rose-950 to-slate-950 border-3 border-amber-400 shadow-[0_0_50px_rgba(239,68,68,0.85),inset_0_2px_8px_rgba(255,255,255,0.4)] text-center flex flex-col items-center">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <span className="text-2xl sm:text-3xl animate-bounce">💥</span>
-                <h3 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-400 tracking-wider filter drop-shadow">
-                  CARD CUT!
-                </h3>
-                <span className="text-2xl sm:text-3xl animate-bounce">💥</span>
-              </div>
-
-              {cutDetails?.cutterName && (
-                <div className="text-xs sm:text-sm font-black text-amber-200 flex items-center justify-center gap-1 mt-0.5">
-                  <span>⚡</span>
-                  <span><strong className="text-white">{cutDetails.cutterName}</strong> broke the lead suit!</span>
+        {/* HARDWARE-ACCELERATED CARD ANIMATIONS: PLAY FLIGHT & CUT SWEEP */}
+        {/* 1. Playing Card Flight from Player Profile to Playing Deck */}
+        {flyingPlayCards.length > 0 && (
+          <div className="fixed inset-0 z-50 pointer-events-none overflow-hidden">
+            {flyingPlayCards.map(flight => (
+              <div
+                key={flight.id}
+                className="absolute top-0 left-0 animate-profile-to-deck"
+                style={{
+                  '--start-x': `${flight.startX}px`,
+                  '--start-y': `${flight.startY}px`,
+                  '--end-x': `${flight.endX}px`,
+                  '--end-y': `${flight.endY}px`,
+                } as React.CSSProperties}
+              >
+                <div className="w-20 sm:w-24 h-32 sm:h-36 rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_14px_30px_rgba(0,0,0,0.65)] select-none overflow-hidden">
+                  <div className="flex items-center justify-between w-full leading-none px-0.5">
+                    <span className={`text-lg font-black tracking-tight ${
+                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                    }`}>
+                      {flight.card.value}
+                    </span>
+                    <CardSuitIcon suit={flight.card.suit} size={16} />
+                  </div>
+                  <div className="w-full flex-1 flex items-center justify-center my-auto">
+                    <CardSuitIcon suit={flight.card.suit} size={44} glossy={true} />
+                  </div>
+                  <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
+                    <span className={`text-lg font-black tracking-tight ${
+                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                    }`}>
+                      {flight.card.value}
+                    </span>
+                    <CardSuitIcon suit={flight.card.suit} size={16} />
+                  </div>
                 </div>
-              )}
+              </div>
+            ))}
+          </div>
+        )}
 
-              {/* Disadvantage Callout Badge */}
-              <div className="mt-2 py-2 px-3 rounded-2xl bg-black/70 border border-red-500/80 flex items-center justify-center gap-2 shadow-inner">
-                <span className="text-2xl">⚠️</span>
-                <div className="text-left leading-tight">
-                  <span className="text-[10px] uppercase font-black tracking-wider text-rose-300 block">
-                    Disadvantage Penalty
-                  </span>
-                  <span className="text-xs sm:text-sm font-black text-white">
-                    <strong className="text-amber-300">{cutDetails?.victimName || 'Victim'}</strong> takes all <strong>+{cutDetails?.cardsCount || 'all'}</strong> penalty cards!
-                  </span>
+        {/* 2. Cut Collection: All Cards Lift from Slots, Gather in Center, and Sweep into Hit Player Profile */}
+        {cutSweepAnimation && (
+          <div className="fixed inset-0 z-50 pointer-events-none overflow-hidden">
+            {cutSweepAnimation.map(sweep => (
+              <div
+                key={sweep.id}
+                className="absolute top-0 left-0 animate-collect-and-sweep"
+                style={{
+                  '--slot-x': `${sweep.slotX}px`,
+                  '--slot-y': `${sweep.slotY}px`,
+                  '--center-x': `${sweep.centerX}px`,
+                  '--center-y': `${sweep.centerY}px`,
+                  '--victim-x': `${sweep.victimX}px`,
+                  '--victim-y': `${sweep.victimY}px`,
+                  '--stack-rot': `${sweep.stackRot}deg`,
+                } as React.CSSProperties}
+              >
+                <div className="w-20 sm:w-24 h-32 sm:h-36 rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_16px_35px_rgba(0,0,0,0.75)] select-none overflow-hidden">
+                  <div className="flex items-center justify-between w-full leading-none px-0.5">
+                    <span className={`text-lg font-black tracking-tight ${
+                      sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                    }`}>
+                      {sweep.card.value}
+                    </span>
+                    <CardSuitIcon suit={sweep.card.suit} size={16} />
+                  </div>
+                  <div className="w-full flex-1 flex items-center justify-center my-auto">
+                    <CardSuitIcon suit={sweep.card.suit} size={44} glossy={true} />
+                  </div>
+                  <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
+                    <span className={`text-lg font-black tracking-tight ${
+                      sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                    }`}>
+                      {sweep.card.value}
+                    </span>
+                    <CardSuitIcon suit={sweep.card.suit} size={16} />
+                  </div>
                 </div>
               </div>
-
-              {/* Sweeping cards indicator */}
-              <div className="mt-2 text-2xl animate-cut-sweep">
-                🎴🎴🎴🎴
-              </div>
-            </div>
+            ))}
           </div>
         )}
       </div>
@@ -882,21 +1068,50 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         </div>
 
         {/* Center: Current Player Profile with Green/Red Turn Circle */}
-        <div
-          onClick={() => handleCheerPlayer(myId)}
-          className="flex flex-col items-center justify-center mx-auto relative cursor-pointer group active:scale-95 transition-transform"
-          title="Tap to Cheer!"
-        >
-          <div className="relative">
+        {(() => {
+          const isMeVictim = isCutAnimating && (
+            myId === cutDetails?.victimId ||
+            (cutDetails?.victimName && me?.name.toLowerCase() === cutDetails.victimName.toLowerCase())
+          );
+
+          return (
             <div
-              className={`w-12 h-12 rounded-full p-0.5 transition-all duration-300 relative ${
-                isMyTurn
-                  ? isTimeLow
-                    ? 'animate-gentle-turn-red ring-2 ring-red-500'
-                    : 'animate-gentle-turn-green ring-2 ring-emerald-400'
-                  : 'ring-2 ring-amber-400 shadow-[0_3px_8px_rgba(250,204,21,0.4)]'
-              }`}
+              id={`bottom-profile-${myId}`}
+              onClick={() => handleCheerPlayer(myId)}
+              className="flex flex-col items-center justify-center mx-auto relative cursor-pointer group active:scale-95 transition-transform"
+              title="Tap to Cheer!"
             >
+              {/* BUSTED Stamp Badge & Incoming Toast for Local Player */}
+              {isMeVictim && (
+                <div className="absolute -top-12 z-50 flex flex-col items-center pointer-events-none animate-busted-stamp whitespace-nowrap">
+                  <div className="px-3.5 py-1 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-red-700 border-2 border-yellow-300 text-white font-black text-xs sm:text-sm shadow-[0_0_30px_rgba(239,68,68,1)] flex items-center gap-1.5 animate-pulse">
+                    <span className="text-base animate-bounce">💥</span>
+                    <span className="tracking-wider">BUSTED!</span>
+                    <span className="text-[10px] bg-yellow-400 text-black px-1.5 py-0.5 rounded-full font-black">+{cutDetails?.cardsCount}</span>
+                  </div>
+                  <div className="text-[9px] font-black text-yellow-300 bg-black/85 px-2 py-0.5 rounded-full mt-0.5 border border-yellow-400/50 shadow animate-added-to-deck">
+                    📥 Added to Hand
+                  </div>
+                </div>
+              )}
+
+              {/* Red fiery shockwave aura when victim */}
+              {isMeVictim && (
+                <div className="absolute inset-0 -m-3 rounded-full bg-red-600/60 blur-md animate-ping pointer-events-none" />
+              )}
+
+              <div className="relative">
+                <div
+                  className={`w-12 h-12 rounded-full p-0.5 transition-all duration-300 relative ${
+                    isMeVictim
+                      ? 'animate-busted-shudder animate-busted-aura'
+                      : isMyTurn
+                      ? isTimeLow
+                        ? 'animate-gentle-turn-red ring-2 ring-red-500'
+                        : 'animate-gentle-turn-green ring-2 ring-emerald-400'
+                      : 'ring-2 ring-amber-400 shadow-[0_3px_8px_rgba(250,204,21,0.4)]'
+                  }`}
+                >
               {/* Inner Profile Disc: Pure Yellow Glossy Disc (No symbols, no text, no image) */}
               <div className="w-full h-full rounded-full bg-gradient-to-b from-yellow-300 via-amber-400 to-yellow-500 border-2 border-white/90 shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),0_2px_6px_rgba(0,0,0,0.35)] relative overflow-hidden">
                 {/* 3D Gloss Sheen */}
@@ -906,11 +1121,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             </div>
           </div>
 
-          {/* Yellow Name Tag Below Profile with 3D Bevel */}
-          <div className="mt-0.5 px-2.5 py-0.2 rounded-md bg-gradient-to-b from-amber-300 to-amber-400 border border-yellow-200 text-slate-950 font-black text-[10px] sm:text-[11px] shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-            {me?.name || 'Thala'}
+            <div className="mt-0.5 px-2.5 py-0.2 rounded-md bg-gradient-to-b from-amber-300 to-amber-400 border border-yellow-200 text-slate-950 font-black text-[10px] sm:text-[11px] shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+              {me?.name || 'Thala'}
+            </div>
           </div>
-        </div>
+        );
+      })()}
 
         {/* Right: Prominent 3D Yellow "DEAL / PLAY" Action Button */}
         {hasPlayerCleared || me?.isSpectator ? (

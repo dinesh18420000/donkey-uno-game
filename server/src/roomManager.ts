@@ -714,13 +714,22 @@ export class RoomManager {
     room.lastAction = result.message;
 
     if (result.trickFinished) {
+      if (result.isCut) {
+        room.lastCutVictimId = result.victimPlayerId;
+        room.lastCutterId = result.cutterPlayerId;
+      } else {
+        room.lastCutVictimId = undefined;
+        room.lastCutterId = undefined;
+      }
       this.broadcastState(room);
 
-      // Smooth pause: 1100ms for clean trick, 1600ms for dramatic cut
-      const pauseDuration = result.isCut ? 1600 : 1100;
+      // Smooth pause: 1100ms for clean trick, 1800ms for dramatic cut to allow card collection and sweep animation
+      const pauseDuration = result.isCut ? 1800 : 1100;
       setTimeout(() => {
         room.currentTrick = [];
         room.leadSuit = undefined;
+        room.lastCutVictimId = undefined;
+        room.lastCutterId = undefined;
         room.currentTurnIndex = result.nextLeadPlayerIndex;
         room.roundNumber++;
 
@@ -988,6 +997,8 @@ export class RoomManager {
         turnDuration: room.turnDuration,
         leadSuit: room.leadSuit,
         currentTrick: room.currentTrick,
+        lastCutVictimId: room.lastCutVictimId,
+        lastCutterId: room.lastCutterId,
         activeUnoCard: room.activeUnoCard,
         activeUnoColor: room.activeUnoColor,
         drawStackCount: room.drawStackCount,

@@ -117,6 +117,8 @@ export interface ClientGameState {
   // Donkey
   leadSuit?: Suit;
   currentTrick: TrickPlay[];
+  lastCutVictimId?: string;
+  lastCutterId?: string;
 
   // UNO
   activeUnoCard?: UnoCard;

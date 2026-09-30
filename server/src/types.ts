@@ -88,6 +88,8 @@ export interface GameRoom {
   currentTrick: TrickPlay[];
   trickStarterIndex?: number;
   donkeyPlayerId?: string;
+  lastCutVictimId?: string;
+  lastCutterId?: string;
 
   // UNO No Mercy state
   activeUnoCard?: UnoCard;
@@ -129,6 +131,8 @@ export interface ClientGameState {
   // Donkey
   leadSuit?: Suit;
   currentTrick: TrickPlay[];
+  lastCutVictimId?: string;
+  lastCutterId?: string;
 
   // UNO
   activeUnoCard?: UnoCard;
