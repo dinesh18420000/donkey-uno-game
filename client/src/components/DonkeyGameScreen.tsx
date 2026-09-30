@@ -201,6 +201,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const myPlayedCardOriginRef = useRef<{ cardId: string; rect: DOMRect } | null>(null);
   const prevTrickRef = useRef<TrickPlay[]>(gameState.currentTrick || []);
   const lastTrickBeforeClearRef = useRef<TrickPlay[]>([]);
+  // Synchronous ref for flying card IDs — prevents 1-frame duplicate card flash on deck slot
+  const hiddenDeckCardIdsRef = useRef<Set<string>>(new Set());
 
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const topAvatarsRef = useRef<HTMLDivElement>(null);
@@ -302,13 +304,27 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           const CARD_H = 108;
 
           const targetVictimId = victimPlayer?.id || victimId;
-          let victimEl = targetVictimId ? document.getElementById(`avatar-${targetVictimId}`) : null;
-          if (!victimEl && targetVictimId === myId) {
-            victimEl = document.getElementById(`bottom-profile-${myId}`);
+
+          // Issue 4 FIX: When local player is the victim, sweep cards to their HAND area (bottom),
+          // not the top avatar. When remote player is victim, sweep to their top avatar.
+          let victimCenterX: number;
+          let victimCenterY: number;
+
+          if (targetVictimId === myId) {
+            // Local player is the victim — sweep to their hand area at the bottom of screen
+            const handAreaEl = document.getElementById('my-hand-area');
+            const botProfileEl = document.getElementById(`bottom-profile-${myId}`);
+            const targetEl = handAreaEl || botProfileEl;
+            const tgtRect = targetEl?.getBoundingClientRect();
+            victimCenterX = tgtRect ? ((tgtRect.left - cRect.left) + tgtRect.width / 2) : (cRect.width / 2);
+            victimCenterY = tgtRect ? ((tgtRect.top - cRect.top) + tgtRect.height / 2) : (cRect.height - 120);
+          } else {
+            // Remote player is the victim — sweep to their top avatar
+            const victimEl = targetVictimId ? document.getElementById(`avatar-${targetVictimId}`) : null;
+            const vRect = victimEl?.getBoundingClientRect();
+            victimCenterX = vRect ? ((vRect.left - cRect.left) + vRect.width / 2) : (cRect.width / 2);
+            victimCenterY = vRect ? ((vRect.top - cRect.top) + vRect.height / 2) : 80;
           }
-          const vRect = victimEl?.getBoundingClientRect();
-          const victimCenterX = vRect ? ((vRect.left - cRect.left) + vRect.width / 2) : (cRect.width / 2);
-          const victimCenterY = vRect ? ((vRect.top - cRect.top) + vRect.height / 2) : (targetVictimId === myId ? cRect.height - 70 : 80);
 
           const tableEl = deckSlotsRef.current;
           const tRect = tableEl?.getBoundingClientRect();
@@ -358,20 +374,24 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         }
       }, 380);
 
-      // Keep the BUSTED visual feedback active for 3.2 seconds
-      const bustedTimer = setTimeout(() => {
-        setIsCutAnimating(false);
-        setCutDetails(null);
-      }, 3200);
-
       return () => {
         clearTimeout(sweepTimer);
-        clearTimeout(bustedTimer);
       };
     } else {
       prevLastActionRef.current = action;
     }
   }, [gameState.lastAction, gameState.lastCutVictimId, gameState.players, myId]);
+
+  // Issue 1 FIX: Separate auto-clear timer for BUSTED red highlight.
+  // This runs independently of the cut sweep effect so its cleanup won't cancel the timer.
+  useEffect(() => {
+    if (!isCutAnimating) return;
+    const bustedClearTimer = setTimeout(() => {
+      setIsCutAnimating(false);
+      setCutDetails(null);
+    }, 3000);
+    return () => clearTimeout(bustedClearTimer);
+  }, [isCutAnimating]);
 
   // Track incoming card plays and trigger smooth hand/profile-to-deck flight animation
   useEffect(() => {
@@ -382,6 +402,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     if (currentTrick.length === 0) {
       setHideDeckSlotsUntilNewRound(false);
       setHiddenHandCardId(null);
+      hiddenDeckCardIdsRef.current.clear();
     }
 
     if (currentTrick.length > prevTrick.length) {
@@ -393,12 +414,22 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       const CARD_W = 72;
       const CARD_H = 108;
 
+      // Issue 2 FIX: Synchronously mark these card IDs as hidden on the deck slot
+      // BEFORE the state update triggers a re-render, preventing the 1-frame duplicate flash
+      newPlays.forEach(play => {
+        hiddenDeckCardIdsRef.current.add(play.card.id);
+      });
+
       newPlays.forEach(play => {
         let originCenterX = 0;
         let originCenterY = 0;
 
         // If local user played this card, launch directly from their hand card position!
         if (play.playerId === myId) {
+          // Issue 3 FIX: Priority chain for origin coordinates:
+          // 1. myPlayedCardOriginRef (captured before card was hidden from hand)
+          // 2. DOM element if still present
+          // 3. Hand container bottom area (NOT the bottom-profile center avatar)
           if (myPlayedCardOriginRef.current && myPlayedCardOriginRef.current.cardId === play.card.id) {
             const r = myPlayedCardOriginRef.current.rect;
             originCenterX = (r.left - cRect.left) + r.width / 2;
@@ -410,12 +441,14 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               originCenterX = (r.left - cRect.left) + r.width / 2;
               originCenterY = (r.top - cRect.top) + r.height / 2;
             } else {
-              const botEl = document.getElementById(`bottom-profile-${myId}`);
-              const r = botEl?.getBoundingClientRect();
-              originCenterX = r ? ((r.left - cRect.left) + r.width / 2) : (cRect.width / 2);
-              originCenterY = r ? ((r.top - cRect.top) + r.height / 2) : (cRect.height - 80);
+              // Fallback: use bottom hand area, not center profile avatar
+              // This ensures cards still fly from approximately the right area
+              originCenterX = cRect.width / 2;
+              originCenterY = cRect.height - 180;
             }
           }
+          // Clear the ref after use to prevent stale data on next play
+          myPlayedCardOriginRef.current = null;
         } else {
           // For remote players, launch from their top avatar profile
           const avatarEl = document.getElementById(`avatar-${play.playerId}`);
@@ -454,6 +487,10 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         setTimeout(() => {
           setFlyingPlayCards(prev => prev.filter(f => !newFlights.some(nf => nf.id === f.id)));
           setHiddenHandCardId(null);
+          // Clear the synchronous ref when flight completes
+          newPlays.forEach(play => {
+            hiddenDeckCardIdsRef.current.delete(play.card.id);
+          });
         }, 460);
       }
     }
@@ -888,7 +925,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 // Dynamic card & slot dimensions scaling according to player count
                 const dims = getCenterSlotDims(totalPlayers);
 
-                const isCurrentlyFlying = playedCard ? flyingPlayCards.some(f => f.card.id === playedCard.id) : false;
+                const isCurrentlyFlying = playedCard
+                  ? (flyingPlayCards.some(f => f.card.id === playedCard.id) || hiddenDeckCardIdsRef.current.has(playedCard.id))
+                  : false;
                 const isCurrentlySweeping = cutSweepAnimation !== null || hideDeckSlotsUntilNewRound;
 
                 return (
@@ -999,7 +1038,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       )}
 
       {/* 6. BOTTOM USER HAND (4-Suit Cascade: Spades, Hearts, Clubs, Diamonds - Matches Screenshot) */}
-      <div className="relative z-10 w-full">
+      <div id="my-hand-area" className="relative z-10 w-full">
         {me && !me.isSpectator && me.cardsCount > 0 && (
           <DonkeyHand
             hand={(gameState.myHand as DonkeyCard[]) || []}
