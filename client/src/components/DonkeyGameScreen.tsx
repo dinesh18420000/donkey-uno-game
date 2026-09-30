@@ -124,10 +124,12 @@ interface FlyingCardItem {
   card: DonkeyCard;
   startX: number;
   startY: number;
-  midX: number;
-  midY: number;
   endX: number;
   endY: number;
+  startScale?: number;
+  startRot?: number;
+  midRot?: number;
+  arcX?: number;
 }
 
 interface SweepCardItem {
@@ -292,7 +294,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       setIsCutAnimating(true);
       sounds.playCutMusic();
 
-      // 2. Allow 380ms for the cutting card to complete its flight onto the table slot,
+      // 2. Allow 480ms for the cutting card to complete its flight onto the table slot,
       // then neatly gather all played cards into a center stack before sweeping to victim's profile!
       const sweepTimer = setTimeout(() => {
         const cardsToCollect = (gameState.currentTrick && gameState.currentTrick.length > 0)
@@ -460,18 +462,26 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         const endX = targetCenterX - CARD_W / 2;
         const endY = targetCenterY - CARD_H / 2;
 
-        const midX = (startX + endX) / 2 + (startX < endX ? -15 : 15);
-        const midY = Math.min(startY, endY) - 35;
+        const isFromHand = play.playerId === myId;
+        const isFromLeft = startX < endX - 25;
+        const isFromRight = startX > endX + 25;
+
+        const startScale = isFromHand ? 0.92 : 0.75;
+        const startRot = isFromLeft ? -4 : isFromRight ? 4 : -1;
+        const midRot = isFromLeft ? 1 : isFromRight ? -1 : 0.5;
+        const arcX = isFromLeft ? -10 : isFromRight ? 10 : 0;
 
         newFlights.push({
           id: `flight-${play.card.id}-${Date.now()}-${Math.random()}`,
           card: play.card,
           startX,
           startY,
-          midX,
-          midY,
           endX,
-          endY
+          endY,
+          startScale,
+          startRot,
+          midRot,
+          arcX
         });
       });
 
@@ -486,7 +496,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             newPlays.forEach(p => next.add(p.card.id));
             return next;
           });
-        }, 380);
+        }, 460);
       }
     }
 
@@ -1383,31 +1393,39 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               style={{
                 '--f-start-x': `${flight.startX}px`,
                 '--f-start-y': `${flight.startY}px`,
-                '--f-mid-x': `${flight.midX}px`,
-                '--f-mid-y': `${flight.midY}px`,
                 '--f-end-x': `${flight.endX}px`,
                 '--f-end-y': `${flight.endY}px`,
               } as React.CSSProperties}
             >
-              <div className="w-[72px] sm:w-[80px] h-[108px] sm:h-[116px] rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.65)] select-none overflow-hidden">
-                <div className="flex items-center justify-between w-full leading-none px-0.5">
-                  <span className={`text-base font-black tracking-tight ${
-                    flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                  }`}>
-                    {flight.card.value}
-                  </span>
-                  <CardSuitIcon suit={flight.card.suit} size={14} />
-                </div>
-                <div className="w-full flex-1 flex items-center justify-center my-auto">
-                  <CardSuitIcon suit={flight.card.suit} size={36} glossy={true} />
-                </div>
-                <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
-                  <span className={`text-base font-black tracking-tight ${
-                    flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                  }`}>
-                    {flight.card.value}
-                  </span>
-                  <CardSuitIcon suit={flight.card.suit} size={14} />
+              <div
+                className="animate-flight-inner"
+                style={{
+                  '--f-start-scale': flight.startScale ?? 0.92,
+                  '--f-start-rot': `${flight.startRot ?? -2}deg`,
+                  '--f-mid-rot': `${flight.midRot ?? 1}deg`,
+                  '--f-arc-x': `${flight.arcX ?? 0}px`,
+                } as React.CSSProperties}
+              >
+                <div className="w-[72px] sm:w-[84px] h-[108px] sm:h-[126px] rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.65)] select-none overflow-hidden">
+                  <div className="flex items-center justify-between w-full leading-none px-0.5">
+                    <span className={`text-base sm:text-lg font-black tracking-tight ${
+                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                    }`}>
+                      {flight.card.value}
+                    </span>
+                    <CardSuitIcon suit={flight.card.suit} size={15} />
+                  </div>
+                  <div className="w-full flex-1 flex items-center justify-center my-auto">
+                    <CardSuitIcon suit={flight.card.suit} size={44} glossy={true} />
+                  </div>
+                  <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
+                    <span className={`text-base sm:text-lg font-black tracking-tight ${
+                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                    }`}>
+                      {flight.card.value}
+                    </span>
+                    <CardSuitIcon suit={flight.card.suit} size={15} />
+                  </div>
                 </div>
               </div>
             </div>

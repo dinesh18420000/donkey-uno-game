@@ -426,27 +426,47 @@
 }
 
 
-/* Card Flight: Player Profile / Hand to Table Playing Deck (Super Smooth GPU Composited) */
-@keyframes flightProfileToDeck {
+/* Card Flight: Player Profile / Hand to Table Playing Deck (Silky 60fps GPU Hardware-Accelerated) */
+@keyframes flightTranslate {
   0% {
-    transform: translate3d(var(--f-start-x), var(--f-start-y), 0) scale(0.7) rotate(-6deg);
-    opacity: 0.9;
+    transform: translate3d(var(--f-start-x), var(--f-start-y), 0);
   }
-  50% {
-    transform: translate3d(var(--f-mid-x), var(--f-mid-y), 0) scale(1.08) rotate(2deg);
+  100% {
+    transform: translate3d(var(--f-end-x), var(--f-end-y), 0);
+  }
+}
+
+@keyframes flightArcLift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(var(--f-start-scale, 0.92)) rotate(var(--f-start-rot, -3deg));
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+    opacity: 0.95;
+  }
+  42% {
+    transform: translate3d(var(--f-arc-x, 0px), -24px, 0) scale(1.06) rotate(var(--f-mid-rot, 1deg));
+    filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.6));
     opacity: 1;
   }
   100% {
-    transform: translate3d(var(--f-end-x), var(--f-end-y), 0) scale(1.0) rotate(0deg);
+    transform: translate3d(0, 0, 0) scale(1.0) rotate(0deg);
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
     opacity: 1;
   }
 }
+
 .animate-profile-to-deck {
   position: absolute;
   top: 0;
   left: 0;
-  animation: flightProfileToDeck 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.1) forwards;
-  will-change: transform, opacity;
+  animation: flightTranslate 0.46s cubic-bezier(0.18, 0.9, 0.32, 1) forwards;
+  will-change: transform;
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+
+.animate-flight-inner {
+  animation: flightArcLift 0.46s ease-out forwards;
+  will-change: transform, filter;
   backface-visibility: hidden;
   transform-origin: center center;
 }
@@ -456,34 +476,39 @@
   0% {
     transform: translate3d(var(--c-slot-x), var(--c-slot-y), 0) scale(1.0) rotate(0deg);
     opacity: 1;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
   }
-  /* Phase 1: All cards lift from slots and glide into a neat center deck stack */
+  /* Phase 1: All cards smoothly lift from slots and glide into center stack */
   35% {
-    transform: translate3d(var(--c-center-x), var(--c-center-y), 0) scale(1.06) rotate(var(--c-rot, 0deg));
+    transform: translate3d(var(--c-center-x), var(--c-center-y), 0) scale(1.08) rotate(var(--c-rot, 0deg));
     opacity: 1;
+    filter: drop-shadow(0 16px 28px rgba(0, 0, 0, 0.6));
   }
-  /* Phase 2: Stay neatly arranged in the center deck stack */
-  55% {
-    transform: translate3d(var(--c-center-x), var(--c-center-y), 0) scale(1.06) rotate(var(--c-rot, 0deg));
+  /* Phase 2: Living hover pulse in center stack */
+  48% {
+    transform: translate3d(var(--c-center-x), calc(var(--c-center-y) - 6px), 0) scale(1.1) rotate(var(--c-rot, 0deg));
     opacity: 1;
+    filter: drop-shadow(0 22px 36px rgba(0, 0, 0, 0.7));
   }
-  /* Phase 3: The whole deck stack sweeps together straight into the victim profile */
-  88% {
-    transform: translate3d(var(--c-victim-x), var(--c-victim-y), 0) scale(0.38) rotate(calc(var(--c-rot, 0deg) + 15deg));
+  /* Phase 3: The whole deck stack sweeps together straight into victim */
+  84% {
+    transform: translate3d(var(--c-victim-x), var(--c-victim-y), 0) scale(0.42) rotate(calc(var(--c-rot, 0deg) + 12deg));
     opacity: 0.95;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5));
   }
-  /* Phase 4: Disappear cleanly into the victim profile */
+  /* Phase 4: Disappear cleanly into victim deck/hand */
   100% {
-    transform: translate3d(var(--c-victim-x), var(--c-victim-y), 0) scale(0.08) rotate(45deg);
+    transform: translate3d(var(--c-victim-x), var(--c-victim-y), 0) scale(0.06) rotate(30deg);
     opacity: 0;
+    filter: drop-shadow(0 0 0 transparent);
   }
 }
 .animate-collect-and-sweep {
   position: absolute;
   top: 0;
   left: 0;
-  animation: cutGatherAndSweep 1.35s cubic-bezier(0.22, 0.85, 0.32, 1) forwards;
-  will-change: transform, opacity;
+  animation: cutGatherAndSweep 1.35s cubic-bezier(0.22, 0.9, 0.35, 1) forwards;
+  will-change: transform, opacity, filter;
   backface-visibility: hidden;
   transform-origin: center center;
 }

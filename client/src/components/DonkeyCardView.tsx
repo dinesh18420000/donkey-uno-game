@@ -48,7 +48,7 @@ const DonkeyCardViewComponent: React.FC<DonkeyCardViewProps> = ({
     <div
       id={id}
       onClick={onClick}
-      className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-white border border-slate-200/90 p-2 flex flex-col justify-between select-none transition-transform duration-150 cursor-pointer overflow-hidden ${
+      className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-white border border-slate-200/90 p-2 flex flex-col justify-between select-none transition-all duration-200 ease-out cursor-pointer overflow-hidden ${
         isSelected
           ? '-translate-y-4 ring-4 ring-yellow-400 shadow-[0_22px_36px_-6px_rgba(250,204,21,0.85),0_12px_22px_rgba(0,0,0,0.6)] scale-105 z-50'
           : 'shadow-[0_5px_14px_rgba(0,0,0,0.3)]'

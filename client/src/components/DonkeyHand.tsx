@@ -282,13 +282,13 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
                               onClick={() => handleCardClick(card)}
                               style={{
                                 position: 'absolute',
-                                top: `${isSelected ? Math.max(0, topPos - 16) : topPos}px`,
+                                top: `${topPos}px`,
                                 left: 0,
                                 right: 0,
                                 height: `${CARD_HEIGHT}px`,
                                 zIndex: isSelected ? 100 : idx + 5
                               }}
-                              className={`rounded-xl bg-white border border-slate-200/90 shadow-[0_3px_8px_rgba(0,0,0,0.25)] transition-transform duration-150 select-none overflow-hidden cursor-pointer flex flex-col justify-between ${
+                              className={`rounded-xl bg-white border border-slate-200/90 shadow-[0_3px_8px_rgba(0,0,0,0.25)] transition-all duration-200 ease-out select-none overflow-hidden cursor-pointer flex flex-col justify-between ${
                                 hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : ''
                               } ${
                                 isCardShadowed
@@ -298,10 +298,10 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
                                   : ''
                               } ${
                                 isSelected
-                                  ? 'ring-4 ring-yellow-400 bg-amber-50 shadow-[0_16px_32px_rgba(250,204,21,0.9),0_8px_16px_rgba(0,0,0,0.5)] -translate-y-3.5 scale-105 z-50 border-amber-400'
+                                  ? '-translate-y-4 scale-[1.03] ring-4 ring-yellow-400 bg-amber-50 shadow-[0_16px_32px_rgba(250,204,21,0.9),0_8px_16px_rgba(0,0,0,0.5)] z-50 border-amber-400'
                                   : isCardShadowed
                                   ? 'hover:-translate-y-0.5 active:scale-98'
-                                  : 'hover:z-40 hover:-translate-y-1.5 hover:scale-102 active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:border-amber-400'
+                                  : 'hover:z-40 hover:-translate-y-2 hover:scale-[1.02] active:scale-95 active:shadow-[0_2px_4px_rgba(0,0,0,0.3)] hover:border-amber-400'
                               } ${
                                 isShaking
                                   ? 'animate-card-shake ring-2 ring-rose-500/80'
