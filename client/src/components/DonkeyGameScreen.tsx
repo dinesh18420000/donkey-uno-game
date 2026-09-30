@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import type { ClientGameState, DonkeyCard, TrickPlay } from '../types';
 import { getTurnNeighbors } from '../types';
 import { socketService } from '../services/socket';
@@ -198,11 +198,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const [cutSweepAnimation, setCutSweepAnimation] = useState<SweepCardItem[] | null>(null);
   const [hideDeckSlotsUntilNewRound, setHideDeckSlotsUntilNewRound] = useState<boolean>(false);
   const [hiddenHandCardId, setHiddenHandCardId] = useState<string | null>(null);
+  // Cards that have completed their flight animation and are now landed face-up on table slots
+  const [landedCardIds, setLandedCardIds] = useState<Set<string>>(() => {
+    return new Set((gameState.currentTrick || []).map(t => t.card.id));
+  });
   const myPlayedCardOriginRef = useRef<{ cardId: string; rect: DOMRect } | null>(null);
   const prevTrickRef = useRef<TrickPlay[]>(gameState.currentTrick || []);
   const lastTrickBeforeClearRef = useRef<TrickPlay[]>([]);
-  // Synchronous ref for flying card IDs — prevents 1-frame duplicate card flash on deck slot
-  const hiddenDeckCardIdsRef = useRef<Set<string>>(new Set());
 
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const topAvatarsRef = useRef<HTMLDivElement>(null);
@@ -394,15 +396,19 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   }, [isCutAnimating]);
 
   // Track incoming card plays and trigger smooth hand/profile-to-deck flight animation
-  useEffect(() => {
+  useLayoutEffect(() => {
     const currentTrick = gameState.currentTrick || [];
     const prevTrick = prevTrickRef.current;
 
-    // Reset slot hide when new trick begins
+    // Reset slot hide & landed cards when new trick begins (table cleared)
     if (currentTrick.length === 0) {
       setHideDeckSlotsUntilNewRound(false);
       setHiddenHandCardId(null);
-      hiddenDeckCardIdsRef.current.clear();
+      setLandedCardIds(new Set());
+    } else if (currentTrick.length < prevTrick.length) {
+      // Trick was trimmed or partially cleared — keep only IDs still present
+      const curIds = new Set(currentTrick.map(t => t.card.id));
+      setLandedCardIds(prev => new Set([...prev].filter(id => curIds.has(id))));
     }
 
     if (currentTrick.length > prevTrick.length) {
@@ -414,22 +420,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       const CARD_W = 72;
       const CARD_H = 108;
 
-      // Issue 2 FIX: Synchronously mark these card IDs as hidden on the deck slot
-      // BEFORE the state update triggers a re-render, preventing the 1-frame duplicate flash
-      newPlays.forEach(play => {
-        hiddenDeckCardIdsRef.current.add(play.card.id);
-      });
-
       newPlays.forEach(play => {
         let originCenterX = 0;
         let originCenterY = 0;
 
         // If local user played this card, launch directly from their hand card position!
         if (play.playerId === myId) {
-          // Issue 3 FIX: Priority chain for origin coordinates:
-          // 1. myPlayedCardOriginRef (captured before card was hidden from hand)
-          // 2. DOM element if still present
-          // 3. Hand container bottom area (NOT the bottom-profile center avatar)
           if (myPlayedCardOriginRef.current && myPlayedCardOriginRef.current.cardId === play.card.id) {
             const r = myPlayedCardOriginRef.current.rect;
             originCenterX = (r.left - cRect.left) + r.width / 2;
@@ -441,13 +437,10 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               originCenterX = (r.left - cRect.left) + r.width / 2;
               originCenterY = (r.top - cRect.top) + r.height / 2;
             } else {
-              // Fallback: use bottom hand area, not center profile avatar
-              // This ensures cards still fly from approximately the right area
               originCenterX = cRect.width / 2;
               originCenterY = cRect.height - 180;
             }
           }
-          // Clear the ref after use to prevent stale data on next play
           myPlayedCardOriginRef.current = null;
         } else {
           // For remote players, launch from their top avatar profile
@@ -487,11 +480,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         setTimeout(() => {
           setFlyingPlayCards(prev => prev.filter(f => !newFlights.some(nf => nf.id === f.id)));
           setHiddenHandCardId(null);
-          // Clear the synchronous ref when flight completes
-          newPlays.forEach(play => {
-            hiddenDeckCardIdsRef.current.delete(play.card.id);
+          // Mark cards as officially landed — this reveals face-up card in the slot at the exact landing millisecond!
+          setLandedCardIds(prev => {
+            const next = new Set(prev);
+            newPlays.forEach(p => next.add(p.card.id));
+            return next;
           });
-        }, 460);
+        }, 380);
       }
     }
 
@@ -925,10 +920,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 // Dynamic card & slot dimensions scaling according to player count
                 const dims = getCenterSlotDims(totalPlayers);
 
-                const isCurrentlyFlying = playedCard
-                  ? (flyingPlayCards.some(f => f.card.id === playedCard.id) || hiddenDeckCardIdsRef.current.has(playedCard.id))
-                  : false;
+                // A card in a slot is ONLY shown face-up if it has finished flying and landed on the table!
+                // While flying or waiting, the slot strictly maintains its theme card back (Yellow for Player 1)!
+                const isLanded = playedCard ? landedCardIds.has(playedCard.id) : false;
                 const isCurrentlySweeping = cutSweepAnimation !== null || hideDeckSlotsUntilNewRound;
+                const showFaceUpCard = playedCard && isLanded && !isCurrentlySweeping;
 
                 return (
                   <div key={`deck-slot-${player.id}`} id={`deck-slot-${player.id}`} className="flex flex-col items-center flex-shrink-0 relative">
@@ -944,12 +940,10 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                           : ''
                       }`}
                     >
-                      {playedCard ? (
-                        /* FACE-UP PLAYED CARD (Exact Donkey Master Match) */
+                      {showFaceUpCard ? (
+                        /* FACE-UP PLAYED CARD (Revealed only once card finishes flight and lands) */
                         <div 
-                          className={`w-full h-full rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1 sm:p-1.5 select-none shadow-[0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden relative transition-opacity duration-200 ${
-                            isCurrentlyFlying || isCurrentlySweeping ? 'opacity-0 pointer-events-none' : 'opacity-100'
-                          }`}
+                          className="w-full h-full rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1 sm:p-1.5 select-none shadow-[0_6px_14px_rgba(0,0,0,0.35)] overflow-hidden relative"
                         >
                           {/* Top Header Row: Left = Bold Rank, Right = Small Vector Suit */}
                           <div className="flex items-center justify-between w-full leading-none relative z-10 px-0.5">
