@@ -39,11 +39,20 @@ class SocketService {
       }
     }
 
-    // If running in browser (e.g. Safari on Apple device or Chrome on PC), default to current origin if hosted online
-    const isBrowserWeb = typeof window !== 'undefined' && window.location.protocol.startsWith('http') && !window.location.hostname.includes('localhost');
+    // If running in browser, connect to current origin (e.g. http://localhost:3001 or online host)
+    // If running in Vite dev server (port 5173), target port 3001 locally
+    const isBrowser = typeof window !== 'undefined' && window.location.protocol.startsWith('http');
+    let defaultUrl = 'https://donkey-uno-server.onrender.com';
+    if (isBrowser) {
+      if (window.location.port === '5173') {
+        defaultUrl = 'http://localhost:3001';
+      } else {
+        defaultUrl = window.location.origin;
+      }
+    }
 
     const envServer = (import.meta as any).env?.VITE_SERVER_URL;
-    this.serverUrl = savedServer || (isBrowserWeb ? window.location.origin : (envServer || 'https://donkey-uno-server.onrender.com'));
+    this.serverUrl = savedServer || (isBrowser ? defaultUrl : (envServer || 'https://donkey-uno-server.onrender.com'));
   }
 
   public setServerUrl(url: string) {

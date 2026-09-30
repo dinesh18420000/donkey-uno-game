@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { ClientGameState, DonkeyCard, TrickPlay } from '../types';
 import { getTurnNeighbors } from '../types';
 import { socketService } from '../services/socket';
@@ -140,6 +140,43 @@ interface SweepCardItem {
   stackRot: number;
 }
 
+// Isolated Countdown Badge Component: ticks every 1000ms internally without re-rendering parent DonkeyGameScreen
+const TurnCountdownBadge: React.FC<{ expiresAt?: number; isTimeLow: boolean }> = React.memo(({ expiresAt, isTimeLow }) => {
+  const [seconds, setSeconds] = useState<number>(() => {
+    if (expiresAt && expiresAt > Date.now()) {
+      return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    }
+    return 30;
+  });
+
+  useEffect(() => {
+    const updateTime = () => {
+      if (expiresAt && expiresAt > Date.now()) {
+        const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+        setSeconds(remaining);
+      } else {
+        setSeconds(prev => (prev > 0 ? prev - 1 : 0));
+      }
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  return (
+    <div
+      className={`absolute -top-5 z-30 flex items-center gap-0.5 px-1.5 py-0.2 rounded-full border shadow-md text-[9px] font-black tracking-tight ${
+        isTimeLow
+          ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse'
+          : 'bg-emerald-950/95 border-emerald-400 text-emerald-300'
+      }`}
+    >
+      <Clock className={`w-2.5 h-2.5 ${isTimeLow ? 'text-red-400 animate-spin' : 'text-emerald-400'}`} />
+      <span>{seconds}s</span>
+    </div>
+  );
+});
+
 export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, onExitToLobby }) => {
   const [selectedCard, setSelectedCard] = useState<DonkeyCard | null>(null);
   const [showEmotePicker, setShowEmotePicker] = useState<boolean>(false);
@@ -151,8 +188,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
   const [isWatching, setIsWatching] = useState<boolean>(false);
 
-  // 30-second turn countdown timer
-  const [turnSeconds, setTurnSeconds] = useState<number>(30);
+  // Low-time alert (updates only when crossing <= 6s threshold, zero 1-second interval re-renders)
+  const [isTimeLow, setIsTimeLow] = useState<boolean>(false);
 
   // States for Smooth Gameplay Animations
   const [flyingPlayCards, setFlyingPlayCards] = useState<FlyingCardItem[]>([]);
@@ -167,24 +204,25 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const me = gameState.players.find(p => p.id === myId);
 
   // Filter active competing players (Exclude spectators so watchers are not seated as players)
-  const rawActive = gameState.players.filter(p => {
+  const rawActive = useMemo(() => gameState.players.filter(p => {
     if (p.isSpectator) return false;
     if (!p.rank && !p.isMercyEliminated) return true;
     if (gameState.currentTrick?.some(t => t.playerId === p.id)) return true;
     return false;
-  });
-  const nonSpectatorPlayers = gameState.players.filter(p => !p.isSpectator);
-  const activePlayers = rawActive.length >= 2 ? rawActive : (nonSpectatorPlayers.length > 0 ? nonSpectatorPlayers : gameState.players);
+  }), [gameState.players, gameState.currentTrick]);
+
+  const nonSpectatorPlayers = useMemo(() => gameState.players.filter(p => !p.isSpectator), [gameState.players]);
+  const activePlayers = useMemo(() => (rawActive.length >= 2 ? rawActive : (nonSpectatorPlayers.length > 0 ? nonSpectatorPlayers : gameState.players)), [rawActive, nonSpectatorPlayers, gameState.players]);
 
   // CYCLIC / CIRCULAR QUEUE ROTATION:
   // Viewer is ALWAYS displayIndex = 0 (first slot), followed in cyclic order by others.
-  const orderedPlayers = rotatePlayersForViewer(activePlayers, myId);
+  const orderedPlayers = useMemo(() => rotatePlayersForViewer(activePlayers, myId), [activePlayers, myId]);
   const totalPlayers = orderedPlayers.length;
 
   // Safe winners who have already cleared cards (EXCLUDE spectators so watchers are never listed as safe)
-  const finishedWinners = gameState.players
+  const finishedWinners = useMemo(() => gameState.players
     .filter(p => !p.isSpectator && p.rank && !p.isDonkey && p.cardsCount === 0)
-    .sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    .sort((a, b) => (a.rank || 0) - (b.rank || 0)), [gameState.players]);
 
   const isMyTurn = gameState.currentTurnPlayerId === myId;
   const currentTurnPlayer = gameState.players.find(p => p.id === gameState.currentTurnPlayerId);
@@ -193,7 +231,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const hasPlayerCleared = !!me?.rank && me.cardsCount === 0;
 
   // Turn order: who plays before me and who plays after me among ACTIVE players
-  const { playerBeforeMe, playerAfterMe } = getTurnNeighbors(activePlayers, myId, 1);
+  const { playerBeforeMe, playerAfterMe } = useMemo(() => getTurnNeighbors(activePlayers, myId, 1), [activePlayers, myId]);
 
   // Animated feedback for Donkey Cut (cards collected from slots, stack in center, sweep to victim profile, and bust)
   const [isCutAnimating, setIsCutAnimating] = useState<boolean>(false);
@@ -377,38 +415,26 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     return () => clearTimeout(timer);
   }, [invalidCardNotice]);
 
-  // Turn countdown timer: green when normal, red when <= 6s (Optimized 1000ms tick to eliminate lag)
+  // Low-time alert: triggers audio warning and sets isTimeLow when <= 6s (zero interval re-renders)
   useEffect(() => {
-    if (gameState.turnExpiresAt && gameState.turnExpiresAt > Date.now()) {
-      const remaining = Math.max(0, Math.ceil((gameState.turnExpiresAt - Date.now()) / 1000));
-      setTurnSeconds(remaining);
-    } else {
-      setTurnSeconds(30);
+    if (!gameState.turnExpiresAt || gameState.turnExpiresAt <= Date.now()) {
+      setIsTimeLow(false);
+      return;
     }
-
-    const interval = setInterval(() => {
-      if (gameState.turnExpiresAt) {
-        const remaining = Math.max(0, Math.ceil((gameState.turnExpiresAt - Date.now()) / 1000));
-        setTurnSeconds(prev => {
-          if (prev === remaining) return prev;
-          if (remaining === 5 && isMyTurn) {
-            sounds.playUnoWarning();
-          }
-          return remaining;
-        });
-      } else {
-        setTurnSeconds(prev => {
-          if (prev <= 1) return 0;
-          if (prev === 6 && isMyTurn) {
-            sounds.playUnoWarning();
-          }
-          return prev - 1;
-        });
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [gameState.currentTurnPlayerId, gameState.roundNumber, gameState.turnExpiresAt, isMyTurn]);
+    const msRemaining = gameState.turnExpiresAt - Date.now();
+    const msUntilLow = msRemaining - 6000;
+    if (msUntilLow <= 0) {
+      setIsTimeLow(true);
+      if (isMyTurn) sounds.playUnoWarning();
+      return;
+    }
+    setIsTimeLow(false);
+    const timer = setTimeout(() => {
+      setIsTimeLow(true);
+      if (isMyTurn) sounds.playUnoWarning();
+    }, msUntilLow);
+    return () => clearTimeout(timer);
+  }, [gameState.currentTurnPlayerId, gameState.turnExpiresAt, isMyTurn]);
 
   // Remote Emote listener
   useEffect(() => {
@@ -492,7 +518,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   };
 
   const showClearedModal = hasPlayerCleared && !isWatching && !isGameOver;
-  const isTimeLow = turnSeconds <= 6;
 
   // Carousel scroll helpers for 10 players
   const scrollAvatars = (direction: 'left' | 'right') => {
@@ -508,7 +533,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     <div className="casino-blue-table relative w-full h-full flex flex-col justify-between overflow-hidden text-white select-none">
       
       {/* 1. TOP HEADER BAR WITH MOBILE SAFE-AREA (Guarantees profile icons never overlap notification bar) */}
-      <div className="relative z-25 w-full px-3 safe-top py-1.5 flex items-center justify-between bg-black/60 backdrop-blur-md border-b border-cyan-500/30 gap-2">
+      <div className="relative z-25 w-full px-3 safe-top py-1.5 flex items-center justify-between bg-[#040e24]/95 border-b border-cyan-500/30 gap-2 shadow-md">
         {/* Left: Donkey Master Title & Room Code */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span className="text-xl filter drop-shadow">🫏</span>
@@ -555,7 +580,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* 2. SAFE / FINISHED WINNERS BANNER (When players win/rank out) */}
       {finishedWinners.length > 0 && !isGameOver && (
-        <div className="relative z-15 w-full px-3 py-1 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar bg-black/40 backdrop-blur-sm border-b border-cyan-500/30">
+        <div className="relative z-15 w-full px-3 py-1 flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar bg-[#020b1c]/90 border-b border-cyan-500/30">
           <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1 flex-shrink-0">
             <span>🏆</span>
             <span>Safe:</span>
@@ -651,16 +676,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
                   {/* Turn Countdown Badge */}
                   {isTurn && !player.rank && (
-                    <div
-                      className={`absolute -top-5 z-30 flex items-center gap-0.5 px-1.5 py-0.2 rounded-full border shadow-md text-[9px] font-black tracking-tight ${
-                        isTimeLow
-                          ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse'
-                          : 'bg-emerald-950/95 border-emerald-400 text-emerald-300'
-                      }`}
-                    >
-                      <Clock className={`w-2.5 h-2.5 ${isTimeLow ? 'text-red-400 animate-spin' : 'text-emerald-400'}`} />
-                      <span>{turnSeconds}s</span>
-                    </div>
+                    <TurnCountdownBadge expiresAt={gameState.turnExpiresAt} isTimeLow={isTimeLow} />
                   )}
 
                   {/* Circular Avatar Container with Active Turn Steady Highlight */}
@@ -738,11 +754,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       <div className="relative z-10 w-full max-w-xl mx-auto px-2 py-1 my-auto flex flex-col items-center">
         {/* 3D Oval Felt Table Surface (Shakes and turns red during cut strike) */}
         <div
-          className={`relative w-full rounded-[28px] sm:rounded-[36px] p-2.5 sm:p-3.5 bg-gradient-to-b from-[#0a2f6e]/90 via-[#061e47]/95 to-[#03112b]/95 border-2 transition-all duration-300 ${
+          className={`relative w-full rounded-[28px] sm:rounded-[36px] p-2.5 sm:p-3.5 bg-gradient-to-b from-[#0a2f6e]/95 via-[#061e47]/98 to-[#03112b] border-2 transition-[border-color,box-shadow] duration-200 ${
             isCutAnimating
               ? 'animate-cut-shake border-red-500 shadow-[0_0_35px_rgba(239,68,68,0.7),inset_0_4px_22px_rgba(239,68,68,0.4)]'
               : 'border-cyan-400/40 shadow-[inset_0_4px_22px_rgba(6,182,212,0.25),0_15px_35px_rgba(0,0,0,0.6)]'
-          } backdrop-blur-sm flex flex-col items-center overflow-hidden`}
+          } flex flex-col items-center overflow-hidden`}
         >
           {/* Subtle Top Table Felt Spotlight Glow */}
           <div className="absolute inset-x-8 top-0 h-20 bg-gradient-to-b from-cyan-400/30 via-blue-500/10 to-transparent rounded-t-[28px] pointer-events-none" />
@@ -964,7 +980,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       {/* 5. SMALL POPUP TOOLTIP ON INVALID CARD TOUCH */}
       {invalidCardNotice && (
         <div className="relative z-40 flex justify-center w-full px-4 -mb-1 pointer-events-none animate-pop-in">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-950/95 border-2 border-amber-400 text-amber-300 font-black text-xs shadow-[0_4px_18px_rgba(0,0,0,0.8),0_0_12px_rgba(250,204,21,0.6)] backdrop-blur-md">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-950 border-2 border-amber-400 text-amber-300 font-black text-xs shadow-[0_4px_18px_rgba(0,0,0,0.8),0_0_12px_rgba(250,204,21,0.6)]">
             <span className="text-sm filter drop-shadow">{invalidCardNotice.symbol}</span>
             <span className="leading-none drop-shadow">{invalidCardNotice.message}</span>
           </div>
@@ -1035,7 +1051,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
           {/* Emote Picker Dropdown */}
           {showEmotePicker && (
-            <div className="absolute bottom-14 left-0 z-50 p-2 rounded-2xl bg-slate-900 border-2 border-amber-400 shadow-2xl flex gap-1.5 backdrop-blur-md">
+            <div className="absolute bottom-14 left-0 z-50 p-2 rounded-2xl bg-slate-900 border-2 border-amber-400 shadow-2xl flex gap-1.5">
               {EMOTE_LIST.map((em, idx) => (
                 <button
                   key={idx}
@@ -1050,7 +1066,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
           {/* Quick Chat Dropdown */}
           {showChatPicker && (
-            <div className="absolute bottom-14 left-10 z-50 p-2 rounded-2xl bg-slate-900 border-2 border-amber-400 shadow-2xl flex flex-col gap-1 backdrop-blur-md min-w-[190px]">
+            <div className="absolute bottom-14 left-10 z-50 p-2 rounded-2xl bg-slate-900 border-2 border-amber-400 shadow-2xl flex flex-col gap-1 min-w-[190px]">
               <div className="text-[10px] font-black text-amber-300 px-2 py-0.5 uppercase tracking-wider border-b border-white/10 mb-0.5">
                 Quick Messages
               </div>
@@ -1193,7 +1209,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* WATCH OR EXIT MODAL (When player finishes their cards) */}
       {showClearedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
           <div className="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-slate-900 via-blue-950 to-slate-950 border-2 border-amber-400 text-center shadow-2xl">
             <div className="text-5xl mb-2">🎉</div>
             <h2 className="text-xl font-black text-amber-300">YOU CLEARED YOUR CARDS!</h2>
@@ -1225,7 +1241,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* SETTINGS MODAL */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-5 rounded-3xl bg-gradient-to-b from-slate-900 via-blue-950 to-slate-950 border-2 border-cyan-500 text-white shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-cyan-500/30">
               <h3 className="text-base font-black text-amber-300 flex items-center gap-2">
@@ -1272,7 +1288,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* EXIT CONFIRMATION MODAL */}
       {showExitConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-6 rounded-3xl bg-slate-950 border-2 border-red-500 text-center shadow-2xl">
             <div className="text-4xl mb-2">⚠️</div>
             <h3 className="text-lg font-black text-white">Leave Game?</h3>

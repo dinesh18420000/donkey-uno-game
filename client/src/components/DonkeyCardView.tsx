@@ -25,7 +25,7 @@ const DonkeyCardViewComponent: React.FC<DonkeyCardViewProps> = ({
     return (
       <div
         onClick={onClick}
-        className={`w-14 h-20 rounded-xl bg-white border border-slate-200 shadow-[0_3px_8px_rgba(0,0,0,0.25)] p-1.5 flex flex-col justify-between select-none transition-all duration-150 relative overflow-hidden cursor-pointer ${
+        className={`w-14 h-20 rounded-xl bg-white border border-slate-200 shadow-[0_3px_8px_rgba(0,0,0,0.25)] p-1.5 flex flex-col justify-between select-none transition-transform duration-150 relative overflow-hidden cursor-pointer ${
           isSelected ? '-translate-y-2 ring-4 ring-yellow-400 shadow-[0_8px_20px_rgba(250,204,21,0.8)] scale-105' : ''
         } ${isValid ? 'active:scale-95 hover:-translate-y-1 hover:shadow-lg' : 'brightness-[0.84] opacity-85 active:scale-98'}`}
       >
@@ -44,7 +44,7 @@ const DonkeyCardViewComponent: React.FC<DonkeyCardViewProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-white border border-slate-200/90 p-2 flex flex-col justify-between select-none transition-all duration-150 cursor-pointer overflow-hidden ${
+      className={`relative w-16 h-24 sm:w-20 sm:h-28 rounded-2xl bg-white border border-slate-200/90 p-2 flex flex-col justify-between select-none transition-transform duration-150 cursor-pointer overflow-hidden ${
         isSelected
           ? '-translate-y-4 ring-4 ring-yellow-400 shadow-[0_22px_36px_-6px_rgba(250,204,21,0.85),0_12px_22px_rgba(0,0,0,0.6)] scale-105 z-50'
           : 'shadow-[0_5px_14px_rgba(0,0,0,0.3)]'

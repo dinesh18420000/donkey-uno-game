@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import type { DonkeyCard, Suit } from '../types';
 import { DonkeyCardView } from './DonkeyCardView';
 import { CardSuitIcon } from './CardSuitIcon';
@@ -52,7 +52,7 @@ const SUITS: { suit: Suit; label: string; symbol: string; color: string; borderS
   }
 ];
 
-export const DonkeyHand: React.FC<DonkeyHandProps> = ({
+const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
   hand,
   leadSuit,
   isMyTurn,
@@ -66,7 +66,38 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
   const [viewMode, setViewMode] = useState<'columns' | 'grid'>('columns');
   const [shakingCardId, setShakingCardId] = useState<string | null>(null);
 
-  const hasLeadSuit = leadSuit ? hand.some(c => c.suit === leadSuit) : false;
+  const hasLeadSuit = useMemo(() => (leadSuit ? hand.some(c => c.suit === leadSuit) : false), [hand, leadSuit]);
+
+  // Pre-sort and group hand cards once per hand change (eliminates inline sorting and lag on every tick)
+  const suitCardsMap = useMemo(() => {
+    const map: Record<Suit, DonkeyCard[]> = {
+      SPADES: [],
+      HEARTS: [],
+      CLUBS: [],
+      DIAMONDS: []
+    };
+    for (let i = 0; i < hand.length; i++) {
+      const card = hand[i];
+      map[card.suit].push(card);
+    }
+    map.SPADES.sort((a, b) => a.rank - b.rank);
+    map.HEARTS.sort((a, b) => a.rank - b.rank);
+    map.CLUBS.sort((a, b) => a.rank - b.rank);
+    map.DIAMONDS.sort((a, b) => a.rank - b.rank);
+    return map;
+  }, [hand]);
+
+  const maxSuitCards = useMemo(() => {
+    return Math.max(1, suitCardsMap.SPADES.length, suitCardsMap.HEARTS.length, suitCardsMap.CLUBS.length, suitCardsMap.DIAMONDS.length);
+  }, [suitCardsMap]);
+
+  const sortedGridCards = useMemo(() => {
+    const suitOrder: Record<Suit, number> = { SPADES: 1, HEARTS: 2, CLUBS: 3, DIAMONDS: 4 };
+    return [...hand].sort((a, b) => {
+      if (suitOrder[a.suit] !== suitOrder[b.suit]) return suitOrder[a.suit] - suitOrder[b.suit];
+      return a.rank - b.rank;
+    });
+  }, [hand]);
 
   const getInvalidReason = (card: DonkeyCard): string | null => {
     if (!isMyTurn) {
@@ -167,30 +198,22 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
 
       {viewMode === 'grid' ? (
         /* GRID VIEW: Wraps every card into clear rows with zero overlap! */
-        <div className="w-full max-h-56 sm:max-h-64 overflow-y-auto p-2 rounded-2xl bg-black/40 border border-cyan-500/30 backdrop-blur-md no-scrollbar">
+        <div className="w-full max-h-56 sm:max-h-64 overflow-y-auto p-2 rounded-2xl bg-slate-950/90 border border-cyan-500/30 shadow-xl no-scrollbar">
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-            {[...hand]
-              .sort((a, b) => {
-                const suitOrder: Record<Suit, number> = { SPADES: 1, HEARTS: 2, CLUBS: 3, DIAMONDS: 4 };
-                if (suitOrder[a.suit] !== suitOrder[b.suit]) return suitOrder[a.suit] - suitOrder[b.suit];
-                return a.rank - b.rank;
-              })
-              .map(card => (
-                <DonkeyCardView
-                  key={card.id}
-                  card={card}
-                  isSelected={selectedCardId === card.id}
-                  isValid={isCardValid(card)}
-                  onClick={() => handleCardClick(card)}
-                />
-              ))}
+            {sortedGridCards.map(card => (
+              <DonkeyCardView
+                key={card.id}
+                card={card}
+                isSelected={selectedCardId === card.id}
+                isValid={isCardValid(card)}
+                onClick={() => handleCardClick(card)}
+              />
+            ))}
           </div>
         </div>
       ) : (
         /* SUIT COLUMNS VIEW (4 Columns with equal card distance and enlarged symbols) */
         (() => {
-          // Compute max card count across all 4 suits to ensure UNIFORM equal distance across all columns
-          const maxSuitCards = Math.max(1, ...SUITS.map(({ suit }) => hand.filter(c => c.suit === suit).length));
           const CARD_HEIGHT = 90;
           // Fixed uniform step distance for EVERY card in EVERY column (strictly equal)
           const uniformStep = maxSuitCards > 5 ? Math.max(18, Math.floor((198 - CARD_HEIGHT) / (maxSuitCards - 1))) : 25;
@@ -199,11 +222,7 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
           return (
             <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5 items-end">
               {SUITS.map(({ suit, label, color }) => {
-                // Sort ascending: 2, 3 ... 10, J, Q, K, A
-                const suitCards = hand
-                  .filter(c => c.suit === suit)
-                  .sort((a, b) => a.rank - b.rank);
-
+                const suitCards = suitCardsMap[suit];
                 const isLeadActive = !!leadSuit;
                 const isColumnLead = leadSuit === suit;
                 // When lead suit is active and player has lead suit cards, other suits are shadowed
@@ -321,3 +340,5 @@ export const DonkeyHand: React.FC<DonkeyHandProps> = ({
     </div>
   );
 };
+
+export const DonkeyHand = React.memo(DonkeyHandComponent);
