@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import type { DonkeyCard, Suit } from '../types';
 import { DonkeyCardView } from './DonkeyCardView';
 import { CardSuitIcon } from './CardSuitIcon';
@@ -67,6 +67,7 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<'columns' | 'grid'>('columns');
   const [shakingCardId, setShakingCardId] = useState<string | null>(null);
+  const isClickLockedRef = useRef<boolean>(false);
 
   const hasLeadSuit = useMemo(() => (leadSuit ? hand.some(c => c.suit === leadSuit) : false), [hand, leadSuit]);
 
@@ -122,6 +123,9 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
   };
 
   const handleCardClick = (card: DonkeyCard) => {
+    // Prevent double-clicking / rapid spamming from triggering multiple plays
+    if (isClickLockedRef.current || !isMyTurn) return;
+
     const errorMsg = getInvalidReason(card);
     if (errorMsg) {
       // 1. Subtle gentle card nudge (less vibrate)
@@ -145,6 +149,12 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
       }
       return;
     }
+
+    // Lock further clicks until move is executed
+    isClickLockedRef.current = true;
+    setTimeout(() => {
+      isClickLockedRef.current = false;
+    }, 600);
 
     const cardEl = document.getElementById(`hand-card-${card.id}`);
     const rect = cardEl ? cardEl.getBoundingClientRect() : null;

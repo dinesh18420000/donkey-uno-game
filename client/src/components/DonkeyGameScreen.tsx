@@ -207,6 +207,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const myPlayedCardOriginRef = useRef<{ cardId: string; rect: DOMRect } | null>(null);
   const prevTrickRef = useRef<TrickPlay[]>(gameState.currentTrick || []);
   const lastTrickBeforeClearRef = useRef<TrickPlay[]>([]);
+  // Synchronous lock against double-clicking / rapid spamming card plays
+  const isPlayLockedRef = useRef<boolean>(false);
 
   const gameContainerRef = useRef<HTMLDivElement>(null);
   const topAvatarsRef = useRef<HTMLDivElement>(null);
@@ -407,6 +409,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       setHideDeckSlotsUntilNewRound(false);
       setHiddenHandCardId(null);
       setLandedCardIds(new Set());
+      isPlayLockedRef.current = false;
     } else if (currentTrick.length < prevTrick.length) {
       // Trick was trimmed or partially cleared — keep only IDs still present
       const curIds = new Set(currentTrick.map(t => t.card.id));
@@ -591,7 +594,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   };
 
   const handlePlayCard = (card: DonkeyCard, originRect?: DOMRect | null) => {
-    if (!isMyTurn) return;
+    // Strictly prevent double-play bug: only one card can be played per turn/trick
+    if (!isMyTurn || isPlayLockedRef.current) return;
+    isPlayLockedRef.current = true;
     sounds.playCardPlay();
 
     // 1. Instantly hide card from hand so it doesn't show duplicated
@@ -609,6 +614,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
     socketService.playDonkeyCard(gameState.roomCode, card.id);
     setSelectedCard(null);
+
+    // Auto-unlock safeguard in case server rejects move or network lags
+    setTimeout(() => {
+      isPlayLockedRef.current = false;
+    }, 1200);
   };
 
   const handleSendEmote = (emote: string) => {
@@ -1210,12 +1220,14 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         ) : (
           <button
             onClick={() => {
-              if (!isMyTurn) {
-                setInvalidCardNotice({
-                  message: "⏳ It's not your turn! Please wait for your turn.",
-                  symbol: '⏳',
-                  cardId: ''
-                });
+              if (!isMyTurn || isPlayLockedRef.current) {
+                if (!isMyTurn) {
+                  setInvalidCardNotice({
+                    message: "⏳ It's not your turn! Please wait for your turn.",
+                    symbol: '⏳',
+                    cardId: ''
+                  });
+                }
                 return;
               }
               if (selectedCard) {

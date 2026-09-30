@@ -682,6 +682,12 @@ export class RoomManager {
     const room = this.rooms.get(roomCode);
     if (!room || room.status !== 'playing' || room.gameType !== 'donkey') return false;
 
+    // Prevent double play / duplicate actions while a finished trick or cut is resolving
+    if ((room as any).isResolvingTrick) return false;
+
+    // In Donkey Master, a player can play AT MOST one card per trick
+    if (room.currentTrick && room.currentTrick.some(t => t.playerId === playerId)) return false;
+
     const currentPlayer = room.players[room.currentTurnIndex];
     if (!currentPlayer || currentPlayer.id !== playerId) return false;
 
@@ -714,6 +720,7 @@ export class RoomManager {
     room.lastAction = result.message;
 
     if (result.trickFinished) {
+      (room as any).isResolvingTrick = true;
       if (result.isCut) {
         room.lastCutVictimId = result.victimPlayerId;
         room.lastCutterId = result.cutterPlayerId;
@@ -726,6 +733,7 @@ export class RoomManager {
       // Smooth pause: 1100ms for clean trick, 1800ms for dramatic cut to allow card collection and sweep animation
       const pauseDuration = result.isCut ? 1800 : 1100;
       setTimeout(() => {
+        (room as any).isResolvingTrick = false;
         room.currentTrick = [];
         room.leadSuit = undefined;
         room.lastCutVictimId = undefined;
