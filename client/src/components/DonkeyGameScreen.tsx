@@ -202,6 +202,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const prevTrickRef = useRef<TrickPlay[]>(gameState.currentTrick || []);
   const lastTrickBeforeClearRef = useRef<TrickPlay[]>([]);
 
+  const gameContainerRef = useRef<HTMLDivElement>(null);
   const topAvatarsRef = useRef<HTMLDivElement>(null);
   const deckSlotsRef = useRef<HTMLDivElement>(null);
 
@@ -295,27 +296,40 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           : lastTrickBeforeClearRef.current;
 
         if (cardsToCollect && cardsToCollect.length > 0) {
+          const containerEl = gameContainerRef.current;
+          const cRect = containerEl ? containerEl.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+          const CARD_W = 72;
+          const CARD_H = 108;
+
           const targetVictimId = victimPlayer?.id || victimId;
           let victimEl = targetVictimId ? document.getElementById(`avatar-${targetVictimId}`) : null;
           if (!victimEl && targetVictimId === myId) {
             victimEl = document.getElementById(`bottom-profile-${myId}`);
           }
           const vRect = victimEl?.getBoundingClientRect();
-          const victimX = vRect ? vRect.left + vRect.width / 2 : window.innerWidth / 2;
-          const victimY = vRect ? vRect.top + vRect.height / 2 : (targetVictimId === myId ? window.innerHeight - 80 : 80);
+          const victimCenterX = vRect ? ((vRect.left - cRect.left) + vRect.width / 2) : (cRect.width / 2);
+          const victimCenterY = vRect ? ((vRect.top - cRect.top) + vRect.height / 2) : (targetVictimId === myId ? cRect.height - 70 : 80);
 
           const tableEl = deckSlotsRef.current;
           const tRect = tableEl?.getBoundingClientRect();
-          const centerX = tRect ? tRect.left + tRect.width / 2 : window.innerWidth / 2;
-          const centerY = tRect ? tRect.top + tRect.height / 2 : window.innerHeight * 0.42;
+          const tableCenterX = tRect ? ((tRect.left - cRect.left) + tRect.width / 2) : (cRect.width / 2);
+          const tableCenterY = tRect ? ((tRect.top - cRect.top) + tRect.height / 2) : (cRect.height * 0.42);
+
+          const centerX = tableCenterX - CARD_W / 2;
+          const centerY = tableCenterY - CARD_H / 2;
+          const victimX = victimCenterX - CARD_W / 2;
+          const victimY = victimCenterY - CARD_H / 2;
 
           setHideDeckSlotsUntilNewRound(true);
 
           const sweepItems: SweepCardItem[] = cardsToCollect.map((play, idx) => {
             const slotEl = document.getElementById(`deck-slot-${play.playerId}`);
             const sRect = slotEl?.getBoundingClientRect();
-            const slotX = sRect ? sRect.left + sRect.width / 2 : centerX;
-            const slotY = sRect ? sRect.top + sRect.height / 2 : centerY;
+            const slotCenterX = sRect ? ((sRect.left - cRect.left) + sRect.width / 2) : tableCenterX;
+            const slotCenterY = sRect ? ((sRect.top - cRect.top) + sRect.height / 2) : tableCenterY;
+
+            const slotX = slotCenterX - CARD_W / 2;
+            const slotY = slotCenterY - CARD_H / 2;
             const stackRot = ((idx * 4) % 11) - 5;
 
             return {
@@ -374,44 +388,54 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       const newPlays = currentTrick.slice(prevTrick.length);
       const newFlights: FlyingCardItem[] = [];
 
+      const containerEl = gameContainerRef.current;
+      const cRect = containerEl ? containerEl.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+      const CARD_W = 72;
+      const CARD_H = 108;
+
       newPlays.forEach(play => {
-        let startX = 0;
-        let startY = 0;
+        let originCenterX = 0;
+        let originCenterY = 0;
 
         // If local user played this card, launch directly from their hand card position!
         if (play.playerId === myId) {
           if (myPlayedCardOriginRef.current && myPlayedCardOriginRef.current.cardId === play.card.id) {
             const r = myPlayedCardOriginRef.current.rect;
-            startX = r.left + r.width / 2;
-            startY = r.top + r.height / 2;
+            originCenterX = (r.left - cRect.left) + r.width / 2;
+            originCenterY = (r.top - cRect.top) + r.height / 2;
           } else {
             const handCardEl = document.getElementById(`hand-card-${play.card.id}`);
             if (handCardEl) {
               const r = handCardEl.getBoundingClientRect();
-              startX = r.left + r.width / 2;
-              startY = r.top + r.height / 2;
+              originCenterX = (r.left - cRect.left) + r.width / 2;
+              originCenterY = (r.top - cRect.top) + r.height / 2;
             } else {
               const botEl = document.getElementById(`bottom-profile-${myId}`);
               const r = botEl?.getBoundingClientRect();
-              startX = r ? r.left + r.width / 2 : window.innerWidth / 2;
-              startY = r ? r.top + r.height / 2 : window.innerHeight - 80;
+              originCenterX = r ? ((r.left - cRect.left) + r.width / 2) : (cRect.width / 2);
+              originCenterY = r ? ((r.top - cRect.top) + r.height / 2) : (cRect.height - 80);
             }
           }
         } else {
           // For remote players, launch from their top avatar profile
           const avatarEl = document.getElementById(`avatar-${play.playerId}`);
           const aRect = avatarEl?.getBoundingClientRect();
-          startX = aRect ? aRect.left + aRect.width / 2 : window.innerWidth / 2;
-          startY = aRect ? aRect.top + aRect.height / 2 : 80;
+          originCenterX = aRect ? ((aRect.left - cRect.left) + aRect.width / 2) : (cRect.width / 2);
+          originCenterY = aRect ? ((aRect.top - cRect.top) + aRect.height / 2) : 80;
         }
 
         const deckSlotEl = document.getElementById(`deck-slot-${play.playerId}`);
         const dRect = deckSlotEl?.getBoundingClientRect();
-        const endX = dRect ? dRect.left + dRect.width / 2 : window.innerWidth / 2;
-        const endY = dRect ? dRect.top + dRect.height / 2 : window.innerHeight * 0.42;
+        const targetCenterX = dRect ? ((dRect.left - cRect.left) + dRect.width / 2) : (cRect.width / 2);
+        const targetCenterY = dRect ? ((dRect.top - cRect.top) + dRect.height / 2) : (cRect.height * 0.42);
+
+        const startX = originCenterX - CARD_W / 2;
+        const startY = originCenterY - CARD_H / 2;
+        const endX = targetCenterX - CARD_W / 2;
+        const endY = targetCenterY - CARD_H / 2;
 
         const midX = (startX + endX) / 2 + (startX < endX ? -15 : 15);
-        const midY = Math.min(startY, endY) - 40;
+        const midY = Math.min(startY, endY) - 35;
 
         newFlights.push({
           id: `flight-${play.card.id}-${Date.now()}-${Math.random()}`,
@@ -600,7 +624,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   };
 
   return (
-    <div className="casino-blue-table relative w-full h-full flex flex-col justify-between overflow-hidden text-white select-none">
+    <div ref={gameContainerRef} className="casino-blue-table relative w-full h-full flex flex-col justify-between overflow-hidden text-white select-none">
       
       {/* 1. TOP HEADER BAR WITH MOBILE SAFE-AREA (Guarantees profile icons never overlap notification bar) */}
       <div className="relative z-25 w-full px-3 safe-top py-1.5 flex items-center justify-between bg-[#040e24]/95 border-b border-cyan-500/30 gap-2 shadow-md">
@@ -962,102 +986,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           </div>
         </div>
 
-        {/* HARDWARE-ACCELERATED CARD ANIMATIONS: PLAY FLIGHT & CUT SWEEP */}
-        {/* 1. Playing Card Flight from Player Profile to Playing Deck */}
-        {flyingPlayCards.length > 0 && (
-          <div className="fixed inset-0 z-50 pointer-events-none overflow-hidden">
-            {flyingPlayCards.map(flight => (
-              <div
-                key={flight.id}
-                className="absolute top-0 left-0 animate-profile-to-deck"
-                style={{
-                  '--f-start-x': `${flight.startX}px`,
-                  '--f-start-y': `${flight.startY}px`,
-                  '--f-mid-x': `${flight.midX}px`,
-                  '--f-mid-y': `${flight.midY}px`,
-                  '--f-end-x': `${flight.endX}px`,
-                  '--f-end-y': `${flight.endY}px`,
-                  '--start-x': `${flight.startX}px`,
-                  '--start-y': `${flight.startY}px`,
-                  '--end-x': `${flight.endX}px`,
-                  '--end-y': `${flight.endY}px`,
-                } as React.CSSProperties}
-              >
-                <div className="w-20 sm:w-24 h-32 sm:h-36 rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_14px_30px_rgba(0,0,0,0.65)] select-none overflow-hidden">
-                  <div className="flex items-center justify-between w-full leading-none px-0.5">
-                    <span className={`text-lg font-black tracking-tight ${
-                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                    }`}>
-                      {flight.card.value}
-                    </span>
-                    <CardSuitIcon suit={flight.card.suit} size={16} />
-                  </div>
-                  <div className="w-full flex-1 flex items-center justify-center my-auto">
-                    <CardSuitIcon suit={flight.card.suit} size={44} glossy={true} />
-                  </div>
-                  <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
-                    <span className={`text-lg font-black tracking-tight ${
-                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                    }`}>
-                      {flight.card.value}
-                    </span>
-                    <CardSuitIcon suit={flight.card.suit} size={16} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 2. Cut Collection: All Cards Lift from Slots, Gather in Center, and Sweep into Hit Player Profile */}
-        {cutSweepAnimation && (
-          <div className="fixed inset-0 z-50 pointer-events-none overflow-hidden">
-            {cutSweepAnimation.map(sweep => (
-              <div
-                key={sweep.id}
-                className="absolute top-0 left-0 animate-collect-and-sweep"
-                style={{
-                  '--c-slot-x': `${sweep.slotX}px`,
-                  '--c-slot-y': `${sweep.slotY}px`,
-                  '--c-center-x': `${sweep.centerX}px`,
-                  '--c-center-y': `${sweep.centerY}px`,
-                  '--c-victim-x': `${sweep.victimX}px`,
-                  '--c-victim-y': `${sweep.victimY}px`,
-                  '--c-rot': `${sweep.stackRot}deg`,
-                  '--slot-x': `${sweep.slotX}px`,
-                  '--slot-y': `${sweep.slotY}px`,
-                  '--center-x': `${sweep.centerX}px`,
-                  '--center-y': `${sweep.centerY}px`,
-                  '--victim-x': `${sweep.victimX}px`,
-                  '--victim-y': `${sweep.victimY}px`,
-                  '--stack-rot': `${sweep.stackRot}deg`,
-                } as React.CSSProperties}
-              >
-                <div className="w-20 sm:w-24 h-32 sm:h-36 rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_16px_35px_rgba(0,0,0,0.75)] select-none overflow-hidden">
-                  <div className="flex items-center justify-between w-full leading-none px-0.5">
-                    <span className={`text-lg font-black tracking-tight ${
-                      sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                    }`}>
-                      {sweep.card.value}
-                    </span>
-                    <CardSuitIcon suit={sweep.card.suit} size={16} />
-                  </div>
-                  <div className="w-full flex-1 flex items-center justify-center my-auto">
-                    <CardSuitIcon suit={sweep.card.suit} size={44} glossy={true} />
-                  </div>
-                  <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
-                    <span className={`text-lg font-black tracking-tight ${
-                      sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                    }`}>
-                      {sweep.card.value}
-                    </span>
-                    <CardSuitIcon suit={sweep.card.suit} size={16} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* 5. SMALL POPUP TOOLTIP ON INVALID CARD TOUCH */}
@@ -1410,6 +1338,86 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           isHost={gameState.hostId === myId}
           myId={myId}
         />
+      )}
+
+      {/* 8. HARDWARE-ACCELERATED ROOT-LEVEL ANIMATION LAYER (100% pixel-perfect on any device/aspect ratio) */}
+      {(flyingPlayCards.length > 0 || cutSweepAnimation) && (
+        <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">
+          {flyingPlayCards.map(flight => (
+            <div
+              key={flight.id}
+              className="animate-profile-to-deck"
+              style={{
+                '--f-start-x': `${flight.startX}px`,
+                '--f-start-y': `${flight.startY}px`,
+                '--f-mid-x': `${flight.midX}px`,
+                '--f-mid-y': `${flight.midY}px`,
+                '--f-end-x': `${flight.endX}px`,
+                '--f-end-y': `${flight.endY}px`,
+              } as React.CSSProperties}
+            >
+              <div className="w-[72px] sm:w-[80px] h-[108px] sm:h-[116px] rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.65)] select-none overflow-hidden">
+                <div className="flex items-center justify-between w-full leading-none px-0.5">
+                  <span className={`text-base font-black tracking-tight ${
+                    flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                  }`}>
+                    {flight.card.value}
+                  </span>
+                  <CardSuitIcon suit={flight.card.suit} size={14} />
+                </div>
+                <div className="w-full flex-1 flex items-center justify-center my-auto">
+                  <CardSuitIcon suit={flight.card.suit} size={36} glossy={true} />
+                </div>
+                <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
+                  <span className={`text-base font-black tracking-tight ${
+                    flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                  }`}>
+                    {flight.card.value}
+                  </span>
+                  <CardSuitIcon suit={flight.card.suit} size={14} />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {cutSweepAnimation && cutSweepAnimation.map(sweep => (
+            <div
+              key={sweep.id}
+              className="animate-collect-and-sweep"
+              style={{
+                '--c-slot-x': `${sweep.slotX}px`,
+                '--c-slot-y': `${sweep.slotY}px`,
+                '--c-center-x': `${sweep.centerX}px`,
+                '--c-center-y': `${sweep.centerY}px`,
+                '--c-victim-x': `${sweep.victimX}px`,
+                '--c-victim-y': `${sweep.victimY}px`,
+                '--c-rot': `${sweep.stackRot}deg`,
+              } as React.CSSProperties}
+            >
+              <div className="w-[72px] sm:w-[80px] h-[108px] sm:h-[116px] rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_16px_35px_rgba(0,0,0,0.75)] select-none overflow-hidden">
+                <div className="flex items-center justify-between w-full leading-none px-0.5">
+                  <span className={`text-base font-black tracking-tight ${
+                    sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                  }`}>
+                    {sweep.card.value}
+                  </span>
+                  <CardSuitIcon suit={sweep.card.suit} size={14} />
+                </div>
+                <div className="w-full flex-1 flex items-center justify-center my-auto">
+                  <CardSuitIcon suit={sweep.card.suit} size={36} glossy={true} />
+                </div>
+                <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
+                  <span className={`text-base font-black tracking-tight ${
+                    sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                  }`}>
+                    {sweep.card.value}
+                  </span>
+                  <CardSuitIcon suit={sweep.card.suit} size={14} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
