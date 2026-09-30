@@ -11,8 +11,9 @@ interface DonkeyHandProps {
   isMyTurn: boolean;
   isFirstTrick?: boolean;
   selectedCardId?: string | null;
+  hiddenCardId?: string | null;
   onSelectCard: (card: DonkeyCard) => void;
-  onPlayCard: (card: DonkeyCard) => void;
+  onPlayCard: (card: DonkeyCard, originRect?: DOMRect | null) => void;
   onInvalidMove?: (error: { message: string; card: DonkeyCard; symbol: string }) => void;
   onQuickChat?: (msg: string) => void;
 }
@@ -58,6 +59,7 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
   isMyTurn,
   isFirstTrick,
   selectedCardId,
+  hiddenCardId,
   onSelectCard,
   onPlayCard,
   onInvalidMove,
@@ -144,12 +146,10 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
       return;
     }
 
-    sounds.playCardSelect();
-    if (selectedCardId === card.id) {
-      onPlayCard(card);
-    } else {
-      onSelectCard(card);
-    }
+    const cardEl = document.getElementById(`hand-card-${card.id}`);
+    const rect = cardEl ? cardEl.getBoundingClientRect() : null;
+    sounds.playCardPlay();
+    onPlayCard(card, rect);
   };
 
   return (
@@ -201,13 +201,18 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
         <div className="w-full max-h-56 sm:max-h-64 overflow-y-auto p-2 rounded-2xl bg-slate-950/90 border border-cyan-500/30 shadow-xl no-scrollbar">
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
             {sortedGridCards.map(card => (
-              <DonkeyCardView
+              <div
                 key={card.id}
-                card={card}
-                isSelected={selectedCardId === card.id}
-                isValid={isCardValid(card)}
-                onClick={() => handleCardClick(card)}
-              />
+                className={hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : ''}
+              >
+                <DonkeyCardView
+                  id={`hand-card-${card.id}`}
+                  card={card}
+                  isSelected={selectedCardId === card.id}
+                  isValid={isCardValid(card)}
+                  onClick={() => handleCardClick(card)}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -273,6 +278,7 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
                           return (
                             <div
                               key={card.id}
+                              id={`hand-card-${card.id}`}
                               onClick={() => handleCardClick(card)}
                               style={{
                                 position: 'absolute',
@@ -282,7 +288,9 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
                                 height: `${CARD_HEIGHT}px`,
                                 zIndex: isSelected ? 100 : idx + 5
                               }}
-                              className={`rounded-xl bg-white border border-slate-200/90 shadow-[0_3px_8px_rgba(0,0,0,0.25)] transition-all duration-150 select-none overflow-hidden cursor-pointer flex flex-col justify-between ${
+                              className={`rounded-xl bg-white border border-slate-200/90 shadow-[0_3px_8px_rgba(0,0,0,0.25)] transition-transform duration-150 select-none overflow-hidden cursor-pointer flex flex-col justify-between ${
+                                hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : ''
+                              } ${
                                 isCardShadowed
                                   ? 'brightness-[0.84] opacity-85'
                                   : isColumnLead && isMyTurn

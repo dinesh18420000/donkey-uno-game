@@ -124,6 +124,8 @@ interface FlyingCardItem {
   card: DonkeyCard;
   startX: number;
   startY: number;
+  midX: number;
+  midY: number;
   endX: number;
   endY: number;
 }
@@ -194,6 +196,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   // States for Smooth Gameplay Animations
   const [flyingPlayCards, setFlyingPlayCards] = useState<FlyingCardItem[]>([]);
   const [cutSweepAnimation, setCutSweepAnimation] = useState<SweepCardItem[] | null>(null);
+  const [hideDeckSlotsUntilNewRound, setHideDeckSlotsUntilNewRound] = useState<boolean>(false);
+  const [hiddenHandCardId, setHiddenHandCardId] = useState<string | null>(null);
+  const myPlayedCardOriginRef = useRef<{ cardId: string; rect: DOMRect } | null>(null);
   const prevTrickRef = useRef<TrickPlay[]>(gameState.currentTrick || []);
   const lastTrickBeforeClearRef = useRef<TrickPlay[]>([]);
 
@@ -282,98 +287,149 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       setIsCutAnimating(true);
       sounds.playCutMusic();
 
-      // 2. Collect cards on table and sweep to victim profile
-      const cardsToCollect = (gameState.currentTrick && gameState.currentTrick.length > 0)
-        ? gameState.currentTrick
-        : lastTrickBeforeClearRef.current;
+      // 2. Allow 380ms for the cutting card to complete its flight onto the table slot,
+      // then neatly gather all played cards into a center stack before sweeping to victim's profile!
+      const sweepTimer = setTimeout(() => {
+        const cardsToCollect = (gameState.currentTrick && gameState.currentTrick.length > 0)
+          ? gameState.currentTrick
+          : lastTrickBeforeClearRef.current;
 
-      if (cardsToCollect && cardsToCollect.length > 0) {
-        const targetVictimId = victimPlayer?.id || victimId;
-        let victimEl = targetVictimId ? document.getElementById(`avatar-${targetVictimId}`) : null;
-        if (!victimEl && targetVictimId === myId) {
-          victimEl = document.getElementById(`bottom-profile-${myId}`);
+        if (cardsToCollect && cardsToCollect.length > 0) {
+          const targetVictimId = victimPlayer?.id || victimId;
+          let victimEl = targetVictimId ? document.getElementById(`avatar-${targetVictimId}`) : null;
+          if (!victimEl && targetVictimId === myId) {
+            victimEl = document.getElementById(`bottom-profile-${myId}`);
+          }
+          const vRect = victimEl?.getBoundingClientRect();
+          const victimX = vRect ? vRect.left + vRect.width / 2 : window.innerWidth / 2;
+          const victimY = vRect ? vRect.top + vRect.height / 2 : (targetVictimId === myId ? window.innerHeight - 80 : 80);
+
+          const tableEl = deckSlotsRef.current;
+          const tRect = tableEl?.getBoundingClientRect();
+          const centerX = tRect ? tRect.left + tRect.width / 2 : window.innerWidth / 2;
+          const centerY = tRect ? tRect.top + tRect.height / 2 : window.innerHeight * 0.42;
+
+          setHideDeckSlotsUntilNewRound(true);
+
+          const sweepItems: SweepCardItem[] = cardsToCollect.map((play, idx) => {
+            const slotEl = document.getElementById(`deck-slot-${play.playerId}`);
+            const sRect = slotEl?.getBoundingClientRect();
+            const slotX = sRect ? sRect.left + sRect.width / 2 : centerX;
+            const slotY = sRect ? sRect.top + sRect.height / 2 : centerY;
+            const stackRot = ((idx * 4) % 11) - 5;
+
+            return {
+              id: `sweep-${play.card.id}-${idx}`,
+              card: play.card,
+              slotX,
+              slotY,
+              centerX,
+              centerY,
+              victimX,
+              victimY,
+              stackRot
+            };
+          });
+
+          setCutSweepAnimation(sweepItems);
+
+          // Sweep animation keyframe: 1400ms duration
+          // Phase 1 (0-35%): slot to neat center stack
+          // Phase 2 (35-55%): stacked together in center
+          // Phase 3 (55-88%): entire stack sweeps to victim profile
+          // Phase 4 (88-100%): shrinks into victim deck & disappears
+          setTimeout(() => {
+            setCutSweepAnimation(null);
+          }, 1450);
         }
-        const vRect = victimEl?.getBoundingClientRect();
-        const victimX = vRect ? vRect.left + vRect.width / 2 : window.innerWidth / 2;
-        const victimY = vRect ? vRect.top + vRect.height / 2 : 80;
+      }, 380);
 
-        const tableEl = deckSlotsRef.current;
-        const tRect = tableEl?.getBoundingClientRect();
-        const centerX = tRect ? tRect.left + tRect.width / 2 : window.innerWidth / 2;
-        const centerY = tRect ? tRect.top + tRect.height / 2 : window.innerHeight * 0.42;
-
-        const sweepItems: SweepCardItem[] = cardsToCollect.map((play, idx) => {
-          const slotEl = document.getElementById(`deck-slot-${play.playerId}`);
-          const sRect = slotEl?.getBoundingClientRect();
-          const slotX = sRect ? sRect.left + sRect.width / 2 : centerX;
-          const slotY = sRect ? sRect.top + sRect.height / 2 : centerY;
-          const stackRot = ((idx * 8) % 19) - 9;
-
-          return {
-            id: `sweep-${play.card.id}-${idx}`,
-            card: play.card,
-            slotX,
-            slotY,
-            centerX,
-            centerY,
-            victimX,
-            victimY,
-            stackRot
-          };
-        });
-
-        setCutSweepAnimation(sweepItems);
-
-        // Sweep animation lasts 1250ms
-        setTimeout(() => {
-          setCutSweepAnimation(null);
-        }, 1300);
-      }
-
-      // Keep the BUSTED animation active for 3.2 seconds
-      setTimeout(() => {
+      // Keep the BUSTED visual feedback active for 3.2 seconds
+      const bustedTimer = setTimeout(() => {
         setIsCutAnimating(false);
         setCutDetails(null);
       }, 3200);
+
+      return () => {
+        clearTimeout(sweepTimer);
+        clearTimeout(bustedTimer);
+      };
     } else {
       prevLastActionRef.current = action;
     }
   }, [gameState.lastAction, gameState.lastCutVictimId, gameState.players, myId]);
 
-  // Track incoming card plays and trigger smooth profile-to-deck flight animation
+  // Track incoming card plays and trigger smooth hand/profile-to-deck flight animation
   useEffect(() => {
     const currentTrick = gameState.currentTrick || [];
     const prevTrick = prevTrickRef.current;
+
+    // Reset slot hide when new trick begins
+    if (currentTrick.length === 0) {
+      setHideDeckSlotsUntilNewRound(false);
+      setHiddenHandCardId(null);
+    }
 
     if (currentTrick.length > prevTrick.length) {
       const newPlays = currentTrick.slice(prevTrick.length);
       const newFlights: FlyingCardItem[] = [];
 
       newPlays.forEach(play => {
-        let avatarEl = play.playerId === myId ? document.getElementById(`bottom-profile-${myId}`) : null;
-        if (!avatarEl) {
-          avatarEl = document.getElementById(`avatar-${play.playerId}`);
-        }
-        const deckSlotEl = document.getElementById(`deck-slot-${play.playerId}`);
+        let startX = 0;
+        let startY = 0;
 
-        if (avatarEl && deckSlotEl) {
-          const aRect = avatarEl.getBoundingClientRect();
-          const dRect = deckSlotEl.getBoundingClientRect();
-          newFlights.push({
-            id: `flight-${play.card.id}-${Date.now()}-${Math.random()}`,
-            card: play.card,
-            startX: aRect.left + aRect.width / 2,
-            startY: aRect.top + aRect.height / 2,
-            endX: dRect.left + dRect.width / 2,
-            endY: dRect.top + dRect.height / 2
-          });
+        // If local user played this card, launch directly from their hand card position!
+        if (play.playerId === myId) {
+          if (myPlayedCardOriginRef.current && myPlayedCardOriginRef.current.cardId === play.card.id) {
+            const r = myPlayedCardOriginRef.current.rect;
+            startX = r.left + r.width / 2;
+            startY = r.top + r.height / 2;
+          } else {
+            const handCardEl = document.getElementById(`hand-card-${play.card.id}`);
+            if (handCardEl) {
+              const r = handCardEl.getBoundingClientRect();
+              startX = r.left + r.width / 2;
+              startY = r.top + r.height / 2;
+            } else {
+              const botEl = document.getElementById(`bottom-profile-${myId}`);
+              const r = botEl?.getBoundingClientRect();
+              startX = r ? r.left + r.width / 2 : window.innerWidth / 2;
+              startY = r ? r.top + r.height / 2 : window.innerHeight - 80;
+            }
+          }
+        } else {
+          // For remote players, launch from their top avatar profile
+          const avatarEl = document.getElementById(`avatar-${play.playerId}`);
+          const aRect = avatarEl?.getBoundingClientRect();
+          startX = aRect ? aRect.left + aRect.width / 2 : window.innerWidth / 2;
+          startY = aRect ? aRect.top + aRect.height / 2 : 80;
         }
+
+        const deckSlotEl = document.getElementById(`deck-slot-${play.playerId}`);
+        const dRect = deckSlotEl?.getBoundingClientRect();
+        const endX = dRect ? dRect.left + dRect.width / 2 : window.innerWidth / 2;
+        const endY = dRect ? dRect.top + dRect.height / 2 : window.innerHeight * 0.42;
+
+        const midX = (startX + endX) / 2 + (startX < endX ? -15 : 15);
+        const midY = Math.min(startY, endY) - 40;
+
+        newFlights.push({
+          id: `flight-${play.card.id}-${Date.now()}-${Math.random()}`,
+          card: play.card,
+          startX,
+          startY,
+          midX,
+          midY,
+          endX,
+          endY
+        });
       });
 
       if (newFlights.length > 0) {
         setFlyingPlayCards(prev => [...prev, ...newFlights]);
         setTimeout(() => {
           setFlyingPlayCards(prev => prev.filter(f => !newFlights.some(nf => nf.id === f.id)));
+          setHiddenHandCardId(null);
         }, 460);
       }
     }
@@ -468,9 +524,23 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     setSoundEnabled(!soundEnabled);
   };
 
-  const handlePlayCard = (card: DonkeyCard) => {
+  const handlePlayCard = (card: DonkeyCard, originRect?: DOMRect | null) => {
     if (!isMyTurn) return;
     sounds.playCardPlay();
+
+    // 1. Instantly hide card from hand so it doesn't show duplicated
+    setHiddenHandCardId(card.id);
+
+    // 2. Capture exact screen coordinates of the card in hand
+    if (originRect) {
+      myPlayedCardOriginRef.current = { cardId: card.id, rect: originRect };
+    } else {
+      const handEl = document.getElementById(`hand-card-${card.id}`);
+      if (handEl) {
+        myPlayedCardOriginRef.current = { cardId: card.id, rect: handEl.getBoundingClientRect() };
+      }
+    }
+
     socketService.playDonkeyCard(gameState.roomCode, card.id);
     setSelectedCard(null);
   };
@@ -795,7 +865,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 const dims = getCenterSlotDims(totalPlayers);
 
                 const isCurrentlyFlying = playedCard ? flyingPlayCards.some(f => f.card.id === playedCard.id) : false;
-                const isCurrentlySweeping = cutSweepAnimation !== null;
+                const isCurrentlySweeping = cutSweepAnimation !== null || hideDeckSlotsUntilNewRound;
 
                 return (
                   <div key={`deck-slot-${player.id}`} id={`deck-slot-${player.id}`} className="flex flex-col items-center flex-shrink-0 relative">
@@ -901,6 +971,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 key={flight.id}
                 className="absolute top-0 left-0 animate-profile-to-deck"
                 style={{
+                  '--f-start-x': `${flight.startX}px`,
+                  '--f-start-y': `${flight.startY}px`,
+                  '--f-mid-x': `${flight.midX}px`,
+                  '--f-mid-y': `${flight.midY}px`,
+                  '--f-end-x': `${flight.endX}px`,
+                  '--f-end-y': `${flight.endY}px`,
                   '--start-x': `${flight.startX}px`,
                   '--start-y': `${flight.startY}px`,
                   '--end-x': `${flight.endX}px`,
@@ -941,6 +1017,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 key={sweep.id}
                 className="absolute top-0 left-0 animate-collect-and-sweep"
                 style={{
+                  '--c-slot-x': `${sweep.slotX}px`,
+                  '--c-slot-y': `${sweep.slotY}px`,
+                  '--c-center-x': `${sweep.centerX}px`,
+                  '--c-center-y': `${sweep.centerY}px`,
+                  '--c-victim-x': `${sweep.victimX}px`,
+                  '--c-victim-y': `${sweep.victimY}px`,
+                  '--c-rot': `${sweep.stackRot}deg`,
                   '--slot-x': `${sweep.slotX}px`,
                   '--slot-y': `${sweep.slotY}px`,
                   '--center-x': `${sweep.centerX}px`,
@@ -996,11 +1079,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
             isMyTurn={isMyTurn}
             isFirstTrick={isFirstTrick}
             selectedCardId={selectedCard?.id}
+            hiddenCardId={hiddenHandCardId}
             onSelectCard={card => {
               setSelectedCard(card);
               setInvalidCardNotice(null);
             }}
-            onPlayCard={card => handlePlayCard(card)}
+            onPlayCard={(card, rect) => handlePlayCard(card, rect)}
             onInvalidMove={error => {
               setInvalidCardNotice({ message: error.message, symbol: error.symbol, cardId: error.card.id });
             }}
@@ -1164,7 +1248,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 return;
               }
               if (selectedCard) {
-                handlePlayCard(selectedCard);
+                const el = document.getElementById(`hand-card-${selectedCard.id}`);
+                handlePlayCard(selectedCard, el ? el.getBoundingClientRect() : null);
               } else {
                 // Auto-pick the lowest valid card in hand
                 const myHand = (gameState.myHand as DonkeyCard[]) || [];
@@ -1176,7 +1261,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                   return true;
                 });
                 if (validCard) {
-                  handlePlayCard(validCard);
+                  const el = document.getElementById(`hand-card-${validCard.id}`);
+                  handlePlayCard(validCard, el ? el.getBoundingClientRect() : null);
                 } else {
                   setInvalidCardNotice({
                     message: 'Please tap a card in your hand to deal!',
