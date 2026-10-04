@@ -168,13 +168,10 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       case 'wild_draw10':
         return (
           <div className="flex flex-col items-center justify-center leading-none">
-            <div className="flex items-center gap-0.5">
-              <Flame className="w-3 h-3 fill-red-500 text-amber-300" />
-              <span className="font-black text-xl sm:text-2xl md:text-3xl text-red-400 drop-shadow-[0_0_10px_#ef4444]">
-                +10
-              </span>
-            </div>
-            <span className="text-[6px] sm:text-[7px] font-black text-red-200 uppercase tracking-tight mt-0.5 bg-red-950/90 px-1 py-0.2 rounded border border-red-500 whitespace-nowrap">
+            <span className="font-black text-lg sm:text-2xl md:text-3xl text-red-500 drop-shadow-[0_0_8px_#ef4444] tracking-tighter select-none">
+              +10
+            </span>
+            <span className="text-[5.5px] sm:text-[6.5px] font-black text-red-200 uppercase tracking-tight mt-0.5 bg-red-950 px-1 py-0.2 rounded border border-red-500/80 whitespace-nowrap">
               NO MERCY
             </span>
           </div>
@@ -351,7 +348,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
               : 'bg-white/98 border-white/80'
           }`}
         >
-          <div className={`transform rotate-16 flex flex-col items-center justify-center w-full px-1 max-h-[85%] text-center overflow-hidden ${isTable ? 'scale-75 sm:scale-80' : ''}`}>
+          <div className={`transform rotate-16 flex flex-col items-center justify-center w-full px-0.5 text-center overflow-visible ${isTable ? 'scale-75 sm:scale-80' : ''}`}>
             {renderCenterContent()}
           </div>
         </div>

@@ -31,6 +31,7 @@ import {
   Crown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { SkipProhibitionIcon } from './SkipProhibitionIcon';
 
 interface UnoGameScreenProps {
   gameState: ClientGameState;
@@ -171,19 +172,10 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     sounds.playSkipSound();
     setLocalSkippedPlayerId(skippedId);
 
-    if (skippedId === 'everyone') {
-      setSkipBannerText('🚫 EVERYONE SKIPPED! PLAY AGAIN! 🚫');
-    } else {
-      const skipped = gameState.players.find(p => p.id === skippedId);
-      const name = skipped ? (skipped.id === myId ? 'YOU WERE' : `${skipped.name} WAS`) : 'PLAYER';
-      setSkipBannerText(`🚫 ${name.toUpperCase()} SKIPPED! TURN PASSES! 🚫`);
-    }
-
     const timer = setTimeout(() => {
-      setSkipBannerText(null);
       setLocalSkippedPlayerId(null);
       lastSeenSkippedRef.current = null; // allow same player to be skipped again next round
-    }, 3000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [gameState.lastSkippedPlayerId]);
@@ -822,23 +814,23 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
       className="relative w-full h-full min-h-[100dvh] flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#120317] via-[#240428] to-[#0a020e] text-white select-none"
     >
       {/* TOP NAVIGATION / STATUS BAR */}
-      <div className="relative z-30 w-full px-3 safe-top py-1.5 flex items-center justify-between bg-black/80 backdrop-blur-md border-b border-red-500/30 gap-2">
+      <div className="relative z-30 w-full px-2 sm:px-3 safe-top py-1.5 flex items-center justify-between bg-black/85 backdrop-blur-md border-b border-red-500/30 gap-1.5 sm:gap-2">
         {/* Left: Branding & Room */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xl filter drop-shadow">🔥</span>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-lg sm:text-xl filter drop-shadow">🔥</span>
           <div className="leading-tight">
-            <div className="text-xs sm:text-sm font-black tracking-wider text-rose-400">UNO NO MERCY</div>
-            <div className="text-[9px] text-purple-300 font-mono font-bold">ROOM: {gameState.roomCode}</div>
+            <div className="text-[11px] sm:text-sm font-black tracking-wider text-rose-400">UNO NO MERCY</div>
+            <div className="text-[8px] sm:text-[9px] text-purple-300 font-mono font-bold">ROOM: {gameState.roomCode}</div>
           </div>
         </div>
 
-        {/* Center: Match 10-Min Timer, Turn Status & 20s Turn Timer */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Center: Match 10-Min Timer, Turn Status & 20s Turn Timer (Auto-scaling) */}
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
           {/* 10-Minute Game Countdown Pill */}
           {gameSecondsRemaining !== null && (
             <div
               title="10-Minute Game Timer (Match ends when time reaches 00:00)"
-              className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full text-xs font-black border shadow-lg transition-colors ${
+              className={`flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-black border shadow-lg transition-colors flex-shrink-0 ${
                 gameSecondsRemaining <= 60
                   ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse shadow-red-500/50'
                   : gameSecondsRemaining <= 180
@@ -846,29 +838,28 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                   : 'bg-slate-900/90 border-cyan-500/50 text-cyan-200'
               }`}
             >
-              <Timer className={`w-3.5 h-3.5 ${gameSecondsRemaining <= 60 ? 'text-red-400 animate-spin' : 'text-cyan-300'}`} />
-              <div className="flex items-center gap-0.5 font-mono text-[11px] sm:text-xs">
-                <span className="hidden xs:inline text-[9px] text-slate-400 font-normal">TIME:</span>
-                <span className="font-black">{formatGameTime(gameSecondsRemaining)}</span>
-              </div>
+              <Timer className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${gameSecondsRemaining <= 60 ? 'text-red-400 animate-spin' : 'text-cyan-300'}`} />
+              <span className="font-mono font-black">{formatGameTime(gameSecondsRemaining)}</span>
             </div>
           )}
 
           {/* Turn Flow Pill */}
           <div
-            className={`flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full font-black text-[11px] sm:text-xs shadow-md border ${
+            className={`flex items-center gap-1 px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-full font-black text-[10px] sm:text-xs shadow-md border truncate ${
               isMyTurn
                 ? 'bg-amber-400 text-slate-950 border-white shadow-amber-400/50 animate-pulse'
                 : 'bg-slate-950/90 text-amber-200 border-purple-500/50'
             }`}
           >
-            <span>{isMyTurn ? '🎯 YOUR TURN!' : `🎯 ${currentTurnPlayer?.name || 'Waiting...'}`}</span>
+            <span className="truncate max-w-[80px] sm:max-w-[130px]">
+              {isMyTurn ? 'YOUR TURN!' : (currentTurnPlayer?.name || 'Waiting...')}
+            </span>
           </div>
 
           {/* 20s Turn Countdown Pill */}
           <div
             title="Turn Timer: 20 seconds max to play a card"
-            className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full text-xs font-black border shadow-lg ${
+            className={`flex items-center gap-1 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-black border shadow-lg flex-shrink-0 ${
               secondsRemaining <= 4
                 ? 'bg-red-600 text-white border-white animate-pulse'
                 : secondsRemaining <= 8
@@ -876,24 +867,24 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                 : 'bg-emerald-600 text-white border-emerald-300'
             }`}
           >
-            <Clock className={`w-3.5 h-3.5 ${secondsRemaining <= 4 ? 'animate-spin' : ''}`} />
-            <span className="font-mono text-xs">{secondsRemaining}s</span>
+            <Clock className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${secondsRemaining <= 4 ? 'animate-spin' : ''}`} />
+            <span className="font-mono">{secondsRemaining}s</span>
           </div>
         </div>
 
-        {/* Right: Quick Controls */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* Right: Quick Controls (Always 100% visible on mobile, pinned to right!) */}
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto z-30">
           <button
             onClick={toggleSound}
             aria-label="Toggle Sound"
-            className="p-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 border border-purple-400/50 text-amber-300 shadow-md active:scale-95 transition"
+            className="p-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 border border-purple-400/50 text-amber-300 shadow-md active:scale-95 transition cursor-pointer"
           >
             {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
           <button
             onClick={() => setShowSettingsModal(true)}
             aria-label="Game Settings"
-            className="p-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 border border-purple-400/50 text-amber-300 shadow-md active:scale-95 transition"
+            className="p-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 border border-purple-400/50 text-amber-300 shadow-md active:scale-95 transition cursor-pointer"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -942,14 +933,6 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
             </div>
           )}
 
-          {/* DRAMATIC SKIP BANNER - PROMINENT, BIG & HIGHLY HIGHLIGHTED */}
-          {skipBannerText && (
-            <div className="absolute top-2 z-40 px-6 py-2.5 sm:px-8 sm:py-3 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-red-600 border-2 sm:border-3 border-white shadow-[0_0_45px_rgba(239,68,68,1)] flex items-center gap-2 sm:gap-3 animate-bounce text-white font-black text-xs sm:text-base tracking-wide">
-              <span className="text-xl sm:text-2xl animate-spin">🚫</span>
-              <span className="drop-shadow-md">{skipBannerText}</span>
-              <span className="text-xl sm:text-2xl animate-spin">🚫</span>
-            </div>
-          )}
 
           {/* CENTER PLAY AREA: DIRECTIONAL CIRCLE + DRAW & DISCARD PILES */}
           <div className="relative z-20 flex flex-col items-center justify-center">
@@ -1216,6 +1199,15 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
               <span className="text-[10px] sm:text-[11px] font-black truncate max-w-[80px]">
                 {me?.name || 'You'}
               </span>
+
+              {/* Local Player Skip Prohibition Icon Overlay (2-second visual matching user specification) */}
+              {(localSkippedPlayerId === myId ||
+                gameState.lastSkippedPlayerId === myId ||
+                (gameState.lastSkippedPlayerId === 'everyone' && myId !== visualTurnPlayerId)) && (
+                <div className="absolute inset-0 -top-1.5 z-50 flex items-center justify-center pointer-events-none animate-in zoom-in-75 duration-200">
+                  <SkipProhibitionIcon size={38} />
+                </div>
+              )}
             </div>
 
             {/* Right: Card Count & Progress Bar */}
@@ -1236,17 +1228,6 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                 />
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Skipped alert banner if local player was skipped */}
-        {(localSkippedPlayerId === myId ||
-          gameState.lastSkippedPlayerId === myId ||
-          (gameState.lastSkippedPlayerId === 'everyone' && myId !== visualTurnPlayerId)) && (
-          <div className="my-0.5 px-3 py-0.5 rounded-full text-[10px] sm:text-xs font-black tracking-wider bg-gradient-to-r from-red-600 via-rose-600 to-red-600 text-white border border-white shadow-[0_0_15px_rgba(239,68,68,1)] animate-bounce z-30 flex items-center gap-1.5">
-            <span>🚫</span>
-            <span>YOUR TURN WAS SKIPPED!</span>
-            <span>🚫</span>
           </div>
         )}
 

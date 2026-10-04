@@ -3,6 +3,7 @@ import type { PlayerPublic } from '../types';
 import type { PlayerColorTheme } from '../utils/tableSeating';
 import { PLAYER_THEME_DETAILS } from '../utils/tableSeating';
 import { Bot, WifiOff, Crown, Clock, Gift, User } from 'lucide-react';
+import { SkipProhibitionIcon } from './SkipProhibitionIcon';
 
 interface PlayerAvatarProps {
   player: PlayerPublic;
@@ -145,12 +146,10 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         </div>
       )}
 
-      {/* Floating Skipped Notification Badge - HIGHLY HIGHLIGHTED & BIG */}
+      {/* Universal Skip Prohibition Icon centered right over the avatar (2-second visual) */}
       {isSkipped && (
-        <div className="absolute -top-10 sm:-top-11 z-50 px-3.5 py-1 sm:px-4 sm:py-1 rounded-full text-xs sm:text-sm font-black shadow-[0_0_30px_rgba(239,68,68,1)] border-2 border-white bg-gradient-to-r from-red-600 via-rose-600 to-red-600 text-white flex items-center gap-1.5 animate-bounce scale-110 sm:scale-125 whitespace-nowrap">
-          <span className="text-base sm:text-lg animate-pulse">🚫</span>
-          <span className="tracking-wider uppercase drop-shadow font-extrabold">SKIPPED!</span>
-          <span className="text-base sm:text-lg animate-pulse">🚫</span>
+        <div className="absolute inset-0 -top-2 z-50 flex items-center justify-center pointer-events-none animate-in zoom-in-75 duration-200">
+          <SkipProhibitionIcon size={size === 'xs' ? 36 : size === 'sm' ? 42 : 48} />
         </div>
       )}
 

@@ -1141,7 +1141,7 @@ export class RoomManager {
         : card.type === 'swap_7'
         ? 1800
         : card.type === 'skip' || card.type === 'skip_everyone'
-        ? 3200
+        ? 2000
         : card.type === 'reverse' || card.type === 'reverse_draw2' || card.type === 'wild_reverse_draw4'
         ? 1400
         : 850;
