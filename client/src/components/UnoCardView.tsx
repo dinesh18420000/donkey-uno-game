@@ -108,131 +108,131 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
     }
   };
 
-  // Center Content
+  // Center Content with clean typography and zero overlap
   const renderCenterContent = () => {
     switch (card.type) {
       case 'number':
         return (
-          <span className={`font-black text-3xl sm:text-4xl md:text-5xl italic tracking-tighter ${theme.faceText} drop-shadow-[0_2px_3px_rgba(0,0,0,0.3)]`}>
+          <span className={`font-black text-2xl sm:text-3xl md:text-4xl italic tracking-tighter ${theme.faceText} drop-shadow-[0_2px_3px_rgba(0,0,0,0.3)] select-none`}>
             {card.value}
           </span>
         );
       case 'draw2':
         return (
-          <div className="flex flex-col items-center leading-none">
-            <span className={`font-black text-2xl sm:text-3xl md:text-4xl ${theme.faceText} tracking-tight drop-shadow`}>
+          <div className="flex flex-col items-center justify-center leading-none">
+            <span className={`font-black text-xl sm:text-2xl md:text-3xl ${theme.faceText} tracking-tight drop-shadow`}>
               +2
             </span>
             <div className="flex gap-0.5 mt-0.5 opacity-90">
-              <div className="w-2.5 h-3.5 rounded-sm bg-current border border-white/60 shadow-xs" />
-              <div className="w-2.5 h-3.5 rounded-sm bg-current border border-white/60 shadow-xs -ml-1" />
+              <div className="w-2 h-3 rounded-xs bg-current border border-white/60 shadow-xs" />
+              <div className="w-2 h-3 rounded-xs bg-current border border-white/60 shadow-xs -ml-1" />
             </div>
           </div>
         );
       case 'reverse_draw2':
         return (
-          <div className="flex flex-col items-center leading-none">
-            <span className={`font-black text-xl sm:text-2xl md:text-3xl ${theme.faceText} drop-shadow`}>
+          <div className="flex flex-col items-center justify-center leading-none">
+            <span className={`font-black text-lg sm:text-xl md:text-2xl ${theme.faceText} drop-shadow`}>
               ⇄+2
             </span>
-            <span className={`text-[7px] sm:text-[8px] font-black uppercase tracking-wider ${theme.faceText} mt-0.5`}>
+            <span className={`text-[6.5px] sm:text-[7.5px] font-black uppercase tracking-tight ${theme.faceText} mt-0.5 whitespace-nowrap`}>
               REV +2
             </span>
           </div>
         );
       case 'draw4':
         return (
-          <div className="flex flex-col items-center leading-none">
-            <span className={`font-black text-2xl sm:text-3xl md:text-4xl ${theme.faceText} drop-shadow`}>
+          <div className="flex flex-col items-center justify-center leading-none">
+            <span className={`font-black text-xl sm:text-2xl md:text-3xl ${theme.faceText} drop-shadow`}>
               +4
             </span>
             <div className="flex gap-0.5 mt-0.5 opacity-90">
-              <div className="w-2 h-3 rounded-xs bg-[#ff1744] border border-white shadow-xs" />
-              <div className="w-2 h-3 rounded-xs bg-[#0091ea] border border-white shadow-xs -ml-0.5" />
-              <div className="w-2 h-3 rounded-xs bg-[#ffd600] border border-white shadow-xs -ml-0.5" />
-              <div className="w-2 h-3 rounded-xs bg-[#00c853] border border-white shadow-xs -ml-0.5" />
+              <div className="w-1.5 h-2.5 rounded-xs bg-[#ff1744] border border-white shadow-xs" />
+              <div className="w-1.5 h-2.5 rounded-xs bg-[#0091ea] border border-white shadow-xs -ml-0.5" />
+              <div className="w-1.5 h-2.5 rounded-xs bg-[#ffd600] border border-white shadow-xs -ml-0.5" />
+              <div className="w-1.5 h-2.5 rounded-xs bg-[#00c853] border border-white shadow-xs -ml-0.5" />
             </div>
           </div>
         );
       case 'wild_draw6':
         return (
-          <div className="flex flex-col items-center leading-none">
-            <span className="font-black text-2xl sm:text-3xl md:text-4xl text-amber-300 drop-shadow-[0_0_10px_#f59e0b]">
+          <div className="flex flex-col items-center justify-center leading-none">
+            <span className="font-black text-xl sm:text-2xl md:text-3xl text-amber-300 drop-shadow-[0_0_8px_#f59e0b]">
               +6
             </span>
-            <span className="text-[7px] sm:text-[8px] font-black text-amber-200 uppercase tracking-widest mt-0.5 bg-amber-950/80 px-1 rounded border border-amber-400/50">
+            <span className="text-[6.5px] sm:text-[7.5px] font-black text-amber-200 uppercase tracking-wider mt-0.5 bg-amber-950/80 px-1 py-0.2 rounded border border-amber-400/50 whitespace-nowrap">
               WILD
             </span>
           </div>
         );
       case 'wild_draw10':
         return (
-          <div className="flex flex-col items-center leading-none animate-pulse">
+          <div className="flex flex-col items-center justify-center leading-none">
             <div className="flex items-center gap-0.5">
-              <Flame className="w-3.5 h-3.5 fill-red-500 text-amber-300" />
-              <span className="font-black text-2xl sm:text-3xl md:text-4xl text-red-400 drop-shadow-[0_0_12px_#ef4444]">
+              <Flame className="w-3 h-3 fill-red-500 text-amber-300" />
+              <span className="font-black text-xl sm:text-2xl md:text-3xl text-red-400 drop-shadow-[0_0_10px_#ef4444]">
                 +10
               </span>
             </div>
-            <span className="text-[7px] sm:text-[8px] font-black text-red-200 uppercase tracking-wider mt-0.5 bg-red-950/90 px-1 rounded border border-red-500">
+            <span className="text-[6px] sm:text-[7px] font-black text-red-200 uppercase tracking-tight mt-0.5 bg-red-950/90 px-1 py-0.2 rounded border border-red-500 whitespace-nowrap">
               NO MERCY
             </span>
           </div>
         );
       case 'wild_reverse_draw4':
         return (
-          <div className="flex flex-col items-center leading-none">
-            <span className="font-black text-xl sm:text-2xl md:text-3xl text-cyan-300 drop-shadow-[0_0_8px_#06b6d4]">
+          <div className="flex flex-col items-center justify-center leading-none">
+            <span className="font-black text-lg sm:text-xl md:text-2xl text-cyan-300 drop-shadow-[0_0_8px_#06b6d4]">
               ⇄+4
             </span>
-            <span className="text-[7px] sm:text-[8px] font-black text-cyan-200 uppercase tracking-widest mt-0.5 bg-cyan-950/80 px-1 rounded border border-cyan-400/50">
+            <span className="text-[6px] sm:text-[7px] font-black text-cyan-200 uppercase tracking-tight mt-0.5 bg-cyan-950/80 px-1 py-0.2 rounded border border-cyan-400/50 whitespace-nowrap">
               REV WILD
             </span>
           </div>
         );
       case 'discard_all':
         return (
-          <div className="flex flex-col items-center leading-none">
-            <Trash2 className="w-6 h-6 sm:w-7 sm:h-7 text-white stroke-[2.5] drop-shadow" />
-            <span className={`font-black text-[8px] sm:text-[9px] uppercase tracking-wider ${theme.faceText} mt-0.5`}>
-              DISCARD ALL
+          <div className="flex flex-col items-center justify-center leading-none">
+            <Trash2 className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[2.5] drop-shadow" />
+            <span className={`font-black text-[6.5px] sm:text-[7.5px] uppercase tracking-tight ${theme.faceText} mt-0.5 whitespace-nowrap`}>
+              DISCARD
             </span>
           </div>
         );
       case 'skip_everyone':
         return (
-          <div className="flex flex-col items-center leading-none">
-            <Ban className="w-7 h-7 sm:w-8 sm:h-8 text-white stroke-[2.5] drop-shadow" />
-            <span className={`font-black text-[7px] sm:text-[8px] uppercase tracking-widest ${theme.faceText} mt-0.5 bg-slate-900/60 px-1 rounded`}>
+          <div className="flex flex-col items-center justify-center leading-none">
+            <Ban className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[2.5] drop-shadow" />
+            <span className={`font-black text-[6px] sm:text-[7px] uppercase tracking-tight ${theme.faceText} mt-0.5 bg-slate-900/60 px-1 py-0.2 rounded whitespace-nowrap`}>
               SKIP ALL
             </span>
           </div>
         );
       case 'skip':
-        return <Ban className={`w-8 h-8 sm:w-10 sm:h-10 ${theme.faceText} stroke-[2.8] drop-shadow`} />;
+        return <Ban className={`w-6 h-6 sm:w-8 sm:h-8 ${theme.faceText} stroke-[2.8] drop-shadow`} />;
       case 'reverse':
-        return <RotateCcw className={`w-8 h-8 sm:w-10 sm:h-10 ${theme.faceText} stroke-[2.8] drop-shadow`} />;
+        return <RotateCcw className={`w-6 h-6 sm:w-8 sm:h-8 ${theme.faceText} stroke-[2.8] drop-shadow`} />;
       case 'pass_0':
         return (
-          <div className="flex flex-col items-center leading-none">
-            <span className={`font-black text-2xl sm:text-3xl ${theme.faceText} drop-shadow`}>
+          <div className="flex flex-col items-center justify-center leading-none">
+            <span className={`font-black text-xl sm:text-2xl ${theme.faceText} drop-shadow`}>
               0 ↷
             </span>
-            <span className={`font-black text-[7px] sm:text-[8px] uppercase tracking-wider ${theme.faceText}`}>
+            <span className={`font-black text-[6.5px] sm:text-[7.5px] uppercase tracking-tight ${theme.faceText} whitespace-nowrap`}>
               PASS ALL
             </span>
           </div>
         );
       case 'swap_7':
         return (
-          <div className="flex flex-col items-center leading-none">
+          <div className="flex flex-col items-center justify-center leading-none">
             <div className="flex items-center gap-0.5">
-              <span className={`font-black text-2xl sm:text-3xl ${theme.faceText} drop-shadow`}>
+              <span className={`font-black text-xl sm:text-2xl ${theme.faceText} drop-shadow`}>
                 7
               </span>
-              <ArrowLeftRight className="w-4 h-4 text-white stroke-[2.5]" />
+              <ArrowLeftRight className="w-3.5 h-3.5 text-white stroke-[2.5]" />
             </div>
-            <span className={`font-black text-[7px] sm:text-[8px] uppercase tracking-wider ${theme.faceText}`}>
+            <span className={`font-black text-[6.5px] sm:text-[7.5px] uppercase tracking-tight ${theme.faceText} whitespace-nowrap`}>
               SWAP
             </span>
           </div>
@@ -241,13 +241,13 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         return (
           <div className="flex flex-col items-center justify-center">
             {/* 4-Color Quadrant Wheel with gloss & depth */}
-            <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full overflow-hidden grid grid-cols-2 grid-rows-2 shadow-[0_4px_10px_rgba(0,0,0,0.5)] border-2 border-white mb-0.5">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 rounded-full overflow-hidden grid grid-cols-2 grid-rows-2 shadow-[0_3px_8px_rgba(0,0,0,0.5)] border-2 border-white mb-0.5">
               <div className="bg-[#ff1744]" />
               <div className="bg-[#0091ea]" />
               <div className="bg-[#ffd600]" />
               <div className="bg-[#00c853]" />
             </div>
-            <span className="font-black text-[9px] sm:text-[10px] text-white tracking-widest drop-shadow">
+            <span className="font-black text-[8px] sm:text-[9px] text-white tracking-widest drop-shadow">
               WILD
             </span>
           </div>
@@ -275,7 +275,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         aria-label={cardLabel}
         onClick={isValid ? onClick : undefined}
         onKeyDown={handleKeyDown}
-        className={`w-13 h-19 sm:w-15 sm:h-22 min-w-[48px] min-h-[64px] rounded-xl ${theme.bg} border-2 border-white/90 shadow-lg p-1 flex flex-col items-center justify-between select-none relative overflow-hidden ${
+        className={`w-13 h-19 sm:w-15 sm:h-22 min-w-[48px] min-h-[64px] rounded-xl ${theme.bg} border-2 border-white/90 shadow-lg p-1 flex items-center justify-center select-none relative overflow-hidden ${
           isSelected ? '-translate-y-3 ring-4 ring-amber-400 border-amber-300' : ''
         } ${
           isTableCard || isValid
@@ -284,9 +284,11 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         }`}
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-black/20 pointer-events-none" />
-        <span className={`text-[10px] font-black leading-none ${theme.cornerText} z-10`}>{cornerSym}</span>
-        <div className="flex items-center justify-center z-10 scale-90">{renderCenterContent()}</div>
-        <span className={`text-[10px] font-black leading-none rotate-180 ${theme.cornerText} z-10`}>{cornerSym}</span>
+        {/* Top Left Corner Pip only */}
+        <span className={`absolute top-1 left-1.5 text-[9px] sm:text-[10px] font-black leading-none ${theme.cornerText} z-10`}>
+          {cornerSym}
+        </span>
+        <div className="flex items-center justify-center z-10 scale-85">{renderCenterContent()}</div>
       </div>
     );
   }
@@ -303,7 +305,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       aria-label={cardLabel}
       onClick={isValid ? onClick : undefined}
       onKeyDown={handleKeyDown}
-      className={`relative ${cardSizeClass} ${theme.bg} ${theme.border} shadow-[0_8px_18px_rgba(0,0,0,0.65)] p-1 sm:p-1.5 flex flex-col justify-between select-none transition-all duration-150 overflow-hidden ${
+      className={`relative ${cardSizeClass} ${theme.bg} ${theme.border} shadow-[0_8px_18px_rgba(0,0,0,0.65)] p-1 sm:p-1.5 flex flex-col justify-start select-none transition-all duration-150 overflow-hidden ${
         isSelected
           ? '-translate-y-4 ring-4 ring-amber-400 shadow-amber-400/80 shadow-2xl z-40 border-amber-300 scale-105'
           : ''
@@ -330,29 +332,24 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         </div>
       )}
 
-      {/* Top Left Corner Pip */}
-      <div className={`relative z-10 ${isTable ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'} font-black leading-none tracking-tight ${theme.cornerText}`}>
+      {/* Top Left Corner Pip Only (Right-bottom numbers removed) */}
+      <div className={`absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 ${isTable ? 'text-[9px] sm:text-[10px]' : 'text-[11px] sm:text-xs'} font-black leading-none tracking-tight ${theme.cornerText}`}>
         {cornerSym}
       </div>
 
       {/* Authentic Tilted Center Oval Emblem */}
-      <div className={`absolute inset-x-1.5 ${isTable ? 'inset-y-2' : 'inset-y-3.5'} my-auto flex items-center justify-center pointer-events-none z-10`}>
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-1 py-1">
         <div
-          className={`w-[86%] h-[76%] rounded-[50%] transform -rotate-16 flex items-center justify-center shadow-[0_4px_10px_rgba(0,0,0,0.4),inset_0_2px_6px_rgba(0,0,0,0.18)] border ${
+          className={`w-[84%] h-[74%] rounded-[50%] transform -rotate-16 flex items-center justify-center shadow-[0_3px_8px_rgba(0,0,0,0.4),inset_0_2px_5px_rgba(0,0,0,0.15)] border ${
             isWild
               ? 'bg-slate-950/95 border-amber-400/40'
               : 'bg-white/98 border-white/80'
           }`}
         >
-          <div className={`transform rotate-16 flex items-center justify-center ${isTable ? 'scale-75 sm:scale-80' : ''}`}>
+          <div className={`transform rotate-16 flex flex-col items-center justify-center w-full px-1 max-h-[85%] text-center overflow-hidden ${isTable ? 'scale-75 sm:scale-80' : ''}`}>
             {renderCenterContent()}
           </div>
         </div>
-      </div>
-
-      {/* Bottom Right Inverted Corner Pip */}
-      <div className={`relative z-10 ${isTable ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'} font-black leading-none tracking-tight self-end rotate-180 ${theme.cornerText}`}>
-        {cornerSym}
       </div>
 
       {/* Wild 4-color Accent Quadrant Dots */}
