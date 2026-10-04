@@ -1343,6 +1343,38 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 <span className="font-mono font-bold text-amber-300">30 Seconds</span>
               </div>
 
+              {/* Host Controls: Transfer Host Rights */}
+              {gameState.hostId === myId && (
+                <div className="p-2.5 rounded-xl bg-blue-900/40 border border-cyan-400/20 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-300 mb-2">
+                    <Crown className="w-4 h-4 fill-current" />
+                    <span>Transfer Room Host</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto no-scrollbar">
+                    {gameState.players
+                      .filter(p => p.id !== myId && !p.isBot && !p.isDisconnected)
+                      .map(p => (
+                        <div key={p.id} className="flex items-center justify-between p-1.5 rounded-lg bg-black/40">
+                          <span className="truncate max-w-[130px] font-semibold">{p.name}</span>
+                          <button
+                            onClick={() => {
+                              socketService.transferHost(gameState.roomCode, p.id);
+                              setShowSettingsModal(false);
+                            }}
+                            className="px-2.5 py-1 rounded-md bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[10px] flex items-center gap-1 active:scale-95 shadow"
+                          >
+                            <Crown className="w-3 h-3 fill-current" />
+                            <span>Make Host</span>
+                          </button>
+                        </div>
+                      ))}
+                    {gameState.players.filter(p => p.id !== myId && !p.isBot && !p.isDisconnected).length === 0 && (
+                      <span className="text-[10px] text-slate-400 italic">No other human players in room.</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => setShowExitConfirm(true)}
                 className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs shadow-lg active:scale-95 flex items-center justify-center gap-2 mt-2"

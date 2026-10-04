@@ -4,7 +4,7 @@ import { ClientGameState, GameType, UnoColor } from '../types';
 class SocketService {
   public socket: Socket | null = null;
   public playerId: string = '';
-  public playerName: string = 'Thala';
+  public playerName: string = '';
   public avatar: string = 'avatar_thala';
   private serverUrl: string = '';
 
@@ -23,7 +23,12 @@ class SocketService {
     this.playerId = pid;
 
     const savedName = localStorage.getItem('donkey_uno_player_name');
-    if (savedName) this.playerName = savedName;
+    if (savedName && savedName.trim() !== 'Thala') {
+      this.playerName = savedName;
+    } else {
+      localStorage.removeItem('donkey_uno_player_name');
+      this.playerName = '';
+    }
 
     const savedAvatar = localStorage.getItem('donkey_uno_avatar');
     if (savedAvatar) this.avatar = savedAvatar;

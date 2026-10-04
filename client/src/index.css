@@ -24,11 +24,11 @@
 
 /* Mobile Safe Area Insets for Android Notification Bar & Navigation Bar */
 .safe-top {
-  padding-top: max(env(safe-area-inset-top, 0px), 32px);
+  padding-top: max(env(safe-area-inset-top, 0px), 10px);
 }
 
 .safe-bottom {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 18px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
 }
 
 /* Hide scrollbar track on mobile & desktop */
@@ -605,3 +605,221 @@
 .animate-busted-blast {
   animation: bustedBlast 3.0s ease-in-out forwards;
 }
+
+/* ------------------------------------------------------------- */
+/* UNO SHOW 'EM NO MERCY: SILKY 60FPS GPU CARD FLIGHT ANIMATIONS */
+/* ------------------------------------------------------------- */
+
+@keyframes unoFlightTranslate {
+  0% {
+    transform: translate3d(var(--u-start-x), var(--u-start-y), 0);
+  }
+  100% {
+    transform: translate3d(var(--u-end-x), var(--u-end-y), 0);
+  }
+}
+
+@keyframes unoFlightArcLift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(var(--u-start-scale, 1)) rotate(var(--u-start-rot, -3deg));
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
+    opacity: 0.95;
+  }
+  42% {
+    transform: translate3d(var(--u-arc-x, 0px), var(--u-arc-y, -26px), 0) scale(var(--u-mid-scale, 1.1)) rotate(var(--u-mid-rot, 2deg));
+    filter: drop-shadow(0 20px 32px rgba(0, 0, 0, 0.7));
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(var(--u-end-scale, 1)) rotate(var(--u-end-rot, 0deg));
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45));
+    opacity: 1;
+  }
+}
+
+.animate-uno-flight-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  animation: unoFlightTranslate var(--u-duration, 0.68s) cubic-bezier(0.18, 0.88, 0.32, 1) forwards;
+  will-change: transform;
+  backface-visibility: hidden;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.animate-uno-flight-inner {
+  animation: unoFlightArcLift var(--u-duration, 0.68s) cubic-bezier(0.18, 0.88, 0.32, 1) forwards;
+  will-change: transform, filter;
+  backface-visibility: hidden;
+  transform-origin: center center;
+}
+
+/* Settle & Slam animation when card lands on discard pile */
+@keyframes unoDiscardSlam {
+  0% {
+    transform: scale(1.18) rotate(5deg) translateY(-8px);
+    filter: drop-shadow(0 16px 28px rgba(250, 204, 21, 0.8));
+  }
+  50% {
+    transform: scale(0.96) rotate(-2deg) translateY(2px);
+  }
+  100% {
+    transform: scale(1) rotate(0deg) translateY(0);
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.5));
+  }
+}
+
+.animate-uno-discard-slam {
+  animation: unoDiscardSlam 0.48s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards;
+}
+
+/* ------------------------------------------------------------- */
+/* UNO TURN SPOTLIGHT, REVERSE SURGE & ORBITAL PASS ANIMATIONS   */
+/* ------------------------------------------------------------- */
+
+/* Active player turn spotlight halo */
+@keyframes spotlightPulse {
+  0%, 100% {
+    transform: scale(1.02);
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.85), 0 0 44px rgba(16, 185, 129, 0.45), inset 0 0 14px rgba(34, 197, 94, 0.5);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 34px rgba(34, 197, 94, 1), 0 0 60px rgba(52, 211, 153, 0.65), inset 0 0 18px rgba(34, 197, 94, 0.7);
+  }
+}
+
+@keyframes swapSpotlightPulse {
+  0%, 100% {
+    transform: scale(1.04);
+    box-shadow: 0 0 25px rgba(251, 191, 36, 0.9), 0 0 45px rgba(245, 158, 11, 0.55), inset 0 0 14px rgba(251, 191, 36, 0.5);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 38px rgba(251, 191, 36, 1), 0 0 65px rgba(245, 158, 11, 0.8), inset 0 0 20px rgba(251, 191, 36, 0.7);
+  }
+}
+
+.animate-turn-beacon {
+  animation: spotlightPulse 1.5s ease-in-out infinite;
+}
+
+.animate-swap-beacon {
+  animation: swapSpotlightPulse 1.2s ease-in-out infinite;
+}
+
+/* Directional Table Rim Flow */
+@keyframes rimChevronsCw {
+  0% {
+    stroke-dashoffset: 80;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes rimChevronsCcw {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 80;
+  }
+}
+
+.animate-rim-cw {
+  animation: rimChevronsCw 1.6s linear infinite;
+}
+
+.animate-rim-ccw {
+  animation: rimChevronsCcw 1.6s linear infinite;
+}
+
+/* Reverse Surge Explosion */
+@keyframes reverseSurgeRing {
+  0% {
+    transform: scale(0.65) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.08) rotate(180deg);
+  }
+  60% {
+    transform: scale(1.22) rotate(360deg);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scale(1.4) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+.animate-reverse-surge {
+  animation: reverseSurgeRing 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Directional Table Orbit Rotation */
+@keyframes orbitRotateCw {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbitRotateCcw {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-orbit-cw {
+  animation: orbitRotateCw 12s linear infinite;
+}
+
+.animate-orbit-ccw {
+  animation: orbitRotateCcw 12s linear infinite;
+}
+
+.animate-orbit-fast-cw {
+  animation: orbitRotateCw 3s linear infinite;
+}
+
+.animate-orbit-fast-ccw {
+  animation: orbitRotateCcw 3s linear infinite;
+}
+
+/* Inactive player shadow style vs Active Spotlight */
+.player-inactive-dimmed {
+  opacity: 0.40;
+  filter: brightness(0.68) saturate(0.6) drop-shadow(0 2px 4px rgba(0,0,0,0.7));
+  transform: scale(0.9);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.player-inactive-dimmed:hover {
+  opacity: 0.85;
+  filter: brightness(0.95) saturate(0.9);
+  transform: scale(0.95);
+}
+
+.player-active-spotlight {
+  opacity: 1;
+  filter: brightness(1.15) saturate(1.18);
+  transform: scale(1.06);
+  transition: all 0.3s cubic-bezier(0.18, 0.88, 0.32, 1);
+}
+
+.player-swap-spotlight {
+  opacity: 1;
+  filter: brightness(1.18) saturate(1.25) drop-shadow(0 0 16px rgba(245, 158, 11, 0.85));
+  transform: scale(1.1);
+  transition: all 0.3s cubic-bezier(0.18, 0.88, 0.32, 1);
+}
+

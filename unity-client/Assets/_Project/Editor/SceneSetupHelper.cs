@@ -44,8 +44,16 @@ namespace DonkeyUno.Editor
         private static Color C_DARK_TXT  = new Color(0.06f, 0.06f, 0.12f);  // slate-950 for btn text
 
         [MenuItem("Tools/Setup Game Scene (Auto-Configure)")]
-        public static void SetupMainGameScene()
+        public static void SetupMainGameSceneFromMenu()
         {
+            SetupMainGameScene(true);
+        }
+
+        public static void SetupMainGameScene(bool showDialog = false)
+        {
+            // 0. Ensure all Donkey sprites are imported
+            DonkeySetupEditor.ConfigureSprites();
+
             // 1. Ensure folders exist
             string scenesDir  = "Assets/_Project/Scenes";
             string prefabsDir = "Assets/_Project/Prefabs";
@@ -68,7 +76,7 @@ namespace DonkeyUno.Editor
             }
 
             // 5. EventSystem
-            if (Object.FindFirstObjectByType<EventSystem>() == null)
+            if (Object.FindAnyObjectByType<EventSystem>() == null)
                 new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
 
             // 6. Canvas  (portrait reference 430×932 = typical tall phone)
@@ -131,16 +139,24 @@ namespace DonkeyUno.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            EditorUtility.DisplayDialog("Setup Complete! 🎉",
-                "Game scene & UI fully generated — matching the web app visual style!\n\n" +
-                "✓ Dark purple gradient lobby (matches http://localhost:3001)\n" +
-                "✓ Gold JOIN FAMILY & FRIENDS TABLE button\n" +
-                "✓ Game mode selector: 🫏 Donkey Master / 🔥 UNO No Mercy\n" +
-                "✓ Waiting room with player list & host controls\n" +
-                "✓ Casino felt game screens with prominent DEAL button\n" +
-                "✓ Scene saved to: " + scenePath + "\n\n" +
-                "Click Play (▶) to test — switch Game tab to Simulator for phone view!",
-                "Let's Play!");
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog("Setup Complete! 🎉",
+                    "Game scene & UI fully generated — matching the mobile Donkey Master visual style!\n\n" +
+                    "✓ Deep purple gradient background\n" +
+                    "✓ Top opponents row with ninja avatars & glowing active turn rings\n" +
+                    "✓ Center 4 trick slots with theme colored backs and played cards\n" +
+                    "✓ Tilted Donkey Master deck & dealer puck\n" +
+                    "✓ 4-suit vertical cascading columns hand\n" +
+                    "✓ Wood table footer with Godwin avatar and gold DEAL button\n" +
+                    "✓ Scene saved to: " + scenePath + "\n\n" +
+                    "Click Play (▶) to test!",
+                    "Let's Play!");
+            }
+            else
+            {
+                Debug.Log("[SceneSetupHelper] Game scene & UI fully generated matching mobile Donkey Master layout!");
+            }
         }
 
         // ───────────────────────────────────────────────────────────────────────
@@ -468,109 +484,216 @@ namespace DonkeyUno.Editor
             GameObject donkeyGO = CreateFullScreenContainer("DonkeyGameScreen", parent);
             DonkeyGameUI donkeyUI = donkeyGO.AddComponent<DonkeyGameUI>();
 
-            // Dark blue casino felt table
+            // 1. Fullscreen Background Image - Purple Vignette with suit watermark
             Image tableBg = donkeyGO.AddComponent<Image>();
-            tableBg.color = new Color(0.04f, 0.12f, 0.22f);
+            Sprite bgSprite = LoadSprite("bg_purple_pattern");
+            if (bgSprite != null)
+            {
+                tableBg.sprite = bgSprite;
+                tableBg.type = Image.Type.Simple;
+                tableBg.color = Color.white;
+            }
+            else
+            {
+                tableBg.color = new Color32(65, 14, 88, 255);
+            }
 
-            // TableLayoutManager
-            TableLayoutManager table = donkeyGO.AddComponent<TableLayoutManager>();
-            GameObject tableBoundsGO = CreateUIContainer("TableBounds", donkeyGO.transform);
-            RectTransform rtBounds = tableBoundsGO.GetComponent<RectTransform>();
-            SetAnchors(rtBounds, new Vector2(0,0.15f), new Vector2(1,0.88f), new Vector2(0.5f,0.5f));
-            rtBounds.offsetMin = Vector2.zero; rtBounds.offsetMax = Vector2.zero;
+            // Load Sprites
+            Sprite ninjaSprite    = LoadSprite("ninja_avatar");
+            Sprite playerSprite   = LoadSprite("player_avatar");
+            Sprite spadeSprite    = LoadSprite("suit_spades");
+            Sprite heartSprite    = LoadSprite("suit_hearts");
+            Sprite clubSprite     = LoadSprite("suit_clubs");
+            Sprite diamondSprite  = LoadSprite("suit_diamonds");
+            Sprite yellowBack     = LoadSprite("card_back_yellow");
+            Sprite blueBack       = LoadSprite("card_back_blue");
+            Sprite pinkBack       = LoadSprite("card_back_pink");
+            Sprite greenBack      = LoadSprite("card_back_green");
+            Sprite tiltedDeckSpr  = LoadSprite("deck_tilted_donkey");
+            Sprite woodFooterSpr  = LoadSprite("wood_table_footer");
+            Sprite dealBtnSpr     = LoadSprite("btn_deal_gold");
+            Sprite giftIconSpr    = LoadSprite("icon_gift");
+            Sprite dealerPuckSpr  = LoadSprite("puck_dealer");
 
-            // Header strip
-            GameObject headerStrip = CreatePanel("HeaderStrip", donkeyGO.transform,
-                new Color(0.02f, 0.06f, 0.14f, 0.9f), Vector2.zero);
-            SetAnchors(headerStrip.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            headerStrip.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 60);
-            headerStrip.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+            // 2. Top Opponents Row (Player 1, Player 2, Player 3 side-by-side)
+            GameObject oppRowGO = CreateUIContainer("OpponentsRow", donkeyGO.transform);
+            RectTransform rtOppRow = oppRowGO.GetComponent<RectTransform>();
+            SetAnchors(rtOppRow, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            rtOppRow.sizeDelta = new Vector2(0, 110);
+            rtOppRow.anchoredPosition = new Vector2(0, -78);
 
-            TextMeshProUGUI turnText = CreateText("TurnStatus", headerStrip.transform,
-                "🫏 DONKEY MASTER — Waiting to start...", 15, C_GOLD);
-            turnText.fontStyle = FontStyles.Bold;
-            StretchToParent(turnText.rectTransform, 12, 0);
+            // 3. Center Table Area (Dealer puck + 4 Card Slots + Tilted Donkey Deck)
+            GameObject centerAreaGO = CreateUIContainer("CenterTableArea", donkeyGO.transform);
+            RectTransform rtCenterArea = centerAreaGO.GetComponent<RectTransform>();
+            SetAnchors(rtCenterArea, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            rtCenterArea.sizeDelta = new Vector2(430, 200);
+            rtCenterArea.anchoredPosition = new Vector2(0, 75);
 
-            // Lead Suit text
-            TextMeshProUGUI leadText = CreateText("LeadSuitText", donkeyGO.transform,
-                "Lead Suit: Play Any Card to Lead", 13, Color.white);
-            SetAnchors(leadText.rectTransform, new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            leadText.rectTransform.sizeDelta = new Vector2(0, 24);
-            leadText.rectTransform.anchoredPosition = new Vector2(0, -66);
+            // Dealer Puck (left)
+            GameObject puckGO = CreateUIContainer("DealerPuck", centerAreaGO.transform);
+            RectTransform rtPuck = puckGO.GetComponent<RectTransform>();
+            rtPuck.sizeDelta = new Vector2(30, 30);
+            rtPuck.anchoredPosition = new Vector2(-168, 0);
+            Image puckImg = puckGO.AddComponent<Image>();
+            if (dealerPuckSpr != null) puckImg.sprite = dealerPuckSpr;
+            else puckImg.color = new Color32(180, 120, 220, 255);
 
-            // Trick container (centre of table)
-            GameObject trickGO = CreateUIContainer("TrickContainer", donkeyGO.transform);
-            RectTransform rtTrick = trickGO.GetComponent<RectTransform>();
-            SetAnchors(rtTrick, new Vector2(0.1f, 0.3f), new Vector2(0.9f, 0.72f), new Vector2(0.5f, 0.5f));
-            rtTrick.offsetMin = Vector2.zero; rtTrick.offsetMax = Vector2.zero;
+            // Trick Slots Container (center)
+            GameObject slotsContainerGO = CreateUIContainer("TrickSlotsContainer", centerAreaGO.transform);
+            RectTransform rtSlotsContainer = slotsContainerGO.GetComponent<RectTransform>();
+            rtSlotsContainer.sizeDelta = new Vector2(320, 120);
+            rtSlotsContainer.anchoredPosition = Vector2.zero;
 
-            // Cut banner
+            // Tilted Donkey Deck (right)
+            GameObject deckGO = CreateUIContainer("TiltedDonkeyDeck", centerAreaGO.transform);
+            RectTransform rtDeck = deckGO.GetComponent<RectTransform>();
+            rtDeck.sizeDelta = new Vector2(58, 84);
+            rtDeck.anchoredPosition = new Vector2(148, -12);
+            rtDeck.localRotation = Quaternion.Euler(0, 0, -32f);
+            Image deckImg = deckGO.AddComponent<Image>();
+            if (tiltedDeckSpr != null) deckImg.sprite = tiltedDeckSpr;
+            else deckImg.color = new Color32(75, 20, 85, 255);
+
+            // 4. Hand Area - 4 Cascading Suit Columns
+            GameObject handAreaGO = CreateUIContainer("HandArea", donkeyGO.transform);
+            RectTransform rtHandArea = handAreaGO.GetComponent<RectTransform>();
+            SetAnchors(rtHandArea, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            rtHandArea.sizeDelta = new Vector2(0, 235);
+            rtHandArea.anchoredPosition = new Vector2(0, 78);
+
+            // 4 Columns: Spades, Hearts, Clubs, Diamonds
+            GameObject colSpades = CreateUIContainer("Col_Spades", handAreaGO.transform);
+            RectTransform rtSpades = colSpades.GetComponent<RectTransform>();
+            SetAnchors(rtSpades, new Vector2(0, 0), new Vector2(0.25f, 1), new Vector2(0.5f, 0.5f));
+            rtSpades.offsetMin = new Vector2(4, 0); rtSpades.offsetMax = new Vector2(-2, 0);
+
+            GameObject colHearts = CreateUIContainer("Col_Hearts", handAreaGO.transform);
+            RectTransform rtHearts = colHearts.GetComponent<RectTransform>();
+            SetAnchors(rtHearts, new Vector2(0.25f, 0), new Vector2(0.50f, 1), new Vector2(0.5f, 0.5f));
+            rtHearts.offsetMin = new Vector2(2, 0); rtHearts.offsetMax = new Vector2(-2, 0);
+
+            GameObject colClubs = CreateUIContainer("Col_Clubs", handAreaGO.transform);
+            RectTransform rtClubs = colClubs.GetComponent<RectTransform>();
+            SetAnchors(rtClubs, new Vector2(0.50f, 0), new Vector2(0.75f, 1), new Vector2(0.5f, 0.5f));
+            rtClubs.offsetMin = new Vector2(2, 0); rtClubs.offsetMax = new Vector2(-2, 0);
+
+            GameObject colDiamonds = CreateUIContainer("Col_Diamonds", handAreaGO.transform);
+            RectTransform rtDiamonds = colDiamonds.GetComponent<RectTransform>();
+            SetAnchors(rtDiamonds, new Vector2(0.75f, 0), new Vector2(1f, 1), new Vector2(0.5f, 0.5f));
+            rtDiamonds.offsetMin = new Vector2(2, 0); rtDiamonds.offsetMax = new Vector2(-4, 0);
+
+            // 5. Bottom Bar (Wood Ledge + Leave Button + Godwin Avatar + Gift Button + Deal Button)
+            GameObject bottomBar = CreateUIContainer("BottomBar", donkeyGO.transform);
+            RectTransform rtBottom = bottomBar.GetComponent<RectTransform>();
+            SetAnchors(rtBottom, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0.5f, 0));
+            rtBottom.sizeDelta = new Vector2(0, 78);
+            rtBottom.anchoredPosition = Vector2.zero;
+
+            Image woodImg = bottomBar.AddComponent<Image>();
+            if (woodFooterSpr != null) woodImg.sprite = woodFooterSpr;
+            else woodImg.color = new Color32(80, 38, 19, 255);
+
+            // Purple Leave Button («) on left
+            Button leaveBtn = CreateButton("LeaveButton", bottomBar.transform,
+                "«", new Color32(107, 33, 168, 255), Color.white,
+                new Vector2(34, 38), new Vector2(44, 44));
+            var leaveTxt = leaveBtn.GetComponentInChildren<TextMeshProUGUI>();
+            leaveTxt.fontSize = 24; leaveTxt.fontStyle = FontStyles.Bold;
+
+            // Godwin's Local Seat in center
+            GameObject localSeatGO = CreateUIContainer("LocalSeatContainer", bottomBar.transform);
+            RectTransform rtLocalSeat = localSeatGO.GetComponent<RectTransform>();
+            rtLocalSeat.sizeDelta = new Vector2(80, 92);
+            rtLocalSeat.anchoredPosition = new Vector2(-15, 38);
+
+            // Gift Button next to Godwin
+            Button giftBtn = CreateButton("GiftButton", bottomBar.transform,
+                "", new Color32(30, 20, 40, 255), Color.white,
+                new Vector2(36, 38), new Vector2(32, 32));
+            if (giftIconSpr != null)
+            {
+                var gImg = giftBtn.GetComponent<Image>();
+                gImg.sprite = giftIconSpr;
+                gImg.color = Color.white;
+            }
+
+            // Golden DEAL Button on right
+            Button dealBtn = CreateButton("DealButton", bottomBar.transform,
+                "DEAL", new Color32(250, 204, 21, 255), new Color32(120, 53, 15, 255),
+                new Vector2(140, 38), new Vector2(118, 52));
+            if (dealBtnSpr != null)
+            {
+                dealBtn.GetComponent<Image>().sprite = dealBtnSpr;
+                dealBtn.GetComponent<Image>().color = Color.white;
+            }
+            var dealBtnTxt = dealBtn.GetComponentInChildren<TextMeshProUGUI>();
+            dealBtnTxt.fontStyle = FontStyles.Bold;
+            dealBtnTxt.fontSize = 18;
+            dealBtnTxt.color = new Color32(120, 53, 15, 255);
+
+            // Cut Banner
             GameObject cutGO = CreatePanel("CutBanner", donkeyGO.transform,
-                new Color(0.9f, 0.1f, 0.15f, 0.92f), Vector2.zero);
-            SetAnchors(cutGO.GetComponent<RectTransform>(), new Vector2(0,1), new Vector2(1,1), new Vector2(0.5f,1));
-            cutGO.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 48);
-            cutGO.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -64);
-            TextMeshProUGUI cutText = CreateText("CutText", cutGO.transform,
-                "⚡ CUT BY OPPONENT!", 16, Color.white);
+                new Color(0.9f, 0.1f, 0.15f, 0.95f), Vector2.zero);
+            SetAnchors(cutGO.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1));
+            cutGO.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 52);
+            cutGO.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, -68);
+            TextMeshProUGUI cutText = CreateText("CutText", cutGO.transform, "⚡ CUT BY OPPONENT!", 18, Color.white);
             cutText.fontStyle = FontStyles.Bold;
             StretchToParent(cutText.rectTransform);
             cutGO.SetActive(false);
 
-            // Hand Container
-            GameObject handGO = CreateUIContainer("HandContainer", donkeyGO.transform);
-            RectTransform rtHand = handGO.GetComponent<RectTransform>();
-            SetAnchors(rtHand, new Vector2(0,0), new Vector2(1,0.17f), new Vector2(0.5f,0));
-            rtHand.offsetMin = Vector2.zero; rtHand.offsetMax = Vector2.zero;
+            // Setup Layout Components
+            DonkeyTableLayout tableLayout = donkeyGO.AddComponent<DonkeyTableLayout>();
+            SerializedObject soTableLayout = new SerializedObject(tableLayout);
+            soTableLayout.FindProperty("opponentsRow").objectReferenceValue = rtOppRow;
+            soTableLayout.FindProperty("localSeatContainer").objectReferenceValue = rtLocalSeat;
+            soTableLayout.FindProperty("seatPrefab").objectReferenceValue = seatPrefab;
+            soTableLayout.FindProperty("ninjaAvatarSprite").objectReferenceValue = ninjaSprite;
+            soTableLayout.FindProperty("playerAvatarSprite").objectReferenceValue = playerSprite;
+            soTableLayout.ApplyModifiedProperties();
+
+            DonkeyTrickArea trickArea = donkeyGO.AddComponent<DonkeyTrickArea>();
+            SerializedObject soTrickArea = new SerializedObject(trickArea);
+            soTrickArea.FindProperty("slotsContainer").objectReferenceValue = rtSlotsContainer;
+            soTrickArea.FindProperty("cardSlotPrefab").objectReferenceValue = cardPrefab;
+            soTrickArea.FindProperty("tiltedDeckTransform").objectReferenceValue = rtDeck;
+            soTrickArea.FindProperty("dealerPuckImage").objectReferenceValue = puckImg;
+            soTrickArea.FindProperty("cardBackYellow").objectReferenceValue = yellowBack;
+            soTrickArea.FindProperty("cardBackBlue").objectReferenceValue = blueBack;
+            soTrickArea.FindProperty("cardBackPink").objectReferenceValue = pinkBack;
+            soTrickArea.FindProperty("cardBackGreen").objectReferenceValue = greenBack;
+            soTrickArea.FindProperty("deckTiltedDonkey").objectReferenceValue = tiltedDeckSpr;
+            soTrickArea.FindProperty("spadeSprite").objectReferenceValue = spadeSprite;
+            soTrickArea.FindProperty("heartSprite").objectReferenceValue = heartSprite;
+            soTrickArea.FindProperty("clubSprite").objectReferenceValue = clubSprite;
+            soTrickArea.FindProperty("diamondSprite").objectReferenceValue = diamondSprite;
+            soTrickArea.ApplyModifiedProperties();
+
             HandManager handManager = donkeyGO.AddComponent<HandManager>();
-
-            // Bottom bar
-            GameObject bottomBar = CreatePanel("BottomBar", donkeyGO.transform,
-                new Color(0.02f, 0.04f, 0.10f, 0.96f), Vector2.zero);
-            SetAnchors(bottomBar.GetComponent<RectTransform>(), new Vector2(0,0), new Vector2(1,0), new Vector2(0.5f,0));
-            bottomBar.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 72);
-            bottomBar.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
-
-            // DEAL button — prominent gold
-            Button dealBtn = CreateButton("DealButton", bottomBar.transform,
-                "DEAL CARD", C_AMBER, C_DARK_TXT,
-                new Vector2(0, 0), new Vector2(0, 56));
-            SetAnchors(dealBtn.GetComponent<RectTransform>(), new Vector2(0.5f,0.5f), new Vector2(1,0.5f), new Vector2(0.5f,0.5f));
-            dealBtn.GetComponent<RectTransform>().offsetMin = new Vector2(8, -28);
-            dealBtn.GetComponent<RectTransform>().offsetMax = new Vector2(-12, 28);
-            TextMeshProUGUI dealBtnText = dealBtn.GetComponentInChildren<TextMeshProUGUI>();
-            dealBtnText.fontStyle = FontStyles.Bold;
-            dealBtnText.fontSize = 16;
-
-            TextMeshProUGUI lastAction = CreateText("LastAction", bottomBar.transform,
-                "", 11, C_TXT_PURP);
-            SetAnchors(lastAction.rectTransform, new Vector2(0,0), new Vector2(0.5f,1), new Vector2(0,0.5f));
-            lastAction.rectTransform.offsetMin = new Vector2(8,0); lastAction.rectTransform.offsetMax = new Vector2(-4,0);
-            lastAction.alignment = TextAlignmentOptions.Left;
+            SerializedObject soHand = new SerializedObject(handManager);
+            soHand.FindProperty("cardPrefab").objectReferenceValue = cardPrefab;
+            soHand.FindProperty("spadesColumn").objectReferenceValue = rtSpades;
+            soHand.FindProperty("heartsColumn").objectReferenceValue = rtHearts;
+            soHand.FindProperty("clubsColumn").objectReferenceValue = rtClubs;
+            soHand.FindProperty("diamondsColumn").objectReferenceValue = rtDiamonds;
+            soHand.FindProperty("spadeSprite").objectReferenceValue = spadeSprite;
+            soHand.FindProperty("heartSprite").objectReferenceValue = heartSprite;
+            soHand.FindProperty("clubSprite").objectReferenceValue = clubSprite;
+            soHand.FindProperty("diamondSprite").objectReferenceValue = diamondSprite;
+            soHand.ApplyModifiedProperties();
 
             // Wire DonkeyGameUI
-            SerializedObject so = new SerializedObject(donkeyUI);
-            so.FindProperty("tableLayoutManager").objectReferenceValue = table;
-            so.FindProperty("handManager").objectReferenceValue        = handManager;
-            so.FindProperty("trickContainer").objectReferenceValue     = rtTrick;
-            so.FindProperty("trickCardPrefab").objectReferenceValue    = cardPrefab;
-            so.FindProperty("leadSuitText").objectReferenceValue       = leadText;
-            so.FindProperty("cutBannerObject").objectReferenceValue    = cutGO;
-            so.FindProperty("cutBannerText").objectReferenceValue      = cutText;
-            so.FindProperty("turnStatusText").objectReferenceValue     = turnText;
-            so.FindProperty("lastActionText").objectReferenceValue     = lastAction;
-            so.FindProperty("dealButton").objectReferenceValue         = dealBtn;
-            so.FindProperty("dealButtonText").objectReferenceValue     = dealBtnText;
-            so.ApplyModifiedProperties();
-
-            SerializedObject soTable = new SerializedObject(table);
-            soTable.FindProperty("tableBounds").objectReferenceValue = rtBounds;
-            soTable.FindProperty("seatPrefab").objectReferenceValue  = seatPrefab;
-            soTable.ApplyModifiedProperties();
-
-            SerializedObject soHand = new SerializedObject(handManager);
-            soHand.FindProperty("handContainer").objectReferenceValue = rtHand;
-            soHand.FindProperty("cardPrefab").objectReferenceValue    = cardPrefab;
-            soHand.ApplyModifiedProperties();
+            SerializedObject soDonkeyUI = new SerializedObject(donkeyUI);
+            soDonkeyUI.FindProperty("donkeyTableLayout").objectReferenceValue = tableLayout;
+            soDonkeyUI.FindProperty("donkeyTrickArea").objectReferenceValue = trickArea;
+            soDonkeyUI.FindProperty("handManager").objectReferenceValue = handManager;
+            soDonkeyUI.FindProperty("dealButton").objectReferenceValue = dealBtn;
+            soDonkeyUI.FindProperty("dealButtonText").objectReferenceValue = dealBtnTxt;
+            soDonkeyUI.FindProperty("leaveButton").objectReferenceValue = leaveBtn;
+            soDonkeyUI.FindProperty("giftButton").objectReferenceValue = giftBtn;
+            soDonkeyUI.FindProperty("cutBannerObject").objectReferenceValue = cutGO;
+            soDonkeyUI.FindProperty("cutBannerText").objectReferenceValue = cutText;
+            soDonkeyUI.ApplyModifiedProperties();
 
             return donkeyGO;
         }
@@ -793,40 +916,77 @@ namespace DonkeyUno.Editor
             GameObject cardGO = new GameObject("CardTemplate",
                 typeof(RectTransform), typeof(Image), typeof(CardView));
             RectTransform rt = cardGO.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(80, 115);
+            rt.sizeDelta = new Vector2(72, 104);
 
             Image bg = cardGO.GetComponent<Image>();
-            bg.color = new Color(0.96f, 0.96f, 0.98f);
+            Sprite cardBaseSpr = LoadSprite("card_white_base");
+            if (cardBaseSpr != null) bg.sprite = cardBaseSpr;
+            bg.color = Color.white;
 
-            TextMeshProUGUI center = CreateText("CenterText", cardGO.transform,
-                "A", 28, Color.black, TextAlignmentOptions.Center);
-            StretchToParent(center.rectTransform);
+            // Card border outline (for played trick cards)
+            GameObject borderGO = CreateUIContainer("CardBorder", cardGO.transform);
+            Image borderImg = borderGO.AddComponent<Image>();
+            borderImg.color = Color.clear;
+            StretchToParent(borderImg.rectTransform, -2, -2);
+            borderGO.SetActive(false);
 
-            TextMeshProUGUI cornerTL = CreateText("CornerTL", cardGO.transform, "A", 12, Color.black, TextAlignmentOptions.TopLeft);
-            cornerTL.rectTransform.anchorMin = new Vector2(0,1); cornerTL.rectTransform.anchorMax = new Vector2(0,1);
-            cornerTL.rectTransform.pivot = new Vector2(0,1);
-            cornerTL.rectTransform.anchoredPosition = new Vector2(5,-4);
-            cornerTL.rectTransform.sizeDelta = new Vector2(30,20);
+            // Card Back Image (for face-down mode)
+            GameObject backGO = CreateUIContainer("CardBack", cardGO.transform);
+            Image backImg = backGO.AddComponent<Image>();
+            StretchToParent(backImg.rectTransform);
+            backGO.SetActive(false);
 
-            TextMeshProUGUI cornerBR = CreateText("CornerBR", cardGO.transform, "A", 12, Color.black, TextAlignmentOptions.BottomRight);
-            cornerBR.rectTransform.anchorMin = new Vector2(1,0); cornerBR.rectTransform.anchorMax = new Vector2(1,0);
-            cornerBR.rectTransform.pivot = new Vector2(1,0);
-            cornerBR.rectTransform.anchoredPosition = new Vector2(-5,4);
-            cornerBR.rectTransform.sizeDelta = new Vector2(30,20);
+            // Corner Top Left Rank Text
+            TextMeshProUGUI cornerTL = CreateText("CornerTL", cardGO.transform, "A", 16, Color.black, TextAlignmentOptions.TopLeft);
+            cornerTL.fontStyle = FontStyles.Bold;
+            cornerTL.rectTransform.anchorMin = new Vector2(0, 1); cornerTL.rectTransform.anchorMax = new Vector2(0, 1);
+            cornerTL.rectTransform.pivot = new Vector2(0, 1);
+            cornerTL.rectTransform.anchoredPosition = new Vector2(6, -4);
+            cornerTL.rectTransform.sizeDelta = new Vector2(26, 22);
 
+            // Corner Suit Image (under rank)
+            GameObject cornerSuitGO = CreateUIContainer("CornerSuit", cardGO.transform);
+            RectTransform rtCornerSuit = cornerSuitGO.GetComponent<RectTransform>();
+            rtCornerSuit.anchorMin = new Vector2(0, 1); rtCornerSuit.anchorMax = new Vector2(0, 1);
+            rtCornerSuit.pivot = new Vector2(0, 1);
+            rtCornerSuit.anchoredPosition = new Vector2(7, -24);
+            rtCornerSuit.sizeDelta = new Vector2(16, 16);
+            Image cornerSuitImg = cornerSuitGO.AddComponent<Image>();
+
+            // Center Large Suit Emblem
+            GameObject centerSuitGO = CreateUIContainer("CenterSuit", cardGO.transform);
+            RectTransform rtCenterSuit = centerSuitGO.GetComponent<RectTransform>();
+            rtCenterSuit.anchorMin = new Vector2(0.5f, 0.5f); rtCenterSuit.anchorMax = new Vector2(0.5f, 0.5f);
+            rtCenterSuit.pivot = new Vector2(0.5f, 0.5f);
+            rtCenterSuit.anchoredPosition = new Vector2(0, -4);
+            rtCenterSuit.sizeDelta = new Vector2(44, 44);
+            Image centerSuitImg = centerSuitGO.AddComponent<Image>();
+
+            // Selected Outline
             GameObject outline = CreateUIContainer("SelectedOutline", cardGO.transform);
             Image outlineImg = outline.AddComponent<Image>();
-            outlineImg.color = new Color(1f, 0.85f, 0.2f, 0.85f);
-            StretchToParent(outline.GetComponent<RectTransform>(), -4, -4);
+            outlineImg.color = new Color(1f, 0.84f, 0.2f, 0.9f);
+            StretchToParent(outline.GetComponent<RectTransform>(), -3, -3);
             outline.SetActive(false);
 
             CardView view = cardGO.GetComponent<CardView>();
             SerializedObject so = new SerializedObject(view);
-            so.FindProperty("cardBackground").objectReferenceValue  = bg;
-            so.FindProperty("centerText").objectReferenceValue      = center;
-            so.FindProperty("cornerTopLeft").objectReferenceValue   = cornerTL;
-            so.FindProperty("cornerBottomRight").objectReferenceValue = cornerBR;
+            so.FindProperty("cardBackground").objectReferenceValue = bg;
+            so.FindProperty("cardBorder").objectReferenceValue = borderImg;
+            so.FindProperty("cardBackImage").objectReferenceValue = backImg;
+            so.FindProperty("cornerTopLeft").objectReferenceValue = cornerTL;
+            so.FindProperty("cornerSuitImage").objectReferenceValue = cornerSuitImg;
+            so.FindProperty("centerSuitImage").objectReferenceValue = centerSuitImg;
             so.FindProperty("selectedOutline").objectReferenceValue = outline;
+
+            Sprite spade = LoadSprite("suit_spades");
+            Sprite heart = LoadSprite("suit_hearts");
+            Sprite club = LoadSprite("suit_clubs");
+            Sprite diamond = LoadSprite("suit_diamonds");
+            so.FindProperty("spadeSprite").objectReferenceValue = spade;
+            so.FindProperty("heartSprite").objectReferenceValue = heart;
+            so.FindProperty("clubSprite").objectReferenceValue = club;
+            so.FindProperty("diamondSprite").objectReferenceValue = diamond;
             so.ApplyModifiedProperties();
 
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(cardGO, path);
@@ -838,38 +998,64 @@ namespace DonkeyUno.Editor
         {
             GameObject seatGO = new GameObject("SeatTemplate",
                 typeof(RectTransform), typeof(SeatView));
-            seatGO.GetComponent<RectTransform>().sizeDelta = new Vector2(100, 110);
+            seatGO.GetComponent<RectTransform>().sizeDelta = new Vector2(84, 96);
 
-            // Avatar circle
-            GameObject avatarGO = new GameObject("Avatar", typeof(RectTransform), typeof(Image));
-            avatarGO.transform.SetParent(seatGO.transform, false);
-            Image avatarImg = avatarGO.GetComponent<Image>();
-            avatarImg.color = new Color(0.18f, 0.30f, 0.55f);
-            avatarGO.GetComponent<RectTransform>().sizeDelta = new Vector2(60, 60);
-            avatarGO.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 18);
+            // Glowing Neon-Green Turn Indicator Ring (behind avatar)
+            GameObject turnGlowGO = CreateUIContainer("TurnGlowRing", seatGO.transform);
+            RectTransform rtGlow = turnGlowGO.GetComponent<RectTransform>();
+            rtGlow.sizeDelta = new Vector2(88, 88);
+            rtGlow.anchoredPosition = new Vector2(0, 16);
+            Image glowImg = turnGlowGO.AddComponent<Image>();
+            Sprite glowSpr = LoadSprite("turn_glow_ring");
+            if (glowSpr != null) glowImg.sprite = glowSpr;
+            glowImg.color = Color.white;
+            turnGlowGO.SetActive(false);
 
-            // Turn indicator ring
-            GameObject turnIndicator = CreateUIContainer("TurnIndicator", seatGO.transform);
-            Image turnImg = turnIndicator.AddComponent<Image>();
-            turnImg.color = new Color(0.2f, 1f, 0.4f, 0.55f);
-            turnIndicator.GetComponent<RectTransform>().sizeDelta = new Vector2(68, 68);
-            turnIndicator.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 18);
-            turnIndicator.SetActive(false);
+            // Colored Avatar Ring Border
+            GameObject borderGO = CreateUIContainer("AvatarBorder", seatGO.transform);
+            RectTransform rtBorder = borderGO.GetComponent<RectTransform>();
+            rtBorder.sizeDelta = new Vector2(62, 62);
+            rtBorder.anchoredPosition = new Vector2(0, 16);
+            Image borderImg = borderGO.AddComponent<Image>();
+            borderImg.color = new Color32(37, 99, 235, 255); // Default Blue
 
-            TextMeshProUGUI nameText = CreateText("NameText", seatGO.transform, "Player", 12, Color.white);
-            nameText.rectTransform.anchoredPosition = new Vector2(0, -20);
-            nameText.rectTransform.sizeDelta = new Vector2(110, 18);
+            // Avatar Face (Ninja or Player)
+            GameObject avatarGO = CreateUIContainer("AvatarImage", seatGO.transform);
+            RectTransform rtAvatar = avatarGO.GetComponent<RectTransform>();
+            rtAvatar.sizeDelta = new Vector2(54, 54);
+            rtAvatar.anchoredPosition = new Vector2(0, 16);
+            Image avatarImg = avatarGO.AddComponent<Image>();
+            Sprite ninjaSpr = LoadSprite("ninja_avatar");
+            if (ninjaSpr != null) avatarImg.sprite = ninjaSpr;
+            avatarImg.color = Color.white;
 
-            TextMeshProUGUI cardCount = CreateText("CardCount", seatGO.transform, "🃏 5", 10, C_GOLD);
-            cardCount.rectTransform.anchoredPosition = new Vector2(0, -36);
-            cardCount.rectTransform.sizeDelta = new Vector2(100, 16);
+            // Nameplate Badge (rounded pill)
+            GameObject badgeGO = CreateUIContainer("NameBadge", seatGO.transform);
+            RectTransform rtBadge = badgeGO.GetComponent<RectTransform>();
+            rtBadge.sizeDelta = new Vector2(74, 22);
+            rtBadge.anchoredPosition = new Vector2(0, -22);
+            Image badgeImg = badgeGO.AddComponent<Image>();
+            badgeImg.color = new Color32(37, 99, 235, 255); // Default Blue
+
+            // Player Name Text
+            TextMeshProUGUI nameText = CreateText("NameText", badgeGO.transform, "Player", 11, Color.white);
+            nameText.fontStyle = FontStyles.Bold;
+            StretchToParent(nameText.rectTransform);
+
+            // Card Count (small text or badge)
+            TextMeshProUGUI cardCount = CreateText("CardCount", seatGO.transform, "", 9, C_GOLD);
+            cardCount.rectTransform.anchoredPosition = new Vector2(0, -38);
+            cardCount.rectTransform.sizeDelta = new Vector2(70, 14);
 
             SeatView seatView = seatGO.GetComponent<SeatView>();
             SerializedObject so = new SerializedObject(seatView);
-            so.FindProperty("avatarImage").objectReferenceValue    = avatarImg;
-            so.FindProperty("nameText").objectReferenceValue       = nameText;
-            so.FindProperty("cardCountText").objectReferenceValue  = cardCount;
-            so.FindProperty("turnIndicator").objectReferenceValue  = turnIndicator;
+            so.FindProperty("avatarImage").objectReferenceValue = avatarImg;
+            so.FindProperty("avatarBorder").objectReferenceValue = borderImg;
+            so.FindProperty("nameBadgeBg").objectReferenceValue = badgeImg;
+            so.FindProperty("nameText").objectReferenceValue = nameText;
+            so.FindProperty("cardCountText").objectReferenceValue = cardCount;
+            so.FindProperty("turnIndicator").objectReferenceValue = turnGlowGO;
+            so.FindProperty("turnGlowImage").objectReferenceValue = glowImg;
             so.ApplyModifiedProperties();
 
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(seatGO, path);
@@ -990,6 +1176,11 @@ namespace DonkeyUno.Editor
             rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
             rt.offsetMin = new Vector2(xPad, yPad);
             rt.offsetMax = new Vector2(-xPad, -yPad);
+        }
+
+        private static Sprite LoadSprite(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/_Project/Textures/{name}.png");
         }
     }
 }

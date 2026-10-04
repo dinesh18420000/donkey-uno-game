@@ -113,6 +113,8 @@ export interface ClientGameState {
   roundNumber: number;
   turnExpiresAt: number;
   turnDuration: number;
+  gameExpiresAt?: number;
+  gameDuration?: number;
 
   // Donkey
   leadSuit?: Suit;
@@ -125,6 +127,7 @@ export interface ClientGameState {
   activeUnoColor?: UnoColor;
   drawStackCount: number;
   deckRemainingCount: number;
+  lastSkippedPlayerId?: string;
 }
 
 // Helper to determine who plays before and after a specific player

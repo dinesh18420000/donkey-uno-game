@@ -27,13 +27,18 @@ import {
   getNextUnoTurnIndex
 } from './unoEngine.js';
 
-const HUMAN_TURN_TIME_MS = 30000; // 30 seconds max play time
-const BOT_TURN_TIME_MS = 750;      // 0.75s for smooth, fast, responsive bot turns
+const HUMAN_TURN_TIME_MS = 30000; // 30 seconds max play time for Donkey Master
+const UNO_HUMAN_TURN_TIME_MS = 20000; // 20 seconds max to play a card in Uno No Mercy
+const UNO_GAME_MAX_TIME_MS = 10 * 60 * 1000; // 10 minutes max for entire Uno match
+const BOT_TURN_TIME_MS = 750;      // 0.75s for Donkey Master
+const UNO_BOT_TURN_TIME_MS = 1800; // 1.8s for Uno No Mercy so card movement and effects are smooth and clearly understandable
 
 export class RoomManager {
   private rooms: Map<string, GameRoom> = new Map();
   private socketToPlayerMap: Map<string, { roomCode: string; playerId: string }> = new Map();
   private turnTimers: Map<string, NodeJS.Timeout> = new Map();
+  private disconnectGraceTimers: Map<string, NodeJS.Timeout> = new Map();
+  private gameTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(private io: Server) {}
 
@@ -99,12 +104,19 @@ export class RoomManager {
 
     const existingPlayer = room.players.find(p => p.id === playerId);
     if (existingPlayer) {
+      const timerKey = `${room.code}:${playerId}`;
+      if (this.disconnectGraceTimers.has(timerKey)) {
+        clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
+        this.disconnectGraceTimers.delete(timerKey);
+      }
+
       existingPlayer.socketId = socketId;
       existingPlayer.isDisconnected = false;
       existingPlayer.isBot = false;
       existingPlayer.name = playerName || existingPlayer.name.replace(' (Bot)', '');
       existingPlayer.avatar = avatar || existingPlayer.avatar;
       this.socketToPlayerMap.set(socketId, { roomCode: code, playerId });
+      room.lastAction = `🟢 ${existingPlayer.name} reconnected! Control restored.`;
       this.broadcastState(room);
       return { success: true, room };
     }
@@ -203,6 +215,7 @@ export class RoomManager {
       room.drawStackCount = 0;
       room.currentTurnIndex = 0;
       room.lastAction = `UNO Show 'Em No Mercy started! First card: ${activeCard.color} ${activeCard.type}`;
+      this.startGameTimer(room);
     }
 
     this.startTurnTimer(room);
@@ -246,6 +259,7 @@ export class RoomManager {
       room.deckRemainingCount = remainingDeck.length;
       room.currentTurnIndex = 0;
       room.lastAction = `🔄 New Game Replayed! First card: ${activeCard.color} ${activeCard.type}`;
+      this.startGameTimer(room);
     }
 
     this.startTurnTimer(room);
@@ -258,10 +272,14 @@ export class RoomManager {
     const room = this.rooms.get(roomCode);
     if (!room || room.hostId !== hostPlayerId) return false;
 
-    // Cancel active turn timers
+    // Cancel active turn timers and game timers
     if (this.turnTimers.has(room.code)) {
       clearTimeout(this.turnTimers.get(room.code)!);
       this.turnTimers.delete(room.code);
+    }
+    if (this.gameTimers.has(room.code)) {
+      clearTimeout(this.gameTimers.get(room.code)!);
+      this.gameTimers.delete(room.code);
     }
 
     room.status = 'waiting';
@@ -270,6 +288,7 @@ export class RoomManager {
     room.drawStackCount = 0;
     room.activeUnoCard = undefined;
     room.activeUnoColor = undefined;
+    room.lastSkippedPlayerId = undefined;
     room.leadSuit = undefined;
     room.turnExpiresAt = 0;
     room.lastAction = '🏠 Host returned everyone back to the room lobby!';
@@ -339,6 +358,10 @@ export class RoomManager {
         clearTimeout(this.turnTimers.get(familyCode)!);
         this.turnTimers.delete(familyCode);
       }
+      if (this.gameTimers.has(familyCode)) {
+        clearTimeout(this.gameTimers.get(familyCode)!);
+        this.gameTimers.delete(familyCode);
+      }
       room.status = 'waiting';
       room.roundNumber = 1;
       room.currentTrick = [];
@@ -368,6 +391,12 @@ export class RoomManager {
     // 3. Check if player already exists in room (reconnection)
     const existingPlayer = room.players.find(p => p.id === playerId);
     if (existingPlayer) {
+      const timerKey = `${familyCode}:${playerId}`;
+      if (this.disconnectGraceTimers.has(timerKey)) {
+        clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
+        this.disconnectGraceTimers.delete(timerKey);
+      }
+
       existingPlayer.socketId = socketId;
       existingPlayer.isDisconnected = false;
       existingPlayer.isBot = false;
@@ -375,6 +404,7 @@ export class RoomManager {
       existingPlayer.avatar = avatar || existingPlayer.avatar;
       this.socketToPlayerMap.set(socketId, { roomCode: familyCode, playerId });
       room.players.forEach(p => { p.isHost = (p.id === room.hostId); });
+      room.lastAction = `🟢 ${existingPlayer.name} reconnected! Control restored.`;
       this.broadcastState(room);
       return { success: true, roomCode: familyCode };
     }
@@ -458,7 +488,6 @@ export class RoomManager {
 
     player.socketId = null;
     player.isDisconnected = true;
-    room.lastAction = `⚠️ ${player.name} lost connection! Bot took over.`;
 
     // Check if any human players (non-bot, non-disconnected, non-spectator) are still playing
     const activeHumanPlayers = room.players.filter(p => !p.isBot && !p.isDisconnected && !p.isSpectator);
@@ -467,6 +496,15 @@ export class RoomManager {
       if (this.turnTimers.has(room.code)) {
         clearTimeout(this.turnTimers.get(room.code)!);
         this.turnTimers.delete(room.code);
+      }
+      if (this.gameTimers.has(room.code)) {
+        clearTimeout(this.gameTimers.get(room.code)!);
+        this.gameTimers.delete(room.code);
+      }
+      const timerKey = `${room.code}:${player.id}`;
+      if (this.disconnectGraceTimers.has(timerKey)) {
+        clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
+        this.disconnectGraceTimers.delete(timerKey);
       }
       room.status = 'game_over';
       room.lastAction = '🛑 Game stopped: All human players have left the game.';
@@ -490,13 +528,44 @@ export class RoomManager {
       }
     }
 
-    this.broadcastState(room);
-
     if (room.status === 'playing') {
+      room.lastAction = `🔴 ${player.name} lost connection! Waiting 15s to reconnect...`;
+      this.broadcastState(room);
+
+      const timerKey = `${room.code}:${player.id}`;
+      if (this.disconnectGraceTimers.has(timerKey)) {
+        clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
+      }
+
+      // 15-second grace period: Wait 15s before turning the disconnected player into a bot
+      const graceTimer = setTimeout(() => {
+        this.disconnectGraceTimers.delete(timerKey);
+        if (room.status !== 'playing') return;
+
+        const p = room.players.find(pl => pl.id === player.id);
+        if (p && p.isDisconnected && !p.isBot) {
+          p.isBot = true;
+          room.lastAction = `🤖 15s expired! AI Bot took over for ${p.name}.`;
+          console.log(`[Room ${room.code}] 15s grace expired for ${p.name}. Bot taking over.`);
+          this.broadcastState(room);
+
+          const currentActive = room.players[room.currentTurnIndex];
+          if (currentActive && currentActive.id === p.id) {
+            this.startTurnTimer(room, room.gameType === 'uno_no_mercy' ? UNO_BOT_TURN_TIME_MS : BOT_TURN_TIME_MS);
+          }
+        }
+      }, 15000);
+
+      this.disconnectGraceTimers.set(timerKey, graceTimer);
+
+      // If it is currently this player's turn, give 15s grace for them to return
       const currentActive = room.players[room.currentTurnIndex];
       if (currentActive && currentActive.id === player.id) {
-        this.startTurnTimer(room, BOT_TURN_TIME_MS);
+        this.startTurnTimer(room, 15000);
       }
+    } else {
+      room.lastAction = `⚠️ ${player.name} disconnected.`;
+      this.broadcastState(room);
     }
   }
 
@@ -505,6 +574,12 @@ export class RoomManager {
     if (!room) return;
 
     this.socketToPlayerMap.delete(socketId);
+
+    const timerKey = `${roomCode}:${playerId}`;
+    if (this.disconnectGraceTimers.has(timerKey)) {
+      clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
+      this.disconnectGraceTimers.delete(timerKey);
+    }
 
     const player = room.players.find(p => p.id === playerId);
     if (!player) return;
@@ -546,6 +621,10 @@ export class RoomManager {
         clearTimeout(this.turnTimers.get(room.code)!);
         this.turnTimers.delete(room.code);
       }
+      if (this.gameTimers.has(room.code)) {
+        clearTimeout(this.gameTimers.get(room.code)!);
+        this.gameTimers.delete(room.code);
+      }
       room.status = 'game_over';
       room.lastAction = '🛑 Game stopped: All human players have left.';
       console.log(`[Room ${room.code}] Game stopped: All humans left.`);
@@ -563,7 +642,7 @@ export class RoomManager {
     if (room.status === 'playing') {
       const currentActive = room.players[room.currentTurnIndex];
       if (currentActive && currentActive.id === playerId) {
-        this.startTurnTimer(room, BOT_TURN_TIME_MS);
+        this.startTurnTimer(room, room.gameType === 'uno_no_mercy' ? UNO_BOT_TURN_TIME_MS : BOT_TURN_TIME_MS);
       }
     }
 
@@ -614,7 +693,60 @@ export class RoomManager {
     return { success: true, room };
   }
 
-  // --- 30-SECOND TURN TIMER & AUTO-PLAY SYSTEM ---
+  // --- UNO NO MERCY WIN / SURVIVAL END CONDITION CHECK ---
+  private checkUnoEndCondition(room: GameRoom, reasonSuffix?: string): boolean {
+    if (room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return false;
+
+    // 1. Check if any active player emptied their hand (cardsCount === 0 or hand.length === 0)
+    const zeroCardWinner = room.players.find(
+      p => !p.isSpectator && !p.isMercyEliminated && (p.cardsCount === 0 || p.hand.length === 0)
+    );
+
+    if (zeroCardWinner) {
+      zeroCardWinner.rank = 1;
+      room.status = 'game_over';
+      room.lastAction = `🏆 ${zeroCardWinner.name} PLAYED THEIR LAST CARD AND WON!${reasonSuffix ? ' ' + reasonSuffix : ''}`;
+      if (this.turnTimers.has(room.code)) {
+        clearTimeout(this.turnTimers.get(room.code)!);
+        this.turnTimers.delete(room.code);
+      }
+      if (this.gameTimers.has(room.code)) {
+        clearTimeout(this.gameTimers.get(room.code)!);
+        this.gameTimers.delete(room.code);
+      }
+      (room as any).isResolvingUnoAction = false;
+      this.finalizeUnoRanks(room);
+      this.broadcastState(room);
+      return true;
+    }
+
+    // 2. Check if only 1 active player remains standing (Mercy Rule / eliminations)
+    const active = room.players.filter(p => !p.rank && !p.isMercyEliminated && !p.isSpectator && (p.cardsCount > 0 || p.hand.length > 0));
+    const allParticipants = room.players.filter(p => !p.isSpectator);
+    if (active.length <= 1 && allParticipants.length > 1) {
+      room.status = 'game_over';
+      if (active.length === 1) {
+        active[0].rank = 1;
+        room.lastAction = `🏆 ${active[0].name} SURVIVED AND WINS!${reasonSuffix ? ' ' + reasonSuffix : ''}`;
+      }
+      if (this.turnTimers.has(room.code)) {
+        clearTimeout(this.turnTimers.get(room.code)!);
+        this.turnTimers.delete(room.code);
+      }
+      if (this.gameTimers.has(room.code)) {
+        clearTimeout(this.gameTimers.get(room.code)!);
+        this.gameTimers.delete(room.code);
+      }
+      (room as any).isResolvingUnoAction = false;
+      this.finalizeUnoRanks(room);
+      this.broadcastState(room);
+      return true;
+    }
+
+    return false;
+  }
+
+  // --- 20s (UNO) / 30s (DONKEY) TURN TIMER & AUTO-PLAY SYSTEM ---
   private startTurnTimer(room: GameRoom, customMs?: number): void {
     if (this.turnTimers.has(room.code)) {
       clearTimeout(this.turnTimers.get(room.code)!);
@@ -623,11 +755,28 @@ export class RoomManager {
 
     if (room.status !== 'playing') return;
 
-    const currentPlayer = room.players[room.currentTurnIndex];
-    if (!currentPlayer || currentPlayer.rank || currentPlayer.isMercyEliminated) return;
+    if (room.gameType === 'uno_no_mercy' && this.checkUnoEndCondition(room)) return;
+
+    let currentPlayer = room.players[room.currentTurnIndex];
+    if (!currentPlayer || currentPlayer.rank || currentPlayer.isMercyEliminated || (room.gameType === 'uno_no_mercy' && (currentPlayer.cardsCount === 0 || currentPlayer.hand.length === 0))) {
+      if (room.gameType === 'uno_no_mercy') {
+        const nextIdx = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
+        if (nextIdx !== room.currentTurnIndex) {
+          room.currentTurnIndex = nextIdx;
+          currentPlayer = room.players[room.currentTurnIndex];
+        } else {
+          this.checkUnoEndCondition(room);
+          return;
+        }
+      } else {
+        return;
+      }
+    }
 
     const isBotOrDisconnected = currentPlayer.isBot || currentPlayer.isDisconnected;
-    const durationMs = customMs !== undefined ? customMs : (isBotOrDisconnected ? BOT_TURN_TIME_MS : HUMAN_TURN_TIME_MS);
+    const defaultBotTime = room.gameType === 'uno_no_mercy' ? UNO_BOT_TURN_TIME_MS : BOT_TURN_TIME_MS;
+    const defaultHumanTime = room.gameType === 'uno_no_mercy' ? UNO_HUMAN_TURN_TIME_MS : HUMAN_TURN_TIME_MS;
+    const durationMs = customMs !== undefined ? customMs : (isBotOrDisconnected ? defaultBotTime : defaultHumanTime);
 
     room.turnDuration = Math.round(durationMs / 1000);
     room.turnExpiresAt = Date.now() + durationMs;
@@ -643,36 +792,138 @@ export class RoomManager {
     const room = this.rooms.get(roomCode);
     if (!room || room.status !== 'playing') return;
 
+    if (room.gameType === 'uno_no_mercy' && this.checkUnoEndCondition(room)) return;
+
     const currentPlayer = room.players[room.currentTurnIndex];
     if (!currentPlayer || currentPlayer.id !== expectedPlayerId) return;
 
     const wasHuman = !currentPlayer.isBot && !currentPlayer.isDisconnected;
     if (wasHuman) {
-      room.lastAction = `⏰ 30s timer expired! Computer auto-selected a card for ${currentPlayer.name}.`;
+      const timeLimitSec = room.gameType === 'uno_no_mercy' ? 20 : 30;
+      room.lastAction = `⏰ ${timeLimitSec}s timer expired! Computer auto-selected a card for ${currentPlayer.name}.`;
     }
 
     this.executeBotTurn(roomCode, currentPlayer.id);
+
+    // Watchdog fallback: If turn does not transition within 2500ms after timeout, force auto-action
+    if (room.gameType === 'uno_no_mercy') {
+      setTimeout(() => {
+        const liveRoom = this.rooms.get(roomCode);
+        if (!liveRoom || liveRoom.status !== 'playing') return;
+        if (this.checkUnoEndCondition(liveRoom)) return;
+        const liveCurrent = liveRoom.players[liveRoom.currentTurnIndex];
+        if (liveCurrent && liveCurrent.id === expectedPlayerId && !(liveRoom as any).isResolvingUnoAction) {
+          console.warn(`[Watchdog] Force resolving stuck turn for ${liveCurrent.name}`);
+          const drawn = this.drawUnoCard(roomCode, expectedPlayerId);
+          if (!drawn) {
+            (liveRoom as any).isResolvingUnoAction = false;
+            liveRoom.currentTurnIndex = getNextUnoTurnIndex(liveRoom.players, liveRoom.currentTurnIndex, liveRoom.direction, 1);
+            this.startTurnTimer(liveRoom);
+            this.broadcastState(liveRoom);
+          }
+        }
+      }, 2500);
+    }
+  }
+
+  // --- 10-MINUTE TOTAL UNO MATCH TIMER ---
+  private startGameTimer(room: GameRoom): void {
+    if (this.gameTimers.has(room.code)) {
+      clearTimeout(this.gameTimers.get(room.code)!);
+      this.gameTimers.delete(room.code);
+    }
+
+    if (room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return;
+
+    room.gameDuration = Math.round(UNO_GAME_MAX_TIME_MS / 1000);
+    room.gameExpiresAt = Date.now() + UNO_GAME_MAX_TIME_MS;
+
+    const timer = setTimeout(() => {
+      this.handleGameTimeout(room.code);
+    }, UNO_GAME_MAX_TIME_MS);
+
+    this.gameTimers.set(room.code, timer);
+  }
+
+  private handleGameTimeout(roomCode: string): void {
+    const room = this.rooms.get(roomCode);
+    if (!room || room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return;
+
+    // Clear active turn timers and game timer
+    if (this.turnTimers.has(room.code)) {
+      clearTimeout(this.turnTimers.get(room.code)!);
+      this.turnTimers.delete(room.code);
+    }
+    if (this.gameTimers.has(room.code)) {
+      this.gameTimers.delete(room.code);
+    }
+
+    room.status = 'game_over';
+
+    // Rank all remaining active players by fewest cards
+    const nonEliminated = room.players.filter(p => !p.isMercyEliminated && !p.isSpectator);
+    nonEliminated.sort((a, b) => a.cardsCount - b.cardsCount);
+
+    if (nonEliminated.length > 0) {
+      nonEliminated[0].rank = 1;
+    }
+    this.finalizeUnoRanks(room);
+
+    const winner = nonEliminated[0];
+    const winnerText = winner ? `${winner.name} wins with fewest cards (${winner.cardsCount} cards)!` : '';
+    room.lastAction = `⏰ 10-Minute Game Timer Expired! Match finished. ${winnerText}`;
+    this.broadcastState(room);
   }
 
   private executeBotTurn(roomCode: string, botPlayerId: string): void {
     const room = this.rooms.get(roomCode);
     if (!room || room.status !== 'playing') return;
 
+    if (room.gameType === 'uno_no_mercy') {
+      if (this.checkUnoEndCondition(room)) return;
+
+      if ((room as any).isResolvingUnoAction) {
+        setTimeout(() => this.executeBotTurn(roomCode, botPlayerId), 300);
+        return;
+      }
+    } else {
+      if ((room as any).isResolvingTrick) {
+        setTimeout(() => this.executeBotTurn(roomCode, botPlayerId), 300);
+        return;
+      }
+    }
+
     const currentPlayer = room.players[room.currentTurnIndex];
     if (!currentPlayer || currentPlayer.id !== botPlayerId) return;
+
+    if (currentPlayer.rank || currentPlayer.isMercyEliminated) {
+      if (room.gameType === 'uno_no_mercy') {
+        room.currentTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
+        this.startTurnTimer(room);
+      }
+      return;
+    }
 
     if (room.gameType === 'donkey') {
       const isFirstTrick = room.roundNumber === 1 && room.currentTrick.length === 0 && !room.leadSuit;
       const botCard = chooseDonkeyBotCard(currentPlayer, room.leadSuit, isFirstTrick);
       if (botCard) {
-        this.playDonkeyCard(roomCode, botPlayerId, botCard.id);
+        const played = this.playDonkeyCard(roomCode, botPlayerId, botCard.id);
+        if (!played) {
+          setTimeout(() => this.executeBotTurn(roomCode, botPlayerId), 300);
+        }
       }
     } else {
       const move = chooseUnoBotCard(currentPlayer, room.activeUnoCard!, room.activeUnoColor!, room.drawStackCount);
+      let success = false;
       if (move) {
-        this.playUnoCard(roomCode, botPlayerId, move.card.id, move.chosenColor, move.swapTargetPlayerId, move.callUno);
-      } else {
-        this.drawUnoCard(roomCode, botPlayerId);
+        success = this.playUnoCard(roomCode, botPlayerId, move.card.id, move.chosenColor, move.swapTargetPlayerId, move.callUno);
+      }
+      if (!success) {
+        const drawn = this.drawUnoCard(roomCode, botPlayerId);
+        if (!drawn) {
+          setTimeout(() => this.executeBotTurn(roomCode, botPlayerId), 300);
+        }
       }
     }
   }
@@ -777,6 +1028,9 @@ export class RoomManager {
     const room = this.rooms.get(roomCode);
     if (!room || room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return false;
 
+    // Prevent overlapping plays while previous action/card flight is in motion
+    if ((room as any).isResolvingUnoAction) return false;
+
     const currentPlayer = room.players[room.currentTurnIndex];
     if (!currentPlayer || currentPlayer.id !== playerId) return false;
 
@@ -816,14 +1070,31 @@ export class RoomManager {
     } else if (card.type === 'pass_0') {
       execute0PassHands(room.players, room.direction);
       actionMsg += ` 🔄 ALL HANDS PASSED!`;
+      for (const p of room.players) {
+        if (!p.isSpectator && !p.isMercyEliminated && p.hand.length >= 25) {
+          if (checkMercyRule(p, room.discardPile)) {
+            actionMsg += ` ☠️ ${p.name} exceeded 25 cards and is ELIMINATED!`;
+          }
+        }
+      }
     } else if (card.type === 'swap_7') {
       const target = room.players.find(p => p.id === swapTargetPlayerId) ||
         room.players.find(p => p.id !== currentPlayer.id && !p.rank && !p.isMercyEliminated && !p.isSpectator);
       if (target) {
         execute7SwapHands(currentPlayer, target);
         actionMsg += ` 🔁 SWAPPED HANDS with ${target.name}!`;
+        for (const p of [currentPlayer, target]) {
+          if (!p.isSpectator && !p.isMercyEliminated && p.hand.length >= 25) {
+            if (checkMercyRule(p, room.discardPile)) {
+              actionMsg += ` ☠️ ${p.name} exceeded 25 cards and is ELIMINATED!`;
+            }
+          }
+        }
       }
     }
+
+    // Check end condition immediately after hand manipulation (pass_0 / swap_7 / discard_all)
+    if (this.checkUnoEndCondition(room, actionMsg)) return true;
 
     const drawPenalty = getDrawCardPenalty(card.type);
     if (drawPenalty > 0) {
@@ -840,25 +1111,57 @@ export class RoomManager {
       currentPlayer.calledUno = false;
     }
 
-    if (currentPlayer.cardsCount === 0) {
-      currentPlayer.rank = 1;
-      room.status = 'game_over';
-      room.lastAction = `🏆 ${currentPlayer.name} PLAYED THEIR LAST CARD AND WON!`;
-      this.broadcastState(room);
-      return true;
-    }
+    // Check end condition again (e.g. played last card)
+    if (this.checkUnoEndCondition(room, actionMsg)) return true;
 
+    let nextTurnIndex = room.currentTurnIndex;
     if (card.type === 'skip_everyone') {
-      // Keeps the turn on current player
+      nextTurnIndex = room.currentTurnIndex;
+      room.lastSkippedPlayerId = 'everyone';
+      actionMsg += ` & SKIPPED EVERYONE! 🚫`;
     } else if (card.type === 'skip') {
-      room.currentTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 2);
+      const skippedPlayerIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
+      const skippedPlayer = room.players[skippedPlayerIndex];
+      if (skippedPlayer) {
+        room.lastSkippedPlayerId = skippedPlayer.id;
+        actionMsg += ` & SKIPPED ${skippedPlayer.name}! 🚫`;
+      }
+      nextTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 2);
     } else {
-      room.currentTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
+      nextTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
     }
 
     room.lastAction = actionMsg;
-    this.startTurnTimer(room);
+
+    // Strict sequencing: Hold turn on current player until card flight and effects land
+    (room as any).isResolvingUnoAction = true;
+    const actionDelay =
+      card.type === 'pass_0'
+        ? 2000
+        : card.type === 'swap_7'
+        ? 1800
+        : card.type === 'skip' || card.type === 'skip_everyone'
+        ? 3200
+        : card.type === 'reverse' || card.type === 'reverse_draw2' || card.type === 'wild_reverse_draw4'
+        ? 1400
+        : 850;
+
+    room.turnDuration = Math.round(actionDelay / 1000) || 1;
+    room.turnExpiresAt = Date.now() + actionDelay;
+
+    // Broadcast immediate card state while turn visually stays with current player
     this.broadcastState(room);
+
+    setTimeout(() => {
+      (room as any).isResolvingUnoAction = false;
+      room.lastSkippedPlayerId = undefined;
+      if (room.status !== 'playing') return;
+      if (this.checkUnoEndCondition(room)) return;
+      room.currentTurnIndex = nextTurnIndex;
+      this.startTurnTimer(room);
+      this.broadcastState(room);
+    }, actionDelay);
+
     return true;
   }
 
@@ -866,6 +1169,9 @@ export class RoomManager {
   public drawUnoCard(roomCode: string, playerId: string): boolean {
     const room = this.rooms.get(roomCode);
     if (!room || room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return false;
+
+    // Prevent overlapping actions while card is in transit
+    if ((room as any).isResolvingUnoAction) return false;
 
     const currentPlayer = room.players[room.currentTurnIndex];
     if (!currentPlayer || currentPlayer.id !== playerId) return false;
@@ -901,22 +1207,27 @@ export class RoomManager {
       msg += ` ☠️ MERCY RULE! ${currentPlayer.name} exceeded 25 cards and is ELIMINATED!`;
     }
 
-    const active = room.players.filter(p => !p.rank && !p.isMercyEliminated && !p.isSpectator);
-    if (active.length <= 1) {
-      room.status = 'game_over';
-      if (active.length === 1) {
-        active[0].rank = 1;
-        room.lastAction = `🏆 ${active[0].name} SURVIVED AND WINS!`;
-      }
-      this.broadcastState(room);
-      return true;
-    }
+    if (this.checkUnoEndCondition(room, msg)) return true;
 
-    room.currentTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
+    const nextTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
     room.lastAction = msg;
 
-    this.startTurnTimer(room);
+    // Strict sequencing: Hold turn on drawing player until drawn cards land in hand
+    (room as any).isResolvingUnoAction = true;
+    const drawFlightDuration = countToDraw > 1 ? 1200 : 750;
+    room.turnDuration = Math.round(drawFlightDuration / 1000) || 1;
+    room.turnExpiresAt = Date.now() + drawFlightDuration;
     this.broadcastState(room);
+
+    setTimeout(() => {
+      (room as any).isResolvingUnoAction = false;
+      if (room.status !== 'playing') return;
+      if (this.checkUnoEndCondition(room)) return;
+      room.currentTurnIndex = nextTurnIndex;
+      this.startTurnTimer(room);
+      this.broadcastState(room);
+    }, drawFlightDuration);
+
     return true;
   }
 
@@ -964,9 +1275,33 @@ export class RoomManager {
       msg += ` ☠️ MERCY RULE! ${target.name} exceeded 25 cards and is ELIMINATED!`;
     }
 
+    if (this.checkUnoEndCondition(room, msg)) return true;
+
+    // If target was eliminated and holds the current turn, advance turn to next active player
+    if (isKO && room.players[room.currentTurnIndex]?.id === target.id) {
+      room.currentTurnIndex = getNextUnoTurnIndex(room.players, room.currentTurnIndex, room.direction, 1);
+      this.startTurnTimer(room);
+    }
+
     room.lastAction = msg;
     this.broadcastState(room);
     return true;
+  }
+
+  private finalizeUnoRanks(room: GameRoom): void {
+    const winner = room.players.find(p => p.rank === 1 && !p.isMercyEliminated);
+    const nonEliminated = room.players.filter(p => p !== winner && !p.isMercyEliminated && !p.isSpectator);
+    nonEliminated.sort((a, b) => a.cardsCount - b.cardsCount);
+
+    let currentRank = winner ? 2 : 1;
+    for (const p of nonEliminated) {
+      p.rank = currentRank++;
+    }
+
+    const eliminated = room.players.filter(p => p.isMercyEliminated && !p.isSpectator);
+    for (const p of eliminated) {
+      p.rank = currentRank++;
+    }
   }
 
   // --- STATE BROADCASTING ---
@@ -1003,6 +1338,8 @@ export class RoomManager {
         roundNumber: room.roundNumber,
         turnExpiresAt: room.turnExpiresAt,
         turnDuration: room.turnDuration,
+        gameExpiresAt: room.gameExpiresAt,
+        gameDuration: room.gameDuration,
         leadSuit: room.leadSuit,
         currentTrick: room.currentTrick,
         lastCutVictimId: room.lastCutVictimId,
@@ -1010,7 +1347,8 @@ export class RoomManager {
         activeUnoCard: room.activeUnoCard,
         activeUnoColor: room.activeUnoColor,
         drawStackCount: room.drawStackCount,
-        deckRemainingCount: room.deckRemainingCount
+        deckRemainingCount: room.deckRemainingCount,
+        lastSkippedPlayerId: room.lastSkippedPlayerId
       };
 
       this.io.to(player.socketId).emit('gameState', clientState);

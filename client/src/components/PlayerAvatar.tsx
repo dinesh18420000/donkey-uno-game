@@ -19,6 +19,9 @@ interface PlayerAvatarProps {
   isAfterMe?: boolean;
   actionNotice?: { type: 'draw' | 'play'; text: string } | null;
   hideName?: boolean;
+  isHighlighted?: boolean;
+  highlightLabel?: string;
+  isSkipped?: boolean;
 }
 
 export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
@@ -30,20 +33,23 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
   colorTheme = 'blue',
   activeEmote,
   turnExpiresAt,
-  turnDuration = 30,
+  turnDuration = 20,
   onSelect,
   isBeforeMe,
   isAfterMe,
   actionNotice,
-  hideName
+  hideName,
+  isHighlighted = false,
+  highlightLabel,
+  isSkipped = false
 }) => {
   const theme =
     PLAYER_THEME_DETAILS[(colorTheme as PlayerColorTheme)] ||
     PLAYER_THEME_DETAILS.blue;
   const initials = player.name.slice(0, 2).toUpperCase();
 
-  // Local state for 30s countdown ticking
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(30);
+  // Local state for countdown ticking
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(turnDuration);
 
   useEffect(() => {
     if (!isCurrentTurn) {
@@ -69,29 +75,37 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
     return () => clearInterval(interval);
   }, [isCurrentTurn, turnExpiresAt, turnDuration]);
 
-  // Turn is active and time is very low (<= 6 seconds)
-  const isTimeLow = isCurrentTurn && secondsRemaining <= 6;
+  // Turn is active and time is very low (<= 4 seconds)
+  const isTimeLow = isCurrentTurn && secondsRemaining <= 4;
 
-  // Size specific dimensions
+  // Size specific dimensions (compact, reduced profile icon)
   const circleSizeClass =
     size === 'xs'
-      ? 'w-9 h-9 sm:w-10 sm:h-10'
+      ? 'w-7 h-7 sm:w-8 sm:h-8'
       : size === 'sm'
-      ? 'w-11 h-11 sm:w-12 sm:h-12'
-      : 'w-13 h-13 sm:w-15 sm:h-15';
+      ? 'w-8 h-8 sm:w-9 sm:h-9'
+      : 'w-9 h-9 sm:w-10 sm:h-10';
 
   const nameMaxW =
     size === 'xs'
-      ? 'max-w-[65px] text-[8px] sm:text-[9px] px-1 py-0.2'
+      ? 'max-w-[60px] text-[8px] sm:text-[9px] px-1 py-0.2'
       : size === 'sm'
-      ? 'max-w-[78px] text-[9px] sm:text-[10px] px-1.5 py-0.2'
-      : 'max-w-[92px] text-[10px] sm:text-xs px-2 py-0.5';
+      ? 'max-w-[72px] text-[8px] sm:text-[9px] px-1.5 py-0.2'
+      : 'max-w-[85px] text-[9px] sm:text-[10px] px-2 py-0.5';
 
   return (
     <div
       onClick={onSelect}
-      className={`relative flex flex-col items-center select-none cursor-pointer transition-transform ${
-        isCurrentTurn ? 'scale-105' : 'scale-95'
+      className={`relative flex flex-col items-center select-none cursor-pointer transition-all duration-300 ${
+        player.isMercyEliminated
+          ? 'opacity-65 grayscale-[35%] z-10'
+          : isSkipped
+          ? 'scale-115 z-40'
+          : isHighlighted
+          ? 'player-swap-spotlight z-30'
+          : isCurrentTurn
+          ? 'player-active-spotlight z-30'
+          : 'player-inactive-dimmed z-10'
       }`}
     >
       {/* Floating Emote Popup */}
@@ -115,19 +129,28 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
         </div>
       )}
 
-      {/* 30-Second Turn Countdown Timer Badge (Green when normal, Red when time is low) */}
-      {isCurrentTurn && !player.rank && (
+      {/* Turn Countdown Timer Badge (Only for opponents; local player has top HUD timer) */}
+      {!isSelf && isCurrentTurn && !player.rank && (
         <div
-          className={`absolute -top-6 z-30 flex items-center gap-1 px-2 py-0.5 rounded-full border shadow-xl text-[10px] sm:text-[11px] font-black tracking-tight ${
+          className={`absolute -top-5 z-30 flex items-center gap-1 px-1.5 py-0.2 rounded-full border shadow-xl text-[9px] sm:text-[10px] font-black tracking-tight ${
             isTimeLow
               ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse shadow-red-500/50'
-              : 'bg-emerald-950/95 border-emerald-400 text-emerald-300 shadow-emerald-500/30'
+              : 'bg-slate-950/95 border-amber-300 text-amber-300 shadow-amber-500/30'
           }`}
         >
-          <Clock className={`w-3 h-3 ${isTimeLow ? 'text-red-400 animate-spin' : 'text-emerald-400'}`} />
-          <span className={isTimeLow ? 'text-red-400 font-extrabold animate-pulse' : 'text-emerald-300 font-black'}>
+          <Clock className={`w-2.5 h-2.5 ${isTimeLow ? 'text-red-400 animate-spin' : 'text-amber-400'}`} />
+          <span className={isTimeLow ? 'text-red-400 font-extrabold animate-pulse' : 'text-amber-300 font-black'}>
             {secondsRemaining}s
           </span>
+        </div>
+      )}
+
+      {/* Floating Skipped Notification Badge - HIGHLY HIGHLIGHTED & BIG */}
+      {isSkipped && (
+        <div className="absolute -top-10 sm:-top-11 z-50 px-3.5 py-1 sm:px-4 sm:py-1 rounded-full text-xs sm:text-sm font-black shadow-[0_0_30px_rgba(239,68,68,1)] border-2 border-white bg-gradient-to-r from-red-600 via-rose-600 to-red-600 text-white flex items-center gap-1.5 animate-bounce scale-110 sm:scale-125 whitespace-nowrap">
+          <span className="text-base sm:text-lg animate-pulse">🚫</span>
+          <span className="tracking-wider uppercase drop-shadow font-extrabold">SKIPPED!</span>
+          <span className="text-base sm:text-lg animate-pulse">🚫</span>
         </div>
       )}
 
@@ -151,39 +174,55 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
             isSelf ? 'bg-amber-500 text-slate-950' : theme.pill
           }`}
         >
-          {player.name}
+          {isSelf ? 'YOU' : player.name}
         </div>
       )}
 
-      {/* Avatar Circle Container (Green Circle for Active Turn, Turns to Red when Time is Low) */}
+      {/* Monogram Circle with Player-Themed Accent Glow */}
       <div className="relative">
+        {/* Subtle, tasteful glow matching player's profile theme color */}
+        {isHighlighted ? (
+          <div
+            className="absolute -inset-1.5 sm:-inset-2 rounded-full blur-sm opacity-75 animate-pulse pointer-events-none"
+            style={{ backgroundColor: '#fbbf24', boxShadow: '0 0 16px #fbbf24' }}
+          />
+        ) : isCurrentTurn ? (
+          <div
+            className="absolute -inset-1.5 sm:-inset-2 rounded-full blur-sm pointer-events-none animate-pulse"
+            style={{
+              backgroundColor: isTimeLow ? '#ef4444' : theme.accentColor,
+              boxShadow: isTimeLow ? '0 0 16px #ef4444' : `0 0 16px ${theme.accentColor}`,
+              opacity: 0.7
+            }}
+          />
+        ) : null}
+
         {/* Animated Circular Countdown Progress Ring around Profile */}
         {isCurrentTurn && (
           <div className="absolute -inset-1 sm:-inset-1.5 pointer-events-none z-10">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
-              {/* Background faint ring track */}
               <circle
                 cx="22"
                 cy="22"
                 r="19"
                 fill="none"
-                stroke={isTimeLow ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}
+                stroke={isTimeLow ? 'rgba(239, 68, 68, 0.25)' : `${theme.accentColor}33`}
                 strokeWidth="2.5"
               />
-              {/* Active countdown arc */}
               <circle
                 cx="22"
                 cy="22"
                 r="19"
                 fill="none"
-                stroke={isTimeLow ? '#ef4444' : '#22c55e'}
+                stroke={isTimeLow ? '#ef4444' : theme.accentColor}
                 strokeWidth="2.5"
                 strokeDasharray="119.38"
                 strokeDashoffset={`${119.38 * (1 - Math.max(0, secondsRemaining) / (turnDuration || 30))}`}
                 strokeLinecap="round"
-                className={`transition-all duration-300 ${
-                  isTimeLow ? 'filter drop-shadow-[0_0_8px_#ef4444]' : 'filter drop-shadow-[0_0_6px_#22c55e]'
-                }`}
+                style={{
+                  filter: `drop-shadow(0 0 5px ${isTimeLow ? '#ef4444' : theme.accentColor})`
+                }}
+                className="transition-all duration-300"
               />
             </svg>
           </div>
@@ -191,126 +230,151 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
 
         <div
           className={`${circleSizeClass} rounded-full p-0.5 transition-all duration-300 relative ${
-            isCurrentTurn
+            player.isMercyEliminated
+              ? 'ring-1.5 ring-red-800/80'
+              : isHighlighted
+              ? 'ring-3.5 ring-amber-300 scale-105 animate-pulse'
+              : isCurrentTurn
               ? isTimeLow
-                ? 'turn-halo-red ring-4 ring-red-500 bg-gradient-to-br from-red-500 via-rose-600 to-red-700 shadow-[0_0_25px_#ef4444,0_0_40px_rgba(239,68,68,0.7)] scale-105 animate-pulse'
-                : 'turn-halo-green ring-4 ring-emerald-400 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_22px_#22c55e,0_0_35px_rgba(34,197,94,0.6)] scale-105'
-              : `${theme.ring} ring-2 shadow-md`
+                ? 'ring-3.5 ring-red-500 scale-105 animate-pulse'
+                : `ring-3.5 ${theme.ring} scale-105`
+              : `${theme.ring} ring-1.5 opacity-85`
           }`}
+          style={
+            player.isMercyEliminated
+              ? { boxShadow: '0 0 8px rgba(185, 28, 28, 0.4)' }
+              : isSkipped
+              ? { boxShadow: '0 0 25px #ef4444, 0 0 50px rgba(239, 68, 68, 0.95)' }
+              : isHighlighted
+              ? { boxShadow: '0 0 16px #fbbf24' }
+              : isCurrentTurn
+              ? { boxShadow: isTimeLow ? '0 0 16px #ef4444' : `0 0 16px ${theme.accentColor}` }
+              : undefined
+          }
         >
-          <div className="w-full h-full rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-white/90">
-            {player.avatar && player.avatar.startsWith('http') ? (
-              <img src={player.avatar} alt={player.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className={`w-full h-full bg-gradient-to-tr from-purple-900 to-indigo-800 flex items-center justify-center font-black text-white ${size === 'xs' ? 'text-[10px]' : size === 'sm' ? 'text-xs' : 'text-sm'}`}>
-                {initials}
-              </div>
-            )}
+          {/* High-contrast initials badge, no profile pic */}
+          <div className="w-full h-full rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-white/80">
+            <div className={`w-full h-full bg-gradient-to-tr from-purple-900 via-slate-800 to-indigo-900 flex items-center justify-center font-black text-white ${size === 'xs' ? 'text-[9px]' : size === 'sm' ? 'text-[10px]' : 'text-xs'}`}>
+              {initials}
+            </div>
           </div>
+
+          {/* Skipped Red Overlay Slash - High Visibility & Big */}
+          {isSkipped && (
+            <div className="absolute inset-0 rounded-full bg-red-600/85 backdrop-blur-[2px] flex items-center justify-center border-2 sm:border-3 border-white shadow-[0_0_20px_#ef4444] z-30 animate-pulse">
+              <span className="text-white text-lg sm:text-2xl font-black filter drop-shadow animate-ping">
+                🚫
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Small Gift Icon Badge on Left (Matching Donkey Master Reference Screenshot) */}
-        <div
-          className={`absolute ${size === 'xs' ? '-bottom-0.5 -left-1 w-4 h-4' : '-bottom-1 -left-1.5 w-5 h-5'} rounded-full bg-slate-900 border border-white/80 flex items-center justify-center text-white shadow-md z-15`}
-          title="Send Gift"
-        >
-          <Gift className={`${size === 'xs' ? 'w-2.5 h-2.5' : 'w-3 h-3'} text-white fill-current`} />
-        </div>
-
-        {/* Small User Profile / Friend Icon Badge on Right (Matching Donkey Master Reference Screenshot) */}
-        {!player.isBot && !player.isDisconnected && (
+        {/* JOKER / JESTER CAP FOR BOT PLAYERS */}
+        {player.isBot && (
           <div
-            className={`absolute ${size === 'xs' ? '-bottom-0.5 -right-1 w-4 h-4' : '-bottom-1 -right-1.5 w-5 h-5'} rounded-full bg-amber-400 border border-yellow-200 flex items-center justify-center text-slate-950 shadow-md z-15`}
+            title="Computer Bot (Joker)"
+            className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-25 pointer-events-none flex items-center justify-center filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] animate-bounce"
           >
-            <User className={`${size === 'xs' ? 'w-2.5 h-2.5' : 'w-3 h-3'} text-slate-950 fill-current`} />
+            <span className="text-base sm:text-lg select-none inline-block transform -rotate-12">🃏</span>
           </div>
         )}
 
-        {/* Bot Icon Indicator */}
-        {(player.isBot || player.isDisconnected) && (
+        {/* Bot Pill Indicator */}
+        {player.isBot && (
           <div
-            title={player.isDisconnected ? "Disconnected: Bot is playing" : "AI Bot"}
-            className={`absolute ${size === 'xs' ? '-bottom-0.5 -right-1 w-4 h-4' : '-bottom-1 -right-1.5 w-5 h-5'} rounded-full bg-indigo-600 border border-white flex items-center justify-center text-white shadow-md z-15`}
+            title="AI Bot"
+            className="absolute -bottom-0.5 -right-1 px-1 py-0.2 rounded-full bg-indigo-600 border border-white flex items-center justify-center text-white shadow-md z-15 text-[8px] font-black"
           >
-            <Bot className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            BOT
           </div>
         )}
 
-        {/* Disconnection Offline Warning */}
+        {/* Glowing Pulsing Red Dot Disconnect Indicator */}
         {player.isDisconnected && (
           <div
-            title="Connection dropped - Bot active"
-            className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-red-600 border border-white flex items-center justify-center text-white shadow-md animate-pulse z-20"
+            title="Network lost / Disconnected (Waiting to reconnect...)"
+            className="absolute -top-1 -right-1 z-35 flex items-center justify-center pointer-events-none"
           >
-            <WifiOff className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <span className="absolute w-4 h-4 rounded-full bg-red-500 animate-ping opacity-80" />
+            <span className="relative w-3 h-3 rounded-full bg-red-600 border-2 border-white shadow-[0_0_10px_#ef4444]" />
           </div>
         )}
 
-        {/* Card Count Pill Badge */}
-        {!player.rank && !player.isMercyEliminated && (
+        {/* Card Count Pill Badge - Only show if name is hidden for high capacity */}
+        {hideName && !player.rank && !player.isMercyEliminated && (
           <div
-            className={`absolute -top-1 -left-1 px-1 py-0.1 sm:px-1.5 sm:py-0.2 text-[8px] sm:text-[9px] font-black rounded-full border border-white text-white shadow-md z-20 ${
-              player.cardsCount >= 20 ? 'bg-red-600 animate-pulse' : 'bg-slate-950/90'
+            title={`${player.cardsCount} card${player.cardsCount === 1 ? '' : 's'} in hand`}
+            className={`absolute -bottom-1 -left-2 px-1 py-0.2 rounded-full border shadow-xl z-25 flex items-center gap-0.5 font-black transition-all ${
+              player.cardsCount === 1
+                ? 'bg-amber-400 text-slate-950 border-white shadow-[0_0_10px_rgba(251,191,36,0.9)] animate-bounce scale-110'
+                : player.cardsCount >= 20
+                ? 'bg-red-600 text-white border-white shadow-[0_0_10px_rgba(239,68,68,0.9)] animate-pulse'
+                : 'bg-slate-950 text-amber-300 border-amber-400/80'
             }`}
           >
-            🃏{player.cardsCount}
+            <span className="text-[8px]">🎴</span>
+            <span className="text-[9px] font-mono leading-none">{player.cardsCount}</span>
+          </div>
+        )}
+
+        {/* Mercy Rule Eliminated Badge */}
+        {player.isMercyEliminated && (
+          <div className="absolute -top-1 -left-1 px-1.5 py-0.2 text-[8px] sm:text-[9px] font-black rounded-full border border-red-500 bg-red-950 text-red-300 shadow-md z-20 flex items-center gap-0.5">
+            <span>☠️</span>
+            <span>OUT</span>
           </div>
         )}
 
         {/* Uno Call Alert Status */}
         {player.cardsCount === 1 && !player.rank && !player.isMercyEliminated && (
           <div
-            className={`absolute -bottom-2 -left-1 px-1.5 py-0.2 rounded-full font-black text-[7px] sm:text-[8px] border shadow-xl z-30 ${
+            className={`absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full font-black text-[8px] sm:text-[9px] border-2 shadow-2xl z-30 flex items-center gap-1 whitespace-nowrap animate-bounce ${
               player.calledUno
-                ? 'bg-emerald-600 text-white border-emerald-300'
-                : 'bg-red-600 text-white border-white animate-bounce'
+                ? 'bg-emerald-600 text-white border-white shadow-emerald-500/80'
+                : 'bg-red-600 text-white border-white shadow-red-500/80'
             }`}
           >
-            {player.calledUno ? '📢 UNO!' : '🚨 NO UNO!'}
+            <span>{player.calledUno ? '📢 UNO!' : '🚨 NO UNO!'}</span>
           </div>
         )}
       </div>
 
-      {/* Name Label (Below Avatar if namePosition === 'bottom') */}
-      {namePosition === 'bottom' && (!hideName || isSelf) && (
-        <div
-          className={`mt-0.5 rounded font-black shadow-md truncate text-center ${nameMaxW} ${
-            isSelf ? 'bg-amber-500 text-slate-950' : theme.pill
-          }`}
-        >
-          {player.name}
-        </div>
-      )}
+      {/* Unified Single Name Pill & Subtitle (No stacked badge towers) */}
+      {(!hideName || isSelf) && (
+        <div className="mt-1 flex flex-col items-center">
+          <div
+            className={`rounded-full font-black shadow-md truncate text-center transition-all ${nameMaxW} ${
+              isHighlighted
+                ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 border border-white'
+                : isCurrentTurn
+                ? 'bg-amber-400 text-slate-950 border border-white shadow-[0_0_10px_rgba(251,191,36,0.8)] animate-pulse'
+                : isSelf
+                ? 'bg-amber-500 text-slate-950'
+                : theme.pill
+            }`}
+          >
+            {isSelf ? 'YOU' : player.name}
+          </div>
 
-      {/* Turn Relationship Badges: Before You / After You / Playing Now */}
-      {!player.rank && !player.isMercyEliminated && (
-        <div className="mt-0.5 flex flex-col items-center">
-          {isCurrentTurn ? (
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-tight shadow-sm flex items-center gap-0.5 animate-pulse ${
-                isTimeLow ? 'bg-red-600 text-white' : 'bg-emerald-500 text-slate-950'
-              }`}
-            >
-              <span>🎯</span>
-              <span>{isSelf ? 'YOU' : 'PLAY'}</span>
+          {/* Clean Card Count Subtitle */}
+          {!player.rank && !player.isMercyEliminated && (
+            <div className="text-[8px] sm:text-[9px] font-bold text-slate-300 tracking-tight flex items-center gap-1 mt-0.5 whitespace-nowrap">
+              <span className="text-[7px] text-amber-400">●</span>
+              <span>{player.cardsCount} {player.cardsCount === 1 ? 'card' : 'cards'}</span>
+            </div>
+          )}
+
+          {player.isMercyEliminated && (
+            <span className="text-[8px] font-black text-red-400 flex items-center gap-0.5 mt-0.5">
+              ☠️ OUT
             </span>
-          ) : isBeforeMe ? (
-            <span className="px-1 py-0.2 rounded-full bg-cyan-950/90 border border-cyan-400 text-cyan-300 text-[8px] sm:text-[9px] font-bold tracking-tight shadow-sm flex items-center gap-0.5">
-              <span>⏮️</span>
-              <span className="hidden sm:inline">Before</span>
-            </span>
-          ) : isAfterMe ? (
-            <span className="px-1 py-0.2 rounded-full bg-emerald-950/90 border border-emerald-400 text-emerald-300 text-[8px] sm:text-[9px] font-bold tracking-tight shadow-sm flex items-center gap-0.5">
-              <span>⏭️</span>
-              <span className="hidden sm:inline">After</span>
-            </span>
-          ) : null}
+          )}
         </div>
       )}
 
       {player.isDisconnected && (
         <span className="text-[8px] text-amber-300 font-semibold mt-0.5 tracking-tight">
-          Bot
+          Disconnected
         </span>
       )}
     </div>

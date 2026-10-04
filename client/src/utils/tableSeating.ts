@@ -31,6 +31,7 @@ export interface PlayerThemeDetails {
   border: string;
   pill: string;
   glow: string;
+  accentColor: string;
   cardBackBg: string;
   cardBackBorder: string;
 }
@@ -40,91 +41,101 @@ export const PLAYER_THEME_DETAILS: Record<PlayerColorTheme, PlayerThemeDetails> 
     key: 'yellow',
     ring: 'ring-amber-400 border-amber-400',
     border: 'border-yellow-400',
-    pill: 'bg-amber-500 text-slate-950 font-black',
-    glow: 'shadow-[0_0_18px_#fbbf24]',
+    pill: 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 font-black shadow-[0_0_10px_#fbbf24]',
+    glow: 'shadow-[0_0_14px_#fbbf24]',
+    accentColor: '#fbbf24',
     cardBackBg: 'bg-gradient-to-br from-amber-400 via-yellow-400 to-amber-500',
-    cardBackBorder: 'border-yellow-300'
+    cardBackBorder: 'border-yellow-200'
   },
   blue: {
     key: 'blue',
     ring: 'ring-cyan-400 border-cyan-400',
     border: 'border-cyan-400',
-    pill: 'bg-blue-600 text-white font-bold',
-    glow: 'shadow-[0_0_18px_#38bdf8]',
+    pill: 'bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-500 text-white font-black shadow-[0_0_10px_#38bdf8]',
+    glow: 'shadow-[0_0_14px_#38bdf8]',
+    accentColor: '#38bdf8',
     cardBackBg: 'bg-gradient-to-br from-blue-600 via-cyan-500 to-blue-700',
-    cardBackBorder: 'border-cyan-300'
+    cardBackBorder: 'border-cyan-200'
   },
   pink: {
     key: 'pink',
-    ring: 'ring-pink-500 border-pink-500',
-    border: 'border-pink-500',
-    pill: 'bg-fuchsia-600 text-white font-bold',
-    glow: 'shadow-[0_0_18px_#ec4899]',
+    ring: 'ring-pink-400 border-pink-400',
+    border: 'border-pink-400',
+    pill: 'bg-gradient-to-r from-pink-500 via-fuchsia-500 to-pink-600 text-white font-black shadow-[0_0_10px_#ec4899]',
+    glow: 'shadow-[0_0_14px_#ec4899]',
+    accentColor: '#ec4899',
     cardBackBg: 'bg-gradient-to-br from-pink-600 via-rose-500 to-fuchsia-600',
-    cardBackBorder: 'border-pink-300'
+    cardBackBorder: 'border-pink-200'
   },
   red: {
     key: 'red',
-    ring: 'ring-red-500 border-red-500',
+    ring: 'ring-rose-500 border-rose-500',
     border: 'border-red-500',
-    pill: 'bg-red-600 text-white font-bold',
-    glow: 'shadow-[0_0_18px_#ef4444]',
+    pill: 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600 text-white font-black shadow-[0_0_10px_#ef4444]',
+    glow: 'shadow-[0_0_14px_#ef4444]',
+    accentColor: '#ef4444',
     cardBackBg: 'bg-gradient-to-br from-red-600 via-rose-600 to-red-700',
-    cardBackBorder: 'border-red-300'
+    cardBackBorder: 'border-red-200'
   },
   green: {
     key: 'green',
     ring: 'ring-emerald-400 border-emerald-400',
     border: 'border-emerald-400',
-    pill: 'bg-emerald-600 text-white font-bold',
-    glow: 'shadow-[0_0_18px_#34d399]',
+    pill: 'bg-gradient-to-r from-emerald-500 via-green-400 to-teal-500 text-slate-950 font-black shadow-[0_0_10px_#34d399]',
+    glow: 'shadow-[0_0_14px_#34d399]',
+    accentColor: '#34d399',
     cardBackBg: 'bg-gradient-to-br from-emerald-600 via-green-500 to-teal-600',
-    cardBackBorder: 'border-emerald-300'
+    cardBackBorder: 'border-emerald-200'
   },
   purple: {
     key: 'purple',
     ring: 'ring-purple-400 border-purple-400',
     border: 'border-purple-400',
-    pill: 'bg-purple-600 text-white font-bold',
-    glow: 'shadow-[0_0_18px_#c084fc]',
+    pill: 'bg-gradient-to-r from-purple-600 via-violet-500 to-indigo-600 text-white font-black shadow-[0_0_10px_#c084fc]',
+    glow: 'shadow-[0_0_14px_#c084fc]',
+    accentColor: '#c084fc',
     cardBackBg: 'bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-800',
-    cardBackBorder: 'border-purple-300'
+    cardBackBorder: 'border-purple-200'
   },
   cyan: {
     key: 'cyan',
     ring: 'ring-teal-400 border-teal-400',
     border: 'border-teal-400',
-    pill: 'bg-teal-600 text-white font-bold',
-    glow: 'shadow-[0_0_18px_#2dd4bf]',
+    pill: 'bg-gradient-to-r from-teal-500 via-cyan-400 to-teal-600 text-slate-950 font-black shadow-[0_0_10px_#2dd4bf]',
+    glow: 'shadow-[0_0_14px_#2dd4bf]',
+    accentColor: '#2dd4bf',
     cardBackBg: 'bg-gradient-to-br from-teal-500 via-cyan-600 to-teal-700',
-    cardBackBorder: 'border-teal-300'
+    cardBackBorder: 'border-teal-200'
   },
   orange: {
     key: 'orange',
     ring: 'ring-orange-400 border-orange-400',
     border: 'border-orange-400',
-    pill: 'bg-orange-500 text-white font-bold',
-    glow: 'shadow-[0_0_18px_#fb923c]',
+    pill: 'bg-gradient-to-r from-orange-500 via-amber-400 to-orange-600 text-slate-950 font-black shadow-[0_0_10px_#fb923c]',
+    glow: 'shadow-[0_0_14px_#fb923c]',
+    accentColor: '#fb923c',
     cardBackBg: 'bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600',
-    cardBackBorder: 'border-orange-300'
+    cardBackBorder: 'border-orange-200'
   },
   lime: {
     key: 'lime',
     ring: 'ring-lime-400 border-lime-400',
     border: 'border-lime-400',
-    pill: 'bg-lime-600 text-slate-950 font-black',
-    glow: 'shadow-[0_0_18px_#a3e635]',
+    pill: 'bg-gradient-to-r from-lime-400 via-green-400 to-lime-500 text-slate-950 font-black shadow-[0_0_10px_#a3e635]',
+    glow: 'shadow-[0_0_14px_#a3e635]',
+    accentColor: '#a3e635',
     cardBackBg: 'bg-gradient-to-br from-lime-500 via-green-500 to-lime-600',
-    cardBackBorder: 'border-lime-300'
+    cardBackBorder: 'border-lime-200'
   },
   indigo: {
     key: 'indigo',
     ring: 'ring-indigo-400 border-indigo-400',
     border: 'border-indigo-400',
-    pill: 'bg-indigo-600 text-white font-bold',
-    glow: 'shadow-[0_0_18px_#818cf8]',
+    pill: 'bg-gradient-to-r from-indigo-500 via-blue-500 to-indigo-600 text-white font-black shadow-[0_0_10px_#818cf8]',
+    glow: 'shadow-[0_0_14px_#818cf8]',
+    accentColor: '#818cf8',
     cardBackBg: 'bg-gradient-to-br from-indigo-600 via-blue-700 to-indigo-800',
-    cardBackBorder: 'border-indigo-300'
+    cardBackBorder: 'border-indigo-200'
   }
 };
 
@@ -246,21 +257,21 @@ export function getLandscapeUnoSeatPosition(
 
   // Landscape ellipse radii (horizontal width is wider than vertical height):
   const cx = 50;
-  const cy = 44;
+  const cy = 46;
 
-  let rAvatarX = 42;
-  let rAvatarY = 32;
+  let rAvatarX = 40;
+  let rAvatarY = 28;
 
   if (count <= 4) {
-    rAvatarX = 40;
-    rAvatarY = 30;
+    rAvatarX = 38;
+    rAvatarY = 26;
   } else if (count <= 7) {
-    rAvatarX = 42;
-    rAvatarY = 32;
+    rAvatarX = 40;
+    rAvatarY = 29;
   } else {
     // 8 to 10 players
-    rAvatarX = 44;
-    rAvatarY = 34;
+    rAvatarX = 42;
+    rAvatarY = 31;
   }
 
   const avatarX = Math.round((cx + rAvatarX * Math.cos(angleRad)) * 10) / 10;

@@ -12,27 +12,24 @@ namespace DonkeyUno.UI
 {
     public class DonkeyGameUI : MonoBehaviour
     {
-        [Header("Managers")]
-        [SerializeField] private TableLayoutManager tableLayoutManager;
+        [Header("Managers & Layouts")]
+        [SerializeField] private DonkeyTableLayout donkeyTableLayout;
+        [SerializeField] private DonkeyTrickArea donkeyTrickArea;
         [SerializeField] private HandManager handManager;
-
-        [Header("Trick Area")]
-        [SerializeField] private RectTransform trickContainer;
-        [SerializeField] private GameObject trickCardPrefab;
-        [SerializeField] private TextMeshProUGUI leadSuitText;
-        [SerializeField] private GameObject cutBannerObject;
-        [SerializeField] private TextMeshProUGUI cutBannerText;
-
-        [Header("HUD")]
-        [SerializeField] private TextMeshProUGUI turnStatusText;
-        [SerializeField] private TextMeshProUGUI lastActionText;
 
         [Header("Action Controls")]
         [SerializeField] private Button dealButton;
         [SerializeField] private TextMeshProUGUI dealButtonText;
+        [SerializeField] private Button leaveButton;
+        [SerializeField] private Button giftButton;
+
+        [Header("Banners & Feedback")]
+        [SerializeField] private GameObject cutBannerObject;
+        [SerializeField] private TextMeshProUGUI cutBannerText;
+        [SerializeField] private TextMeshProUGUI leadSuitText;
+        [SerializeField] private TextMeshProUGUI turnStatusText;
 
         private ClientGameState _currentState;
-        private readonly List<GameObject> _spawnedTrickCards = new List<GameObject>();
 
         private void Start()
         {
@@ -45,6 +42,16 @@ namespace DonkeyUno.UI
             {
                 dealButton.onClick.AddListener(OnDealButtonClicked);
             }
+
+            if (leaveButton != null)
+            {
+                leaveButton.onClick.AddListener(OnLeaveButtonClicked);
+            }
+
+            if (giftButton != null)
+            {
+                giftButton.onClick.AddListener(OnGiftButtonClicked);
+            }
         }
 
         public void UpdateGameState(ClientGameState state)
@@ -52,59 +59,62 @@ namespace DonkeyUno.UI
             _currentState = state;
             if (state == null) return;
 
-            string myId = SocketService.Instance.PlayerId;
+            string myId = SocketService.Instance != null ? SocketService.Instance.PlayerId : state.myPlayerId;
             bool isMyTurn = state.currentTurnPlayerId == myId;
             bool isFirstTrick = state.roundNumber == 1 && (state.currentTrick == null || state.currentTrick.Count == 0);
 
-            // 1. Table Seats
-            if (tableLayoutManager != null)
+            // Rotate players so local viewer is at displayIndex = 0 (Godwin)
+            var orderedPlayers = DonkeyTheme.RotatePlayersForViewer(state.players, myId);
+
+            // 1. Table Seats: Opponents on top row, Godwin at bottom
+            if (donkeyTableLayout != null)
             {
-                tableLayoutManager.UpdateTableLayout(state.players, myId, state.currentTurnPlayerId, state.direction);
+                donkeyTableLayout.UpdateTable(orderedPlayers, state.currentTurnPlayerId);
             }
 
-            // 2. Local Hand
+            // 2. Center Trick Slots (Yellow, Blue, Pink, Green slots with played cards or card backs)
+            if (donkeyTrickArea != null)
+            {
+                donkeyTrickArea.UpdateTrickArea(orderedPlayers, state.currentTrick, state.currentTurnPlayerId);
+            }
+
+            // 3. Local Hand (4 Suit Cascading Columns)
             if (handManager != null)
             {
                 var myDonkeyHand = state.GetMyDonkeyHand();
                 handManager.UpdateDonkeyHand(myDonkeyHand, state.leadSuit, isMyTurn, isFirstTrick);
             }
 
-            // 3. Lead Suit
-            if (leadSuitText != null)
-            {
-                leadSuitText.text = state.leadSuit.HasValue ? $"Lead Suit: {state.leadSuit.Value}" : "Play Any Card to Lead";
-            }
-
-            // 4. Center Trick Cards
-            UpdateTrick(state.currentTrick);
-
-            // 5. Last Action
-            if (lastActionText != null)
-            {
-                lastActionText.text = state.lastAction ?? "";
-            }
-
-            if (turnStatusText != null)
-            {
-                var cur = state.players?.Find(p => p.id == state.currentTurnPlayerId);
-                turnStatusText.text = isMyTurn ? "YOUR TURN!" : $"{cur?.name ?? "Opponent"}'s Turn";
-            }
-
-            // 6. DEAL Button State
+            // 4. DEAL Button State
             if (dealButton != null)
             {
                 dealButton.interactable = isMyTurn;
                 if (dealButtonText != null)
                 {
-                    dealButtonText.text = isMyTurn ? "DEAL CARD" : "WAIT TURN";
+                    dealButtonText.text = "DEAL";
                 }
             }
+
+            // 5. Turn & Lead Suit text (if present)
+            if (leadSuitText != null)
+            {
+                leadSuitText.text = state.leadSuit.HasValue ? $"Lead: {state.leadSuit.Value}" : "";
+            }
+
+            if (turnStatusText != null)
+            {
+                var cur = state.players?.Find(p => p.id == state.currentTurnPlayerId);
+                turnStatusText.text = isMyTurn ? "YOUR TURN" : $"{cur?.name ?? "Opponent"}'s Turn";
+            }
+
+            // 6. Check for Cut
+            UpdateCutBanner(state.currentTrick);
         }
 
         private void OnDealButtonClicked()
         {
             if (_currentState == null) return;
-            string myId = SocketService.Instance.PlayerId;
+            string myId = SocketService.Instance != null ? SocketService.Instance.PlayerId : _currentState.myPlayerId;
             if (_currentState.currentTurnPlayerId != myId) return;
 
             if (handManager != null)
@@ -113,57 +123,55 @@ namespace DonkeyUno.UI
             }
         }
 
-        private void UpdateTrick(List<TrickPlay> trick)
+        private void OnLeaveButtonClicked()
         {
-            foreach (var card in _spawnedTrickCards)
+            if (_currentState == null) return;
+            if (SocketService.Instance != null)
             {
-                if (card != null) Destroy(card);
+                SocketService.Instance.LeaveRoom(_currentState.roomCode);
             }
-            _spawnedTrickCards.Clear();
+        }
 
-            if (trick == null || trick.Count == 0)
+        private void OnGiftButtonClicked()
+        {
+            if (_currentState == null) return;
+            if (SocketService.Instance != null)
             {
-                if (cutBannerObject != null) cutBannerObject.SetActive(false);
-                return;
+                SocketService.Instance.SendEmote(_currentState.roomCode, "👏");
             }
+        }
+
+        private void UpdateCutBanner(List<TrickPlay> trick)
+        {
+            if (cutBannerObject == null) return;
 
             bool hasCut = false;
-            string cutPlayerName = "";
+            string cutterName = "";
 
-            for (int i = 0; i < trick.Count; i++)
+            if (trick != null)
             {
-                var play = trick[i];
-                var cardObj = Instantiate(trickCardPrefab, trickContainer);
-                var view = cardObj.GetComponent<CardView>();
-                view.SetupDonkeyCard(play.card, false);
-
-                // Fan trick cards slightly
-                var rect = cardObj.GetComponent<RectTransform>();
-                rect.anchoredPosition = new Vector2((i - (trick.Count - 1) / 2f) * 36f, 0);
-
-                if (play.isCut)
+                foreach (var play in trick)
                 {
-                    hasCut = true;
-                    cutPlayerName = play.playerName;
+                    if (play.isCut)
+                    {
+                        hasCut = true;
+                        cutterName = play.playerName;
+                        break;
+                    }
                 }
-
-                _spawnedTrickCards.Add(cardObj);
             }
 
-            if (cutBannerObject != null)
+            cutBannerObject.SetActive(hasCut);
+            if (hasCut && cutBannerText != null)
             {
-                cutBannerObject.SetActive(hasCut);
-                if (hasCut && cutBannerText != null)
-                {
-                    cutBannerText.text = $"⚡ CUT BY {cutPlayerName.ToUpper()}!";
-                }
+                cutBannerText.text = $"⚡ CUT BY {cutterName.ToUpper()}!";
             }
         }
 
         private void HandleDonkeyCardPlayed(DonkeyCard card)
         {
             if (_currentState == null) return;
-            SocketService.Instance.PlayDonkeyCard(_currentState.roomCode, card.id);
+            SocketService.Instance?.PlayDonkeyCard(_currentState.roomCode, card.id);
             AudioManager.Instance?.PlayCardPlay();
         }
     }

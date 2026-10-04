@@ -85,6 +85,10 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
 
   // Open Family Table (No room code needed!)
   const handleJoinFamilyTable = () => {
+    if (!playerName.trim()) {
+      setErrorMessage('Please enter your name first!');
+      return;
+    }
     setErrorMessage('');
     setIsJoiningFamily(true);
     socketService.joinFamilyRoom(selectedGameType, res => {
@@ -96,6 +100,10 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
   };
 
   const handleCreateRoom = () => {
+    if (!playerName.trim()) {
+      setErrorMessage('Please enter your name first!');
+      return;
+    }
     setErrorMessage('');
     socketService.createRoom(selectedGameType, maxPlayers, res => {
       if (!res.success) {
@@ -105,6 +113,10 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
   };
 
   const handleJoinRoom = () => {
+    if (!playerName.trim()) {
+      setErrorMessage('Please enter your name first!');
+      return;
+    }
     if (!joinCode.trim()) {
       setErrorMessage('Please enter a 6-digit room code.');
       return;
@@ -282,40 +294,58 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[260px] overflow-y-auto pr-1 no-scrollbar">
+          <div className="flex flex-col gap-2 max-h-[270px] overflow-y-auto pr-1 no-scrollbar">
             {gameState.players.map((p) => (
               <div
                 key={p.id}
-                className="relative p-2 rounded-2xl bg-purple-900/40 border border-purple-400/30 flex items-center gap-2 shadow-md"
+                className="p-2.5 rounded-2xl bg-white/5 border border-purple-500/20 flex items-center justify-between gap-2 shadow-sm"
               >
-                <img
-                  src={p.avatar}
-                  alt={p.name}
-                  className="w-10 h-10 rounded-full border-2 border-amber-400/80 bg-slate-900"
-                />
-                <div className="overflow-hidden">
-                  <div className="text-xs font-bold truncate text-white">
-                    {p.name} {p.id === socketService.playerId ? '(You)' : ''}
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <div className="relative flex-shrink-0">
+                    <img
+                      src={p.avatar}
+                      alt={p.name}
+                      className="w-10 h-10 rounded-full border border-amber-400/80 bg-slate-900"
+                    />
+                    {p.isBot && (
+                      <span className="absolute -top-1.5 -right-1 text-xs filter drop-shadow">🃏</span>
+                    )}
                   </div>
-                  <div className="text-[10px] text-purple-300 font-semibold">
-                    {p.id === gameState.hostId ? '👑 Host' : p.isBot ? '🤖 Bot' : 'Player'}
+                  <div className="overflow-hidden">
+                    <div className="text-xs sm:text-sm font-bold truncate text-white">
+                      {p.name} {p.id === socketService.playerId ? '(You)' : ''}
+                    </div>
+                    <div className="text-[10px] font-semibold flex items-center gap-1">
+                      {p.id === gameState.hostId ? (
+                        <span className="text-amber-300 font-black flex items-center gap-0.5">
+                          👑 Room Host
+                        </span>
+                      ) : p.isBot ? (
+                        <span className="text-indigo-300 flex items-center gap-0.5">
+                          🃏 Computer Bot
+                        </span>
+                      ) : (
+                        <span className="text-purple-300">Player</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {isHost && p.id !== gameState.hostId && (
-                  <div className="absolute top-1 right-1 flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     {!p.isBot && (
                       <button
                         onClick={() => socketService.transferHost(gameState.roomCode, p.id)}
-                        className="p-1 text-amber-400 hover:text-amber-300 active:scale-95 transition-transform"
+                        className="px-2.5 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow active:scale-95 transition"
                         title="Transfer Host to this player"
                       >
                         <Crown className="w-3.5 h-3.5 fill-current" />
+                        <span>Make Host</span>
                       </button>
                     )}
                     <button
                       onClick={() => socketService.removePlayer(gameState.roomCode, p.id)}
-                      className="p-1 text-red-400 hover:text-red-300 active:scale-95 transition-transform"
+                      className="p-1.5 rounded-xl bg-red-950/80 border border-red-500/50 text-red-400 hover:text-white hover:bg-red-600 active:scale-95 transition"
                       title="Kick player"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -402,14 +432,17 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
 
       {/* Profile Setup */}
       <div className="w-full max-w-md my-2 p-3.5 rounded-3xl bg-white/10 backdrop-blur-md border border-purple-500/30 shadow-xl">
-        <div className="text-xs uppercase tracking-wider text-purple-200 font-bold mb-2">
-          Your Player Profile
+        <div className="text-xs uppercase tracking-wider text-purple-200 font-bold mb-2 flex items-center justify-between">
+          <span>Player Profile</span>
+          {!playerName.trim() && (
+            <span className="text-[10px] text-amber-300 font-semibold animate-pulse">Required *</span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <img
             src={selectedAvatar}
             alt="Avatar"
-            className="w-14 h-14 rounded-full border-2 border-amber-400 bg-slate-900 p-0.5 shadow-md"
+            className="w-14 h-14 rounded-full border-2 border-amber-400 bg-slate-900 p-0.5 shadow-md flex-shrink-0"
           />
           <div className="flex-1">
             <input
@@ -417,8 +450,10 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
               value={playerName}
               maxLength={15}
               onChange={e => handleUpdateProfile(e.target.value, selectedAvatar)}
-              placeholder="Your nickname (e.g. Thala)"
-              className="w-full px-3 py-2 rounded-xl bg-purple-950/80 border border-purple-400/50 text-white font-bold text-sm focus:outline-none focus:border-amber-400 shadow-inner"
+              placeholder="Enter your nickname..."
+              className={`w-full px-3 py-2 rounded-xl bg-purple-950/80 border text-white font-bold text-sm focus:outline-none transition shadow-inner ${
+                !playerName.trim() ? 'border-amber-400/80 focus:border-amber-400' : 'border-purple-400/50 focus:border-emerald-400'
+              }`}
             />
             {/* Avatar selector pills */}
             <div className="flex gap-1.5 mt-2">
@@ -449,14 +484,14 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
             onClick={() => setSelectedGameType('donkey')}
             className={`cursor-pointer p-3 rounded-2xl border-2 transition-all ${
               selectedGameType === 'donkey'
-                ? 'bg-purple-800/70 border-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]'
-                : 'bg-white/5 border-white/10 hover:bg-white/10'
+                ? 'bg-purple-800/70 border-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] ring-2 ring-amber-400/30'
+                : 'bg-white/5 border-white/10 hover:bg-white/10 opacity-75'
             }`}
           >
             <div className="text-2xl mb-1">🫏</div>
             <div className="text-sm font-black text-white">Donkey Master</div>
             <div className="text-[10px] text-purple-200 mt-0.5 leading-tight">
-              52 Cards • 4 Suit Columns • Ace Spades Lead • Cut Penalty
+              Classic 4-Suit Cut Game
             </div>
           </div>
 
@@ -465,14 +500,14 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
             onClick={() => setSelectedGameType('uno_no_mercy')}
             className={`cursor-pointer p-3 rounded-2xl border-2 transition-all ${
               selectedGameType === 'uno_no_mercy'
-                ? 'bg-rose-900/70 border-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]'
-                : 'bg-white/5 border-white/10 hover:bg-white/10'
+                ? 'bg-rose-900/70 border-amber-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] ring-2 ring-amber-400/30'
+                : 'bg-white/5 border-white/10 hover:bg-white/10 opacity-75'
             }`}
           >
             <div className="text-2xl mb-1">🔥</div>
             <div className="text-sm font-black text-white">UNO No Mercy</div>
             <div className="text-[10px] text-rose-200 mt-0.5 leading-tight">
-              168 Cards • +10 Draw Stack • 0 Pass • 7 Swap • 25 KO
+              +10 Stacking • 0/7 Rules
             </div>
           </div>
         </div>

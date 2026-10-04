@@ -10,9 +10,11 @@ namespace DonkeyUno.Table
         [Header("UI References")]
         [SerializeField] private Image avatarImage;
         [SerializeField] private Image avatarBorder;
+        [SerializeField] private Image nameBadgeBg;
         [SerializeField] private TextMeshProUGUI nameText;
         [SerializeField] private TextMeshProUGUI cardCountText;
         [SerializeField] private GameObject turnIndicator;
+        [SerializeField] private Image turnGlowImage;
         [SerializeField] private GameObject unoAlertObject;
         [SerializeField] private TextMeshProUGUI unoAlertText;
         [SerializeField] private GameObject mercyWarningObject;
@@ -20,6 +22,56 @@ namespace DonkeyUno.Table
         [SerializeField] private GameObject disconnectedIcon;
 
         public PlayerPublic PlayerData { get; private set; }
+
+        public void SetupDonkey(PlayerPublic player, bool isCurrentTurn, DonkeyTheme theme, bool isSelf, Sprite avatarSprite = null)
+        {
+            PlayerData = player;
+
+            if (avatarImage != null && avatarSprite != null)
+            {
+                avatarImage.sprite = avatarSprite;
+                avatarImage.color = Color.white;
+            }
+
+            if (avatarBorder != null && theme != null)
+            {
+                avatarBorder.color = theme.accentColor;
+            }
+
+            if (nameBadgeBg != null && theme != null)
+            {
+                nameBadgeBg.color = theme.accentColor;
+            }
+
+            if (nameText != null)
+            {
+                nameText.text = player.name;
+                if (theme != null) nameText.color = theme.pillTextColor;
+                nameText.gameObject.SetActive(true);
+            }
+
+            if (turnIndicator != null)
+            {
+                turnIndicator.SetActive(isCurrentTurn);
+            }
+
+            if (turnGlowImage != null)
+            {
+                turnGlowImage.gameObject.SetActive(isCurrentTurn);
+            }
+
+            if (cardCountText != null)
+            {
+                // In Donkey, show card count if player is active
+                cardCountText.text = $"{player.cardsCount}";
+                cardCountText.gameObject.SetActive(!player.isDonkey && !player.rank.HasValue && player.cardsCount > 0);
+            }
+
+            if (botIcon != null) botIcon.SetActive(player.isBot);
+            if (disconnectedIcon != null) disconnectedIcon.SetActive(player.isDisconnected);
+            if (unoAlertObject != null) unoAlertObject.SetActive(false);
+            if (mercyWarningObject != null) mercyWarningObject.SetActive(false);
+        }
 
         public void Setup(PlayerPublic player, bool isCurrentTurn, bool hideName, bool isSelf)
         {
@@ -40,6 +92,11 @@ namespace DonkeyUno.Table
             if (turnIndicator != null)
             {
                 turnIndicator.SetActive(isCurrentTurn);
+            }
+
+            if (turnGlowImage != null)
+            {
+                turnGlowImage.gameObject.SetActive(isCurrentTurn);
             }
 
             if (botIcon != null)

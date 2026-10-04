@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.thala.donkeyuno"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildToolsVersion = rootProject.ext.buildToolsVersion
     defaultConfig {
         applicationId "com.thala.donkeyuno"
         minSdkVersion rootProject.ext.minSdkVersion

@@ -12,6 +12,7 @@ interface UnoHandProps {
   drawStackCount: number;
   isMyTurn: boolean;
   selectedCard: UnoCard | null;
+  hiddenCardId?: string | null;
   onSelectCard: (card: UnoCard | null) => void;
   onPlayCard: (card: UnoCard) => void;
 }
@@ -23,6 +24,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
   drawStackCount,
   isMyTurn,
   selectedCard,
+  hiddenCardId,
   onSelectCard,
   onPlayCard
 }) => {
@@ -105,8 +107,20 @@ export const UnoHand: React.FC<UnoHandProps> = ({
     return groups;
   }, [sortedHand]);
 
-  // Two-tap Play Handler
+  // Lock ref to prevent double-click or rapid multi-card submission
+  const isPlayDebouncedRef = useRef<boolean>(false);
+
+  // Reset debounce lock if turn changes
+  useEffect(() => {
+    if (!isMyTurn) {
+      isPlayDebouncedRef.current = false;
+    }
+  }, [isMyTurn]);
+
+  // Two-tap Play Handler with double-click guard
   const handleCardClick = (card: UnoCard) => {
+    if (isPlayDebouncedRef.current) return;
+
     if (!isMyTurn || !activeCard || !activeColor) {
       onSelectCard(card);
       return;
@@ -120,7 +134,12 @@ export const UnoHand: React.FC<UnoHandProps> = ({
 
     if (selectedCard?.id === card.id) {
       // Second tap on already selected card -> PLAY CARD!
+      isPlayDebouncedRef.current = true;
+      onSelectCard(null); // Clear selection immediately so second click cannot play
       onPlayCard(card);
+      setTimeout(() => {
+        isPlayDebouncedRef.current = false;
+      }, 1200);
     } else {
       // First tap -> SELECT CARD
       onSelectCard(card);
@@ -189,23 +208,6 @@ export const UnoHand: React.FC<UnoHandProps> = ({
             <Layers className="w-3.5 h-3.5" />
             <span>Grouped</span>
           </button>
-
-          {/* CONFIRM PLAY BUTTON (Second way to play selected card) */}
-          {selectedCard && (
-            <button
-              onClick={() => handleCardClick(selectedCard)}
-              disabled={!selectedIsValid || !isMyTurn}
-              aria-label="Play selected card"
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-black text-xs shadow-lg transition duration-150 ${
-                selectedIsValid && isMyTurn
-                  ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white animate-pulse active:scale-95 ring-2 ring-emerald-300'
-                  : 'bg-slate-700 text-slate-400 opacity-60 cursor-not-allowed'
-              }`}
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>PLAY CARD</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -225,8 +227,9 @@ export const UnoHand: React.FC<UnoHandProps> = ({
         {/* Scrolling or Overlapping Container */}
         <div
           ref={scrollRef}
+          id="uno-hand-area"
           className="w-full overflow-x-auto overflow-y-visible py-4 px-8 scrollbar-none flex justify-center items-center"
-          style={{ minHeight: '110px' }}
+          style={{ minHeight: '120px' }}
         >
           {isGroupedMode ? (
             /* GROUPED VIEW */
@@ -239,7 +242,13 @@ export const UnoHand: React.FC<UnoHandProps> = ({
                 const isSelected = selectedCard?.id === card.id;
 
                 return (
-                  <div key={card.id} className="relative flex-shrink-0">
+                  <div
+                    key={card.id}
+                    id={`uno-hand-card-${card.id}`}
+                    className={`relative flex-shrink-0 transition-opacity duration-150 ${
+                      hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                    }`}
+                  >
                     <UnoCardView
                       card={card}
                       isSelected={isSelected}
@@ -257,7 +266,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
             </div>
           ) : !needsOverlap ? (
             /* NATURAL SIDE-BY-SIDE VIEW */
-            <div className="flex items-center gap-2 justify-center">
+            <div className="flex items-center gap-2.5 justify-center">
               {sortedHand.map(card => {
                 const isValid =
                   activeCard && activeColor
@@ -266,7 +275,13 @@ export const UnoHand: React.FC<UnoHandProps> = ({
                 const isSelected = selectedCard?.id === card.id;
 
                 return (
-                  <div key={card.id} className="flex-shrink-0">
+                  <div
+                    key={card.id}
+                    id={`uno-hand-card-${card.id}`}
+                    className={`flex-shrink-0 transition-opacity duration-150 ${
+                      hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                    }`}
+                  >
                     <UnoCardView
                       card={card}
                       isSelected={isSelected}
@@ -280,7 +295,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
           ) : (
             /* DYNAMIC OVERLAPPING FAN VIEW */
             <div
-              className="relative h-28"
+              className="relative h-32"
               style={{
                 width: `${(count - 1) * step + cardWidth}px`,
                 maxWidth: '100%'
@@ -296,7 +311,10 @@ export const UnoHand: React.FC<UnoHandProps> = ({
                 return (
                   <div
                     key={card.id}
-                    className="absolute top-0 transition-transform duration-150"
+                    id={`uno-hand-card-${card.id}`}
+                    className={`absolute top-0 transition-transform duration-150 ${
+                      hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                    }`}
                     style={{
                       left: `${idx * step}px`,
                       zIndex: isSelected ? 50 : idx + 10

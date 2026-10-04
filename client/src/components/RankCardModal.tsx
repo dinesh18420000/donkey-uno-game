@@ -46,7 +46,9 @@ export const RankCardModal: React.FC<RankCardModalProps> = ({
 
   const donkeyPlayer = gameState.players.find(p => p.isDonkey);
   const unoWinner = !isDonkeyGame
-    ? gameState.players.find(p => p.rank === 1) || sortedPlayers[0]
+    ? gameState.players.find(p => p.rank === 1 && !p.isMercyEliminated) ||
+      sortedPlayers.find(p => !p.isMercyEliminated) ||
+      sortedPlayers[0]
     : null;
 
   return (
@@ -93,6 +95,14 @@ export const RankCardModal: React.FC<RankCardModalProps> = ({
               </div>
             </div>
           ) : null}
+
+          {/* 10-Minute Game Time Limit Expired Notice */}
+          {gameState.lastAction && (gameState.lastAction.includes('10-Minute') || gameState.lastAction.includes('Timer Expired')) && (
+            <div className="mt-2 py-1 px-3 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md">
+              <span>⏰</span>
+              <span>10-Minute Match Limit reached! Ranks determined by cards held.</span>
+            </div>
+          )}
         </div>
 
         {/* RANKINGS TABLE / LEADERBOARD (Scrollable) */}

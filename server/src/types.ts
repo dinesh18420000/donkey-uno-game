@@ -80,8 +80,10 @@ export interface GameRoom {
   direction: 1 | -1; // 1 clockwise, -1 counterclockwise
   roundNumber: number;
   lastAction: string;
-  turnExpiresAt: number; // Unix timestamp in ms when 30s expires
-  turnDuration: number;  // 30 seconds
+  turnExpiresAt: number; // Unix timestamp in ms when turn expires
+  turnDuration: number;  // Turn duration in seconds
+  gameExpiresAt?: number; // Unix timestamp in ms when match limit expires (10 min for Uno)
+  gameDuration?: number;  // Total match duration in seconds
 
   // Donkey state
   leadSuit?: Suit;
@@ -98,6 +100,7 @@ export interface GameRoom {
   deckRemainingCount: number;
   discardPile: UnoCard[];
   unoDeck: UnoCard[];
+  lastSkippedPlayerId?: string;
 }
 
 export interface ClientGameState {
@@ -127,6 +130,8 @@ export interface ClientGameState {
   roundNumber: number;
   turnExpiresAt: number;
   turnDuration: number;
+  gameExpiresAt?: number;
+  gameDuration?: number;
 
   // Donkey
   leadSuit?: Suit;
@@ -139,4 +144,5 @@ export interface ClientGameState {
   activeUnoColor?: UnoColor;
   drawStackCount: number;
   deckRemainingCount: number;
+  lastSkippedPlayerId?: string;
 }
