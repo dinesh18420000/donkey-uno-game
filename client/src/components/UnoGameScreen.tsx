@@ -398,12 +398,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
         ? `${gameState.activeUnoCard.color.toUpperCase()} ${gameState.activeUnoCard.type.replace('_', ' ').toUpperCase()}`
         : 'Card';
 
-      setActionNotice({
-        type: 'play',
-        text: `Played ${title}`,
-        playerName: playedBy ? playedBy.name : 'Player',
-        playerId: playedBy?.id
-      });
+      // Notification "Played [Card]" completely removed per user request
     }
 
     // Detect card draw (single card OR multiple cards cascade!)
@@ -1137,7 +1132,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
             </div>
 
             {/* ACTION / EVENT FLOATING NOTICE (Clean & Short-lived) */}
-            {actionNotice && !isSwapAnimating && (
+            {actionNotice && actionNotice.type !== 'play' && !isSwapAnimating && (
               <div
                 className={`mt-2 px-3 py-1 rounded-full border text-xs font-black shadow-2xl flex items-center gap-1.5 animate-bounce z-20 ${
                   actionNotice.type === 'draw'

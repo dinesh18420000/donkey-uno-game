@@ -21,32 +21,32 @@ const COLOR_CLASSES: Record<UnoColor, {
 }> = {
   red: {
     bg: 'bg-gradient-to-br from-[#ff1744] via-[#d50000] to-[#880e4f]',
-    faceText: 'text-[#d50000]',
-    cornerText: 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]',
+    faceText: 'text-[#dc2626]',
+    cornerText: 'text-white font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]',
     badge: 'bg-[#ff1744] text-white',
     glow: 'shadow-[0_0_22px_rgba(255,23,68,0.75)]',
     border: 'border-white/95'
   },
   blue: {
     bg: 'bg-gradient-to-br from-[#00b0ff] via-[#0091ea] to-[#01579b]',
-    faceText: 'text-[#0091ea]',
-    cornerText: 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]',
+    faceText: 'text-[#0284c7]',
+    cornerText: 'text-white font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]',
     badge: 'bg-[#0091ea] text-white',
     glow: 'shadow-[0_0_22px_rgba(0,176,255,0.75)]',
     border: 'border-white/95'
   },
   green: {
     bg: 'bg-gradient-to-br from-[#00e676] via-[#00c853] to-[#1b5e20]',
-    faceText: 'text-[#00c853]',
-    cornerText: 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]',
+    faceText: 'text-[#15803d]',
+    cornerText: 'text-white font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]',
     badge: 'bg-[#00c853] text-white',
     glow: 'shadow-[0_0_22px_rgba(0,230,118,0.75)]',
     border: 'border-white/95'
   },
   yellow: {
     bg: 'bg-gradient-to-br from-[#ffea00] via-[#ffd600] to-[#ff6f00]',
-    faceText: 'text-[#e65100]',
-    cornerText: 'text-slate-950 font-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]',
+    faceText: 'text-[#b45309]',
+    cornerText: 'text-slate-950 font-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]',
     badge: 'bg-[#ffd600] text-slate-950 font-black',
     glow: 'shadow-[0_0_22px_rgba(255,214,0,0.75)]',
     border: 'border-white/95'
@@ -54,7 +54,7 @@ const COLOR_CLASSES: Record<UnoColor, {
   wild: {
     bg: 'bg-gradient-to-br from-[#180b2b] via-[#0f172a] to-[#05060f]',
     faceText: 'text-white',
-    cornerText: 'text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]',
+    cornerText: 'text-amber-300 font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]',
     badge: 'bg-purple-700 text-white',
     glow: 'shadow-[0_0_25px_rgba(234,179,8,0.8)]',
     border: 'border-amber-400/90'
@@ -193,7 +193,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       case 'discard_all':
         return (
           <div className="flex flex-col items-center justify-center leading-none">
-            <Trash2 className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[2.5] drop-shadow" />
+            <Trash2 className={`w-5 h-5 sm:w-6 sm:h-6 ${theme.faceText} stroke-[2.8] drop-shadow-sm`} />
             <span className={`font-black text-[6.5px] sm:text-[7.5px] uppercase tracking-tight ${theme.faceText} mt-0.5 whitespace-nowrap`}>
               DISCARD
             </span>
@@ -202,16 +202,30 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       case 'skip_everyone':
         return (
           <div className="flex flex-col items-center justify-center leading-none">
-            <Ban className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[2.5] drop-shadow" />
-            <span className={`font-black text-[6px] sm:text-[7px] uppercase tracking-tight ${theme.faceText} mt-0.5 bg-slate-900/60 px-1 py-0.2 rounded whitespace-nowrap`}>
+            <Ban className={`w-5 h-5 sm:w-6 sm:h-6 ${theme.faceText} stroke-[2.8] drop-shadow-sm`} />
+            <span className={`font-black text-[6px] sm:text-[7px] uppercase tracking-tight text-white mt-0.5 bg-slate-900 px-1 py-0.2 rounded whitespace-nowrap`}>
               SKIP ALL
             </span>
           </div>
         );
       case 'skip':
-        return <Ban className={`w-6 h-6 sm:w-8 sm:h-8 ${theme.faceText} stroke-[2.8] drop-shadow`} />;
+        return (
+          <div className="flex flex-col items-center justify-center leading-none">
+            <Ban className={`w-6 h-6 sm:w-7 sm:h-7 ${theme.faceText} stroke-[2.8] drop-shadow-sm`} />
+            <span className={`font-black text-[7.5px] sm:text-[8.5px] uppercase tracking-wider ${theme.faceText} mt-0.5 select-none drop-shadow-sm`}>
+              SKIP
+            </span>
+          </div>
+        );
       case 'reverse':
-        return <RotateCcw className={`w-6 h-6 sm:w-8 sm:h-8 ${theme.faceText} stroke-[2.8] drop-shadow`} />;
+        return (
+          <div className="flex flex-col items-center justify-center leading-none">
+            <RotateCcw className={`w-6 h-6 sm:w-7 sm:h-7 ${theme.faceText} stroke-[2.8] drop-shadow-sm`} />
+            <span className={`font-black text-[6.5px] sm:text-[7.5px] uppercase tracking-wider ${theme.faceText} mt-0.5 select-none drop-shadow-sm`}>
+              REVERSE
+            </span>
+          </div>
+        );
       case 'pass_0':
         return (
           <div className="flex flex-col items-center justify-center leading-none">
@@ -230,7 +244,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
               <span className={`font-black text-xl sm:text-2xl ${theme.faceText} drop-shadow`}>
                 7
               </span>
-              <ArrowLeftRight className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+              <ArrowLeftRight className={`w-3.5 h-3.5 ${theme.faceText} stroke-[2.8]`} />
             </div>
             <span className={`font-black text-[6.5px] sm:text-[7.5px] uppercase tracking-tight ${theme.faceText} whitespace-nowrap`}>
               SWAP
@@ -280,7 +294,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         } ${
           isTableCard || isValid
             ? 'opacity-100 brightness-100 cursor-pointer active:scale-95'
-            : 'opacity-55 brightness-[0.55] border-slate-600/60 cursor-not-allowed shadow-none pointer-events-none'
+            : 'opacity-70 brightness-95 saturate-[0.85] border-slate-600/60 cursor-not-allowed shadow-none pointer-events-none'
         }`}
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-black/20 pointer-events-none" />
@@ -314,7 +328,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
           ? 'opacity-100 brightness-100 shadow-[0_8px_20px_rgba(0,0,0,0.7)]'
           : isValid
           ? 'opacity-100 brightness-100 cursor-pointer hover:-translate-y-1.5 active:scale-95 hover:shadow-2xl'
-          : 'opacity-55 brightness-[0.5] border-slate-500/50 cursor-not-allowed shadow-none pointer-events-none'
+          : 'opacity-70 brightness-95 saturate-[0.85] border-slate-500/50 cursor-not-allowed shadow-none pointer-events-none'
       }`}
     >
       {/* Gloss Reflection Sheen Overlay */}
@@ -322,15 +336,6 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
 
       {/* Subtle Inner Card Border */}
       <div className="absolute inset-1 rounded-lg border border-white/25 pointer-events-none z-10" />
-
-      {/* DISABLED OVERLAY (Never show on table/discard cards) */}
-      {!isTableCard && !isValid && (
-        <div className="absolute inset-0 z-30 rounded-2xl bg-black/40 flex items-center justify-center pointer-events-none">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-[3px] border-red-400/80 flex items-center justify-center">
-            <div className="w-full h-[3px] bg-red-400/80 rounded-full transform -rotate-45" />
-          </div>
-        </div>
-      )}
 
       {/* Top Left Corner Pip Only (Right-bottom numbers removed) */}
       <div className={`absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 ${isTable ? 'text-[9px] sm:text-[10px]' : 'text-[11px] sm:text-xs'} font-black leading-none tracking-tight ${theme.cornerText}`}>
