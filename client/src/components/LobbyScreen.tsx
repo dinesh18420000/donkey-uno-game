@@ -35,7 +35,11 @@ const AVATAR_OPTIONS = [
 
 export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLobby }) => {
   const [playerName, setPlayerName] = useState(socketService.playerName);
-  const [selectedAvatar, setSelectedAvatar] = useState(socketService.avatar || AVATAR_OPTIONS[0]);
+  const [selectedAvatar, setSelectedAvatar] = useState(
+    socketService.avatar && socketService.avatar.startsWith('http')
+      ? socketService.avatar
+      : AVATAR_OPTIONS[0]
+  );
   const [selectedGameType, setSelectedGameType] = useState<GameType>('donkey');
   const [maxPlayers, setMaxPlayers] = useState<number>(10);
   const [joinCode, setJoinCode] = useState<string>('');
@@ -44,6 +48,9 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showCodeOptions, setShowCodeOptions] = useState<boolean>(false);
   const [serverUrlInput, setServerUrlInput] = useState<string>(socketService.getServerUrl());
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>(
+    socketService.socket?.connected ? 'connected' : 'disconnected'
+  );
   const [activeGameInfo, setActiveGameInfo] = useState<{
     roomCode: string;
     gameType: GameType;
@@ -52,6 +59,14 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
   } | null>(null);
   const [showActiveGameModal, setShowActiveGameModal] = useState<boolean>(false);
   const [isJoiningFamily, setIsJoiningFamily] = useState<boolean>(false);
+
+  // Real-time server connection listener
+  useEffect(() => {
+    return socketService.onConnectionChange((status, url) => {
+      setConnectionStatus(status);
+      setServerUrlInput(url);
+    });
+  }, []);
 
   // Check for unfinished active games when on Home Screen
   useEffect(() => {
@@ -398,35 +413,89 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
             <p className="text-[11px] text-amber-300 font-semibold">Donkey Master & UNO No Mercy</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all text-purple-200"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Connection Status Badge */}
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide border shadow-sm transition-all ${
+              connectionStatus === 'connected'
+                ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                : connectionStatus === 'connecting'
+                ? 'bg-amber-500/20 border-amber-400/50 text-amber-300 animate-pulse'
+                : 'bg-rose-500/20 border-rose-400/50 text-rose-300'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                connectionStatus === 'connected'
+                  ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]'
+                  : connectionStatus === 'connecting'
+                  ? 'bg-amber-400 animate-ping'
+                  : 'bg-rose-400'
+              }`}
+            />
+            <span>
+              {connectionStatus === 'connected'
+                ? 'ONLINE'
+                : connectionStatus === 'connecting'
+                ? 'CONNECTING...'
+                : 'OFFLINE'}
+            </span>
+          </div>
+
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            aria-label="Server settings"
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-purple-200"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="w-full max-w-md my-2 p-3 rounded-2xl bg-slate-900 border border-purple-500/40 text-xs shadow-2xl">
-          <div className="font-bold text-amber-300 mb-1 flex items-center gap-1.5">
-            <Wifi className="w-4 h-4" /> Server Connection URL
+        <div className="w-full max-w-md my-2 p-3.5 rounded-2xl bg-slate-900 border border-purple-500/40 text-xs shadow-2xl animate-fadeIn">
+          <div className="font-bold text-amber-300 mb-1.5 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Wifi className="w-4 h-4 text-emerald-400" /> Game Server Target URL
+            </span>
+            <span
+              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                connectionStatus === 'connected'
+                  ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-500/40'
+                  : 'bg-rose-900/60 text-rose-300 border border-rose-500/40'
+              }`}
+            >
+              {connectionStatus}
+            </span>
           </div>
+
           <div className="flex gap-2">
             <input
               type="text"
               value={serverUrlInput}
               onChange={e => setServerUrlInput(e.target.value)}
-              placeholder="http://localhost:3001"
+              placeholder="https://donkey-uno-server.onrender.com"
               className="flex-1 px-3 py-2 rounded-xl bg-black/60 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-amber-400"
             />
             <button
               onClick={handleSaveServerUrl}
-              className="px-3.5 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold"
+              className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black active:scale-95 transition cursor-pointer"
             >
               Save
             </button>
           </div>
+
+          {/* 1-Tap Reset to Cloud Server */}
+          <button
+            onClick={() => {
+              socketService.resetToCloudServer();
+              setServerUrlInput(socketService.getServerUrl());
+            }}
+            className="w-full mt-2 py-2 px-3 rounded-xl bg-purple-950 hover:bg-purple-900 text-amber-300 font-bold text-[11px] flex items-center justify-center gap-1.5 border border-purple-500/40 active:scale-98 transition cursor-pointer"
+          >
+            <span>☁️ Reset to Official Cloud Server (Render)</span>
+          </button>
         </div>
       )}
 
@@ -442,7 +511,10 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
           <img
             src={selectedAvatar}
             alt="Avatar"
-            className="w-14 h-14 rounded-full border-2 border-amber-400 bg-slate-900 p-0.5 shadow-md flex-shrink-0"
+            onError={e => {
+              (e.target as HTMLImageElement).src = AVATAR_OPTIONS[0];
+            }}
+            className="w-14 h-14 rounded-full border-2 border-amber-400 bg-slate-900 p-0.5 shadow-md flex-shrink-0 object-contain"
           />
           <div className="flex-1">
             <input

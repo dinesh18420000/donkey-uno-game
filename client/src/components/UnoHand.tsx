@@ -107,6 +107,10 @@ export const UnoHand: React.FC<UnoHandProps> = ({
     return groups;
   }, [sortedHand]);
 
+  const groupedNaturalWidth = groupedCards.length * (cardWidth + naturalGap);
+  const needsGroupedScroll = groupedNaturalWidth > availableWidth;
+  const shouldShowScrollButtons = isGroupedMode ? needsGroupedScroll : needsOverlap;
+
   // Lock ref to prevent double-click or rapid multi-card submission
   const isPlayDebouncedRef = useRef<boolean>(false);
 
@@ -214,11 +218,11 @@ export const UnoHand: React.FC<UnoHandProps> = ({
       {/* Main Hand Display */}
       <div className="relative w-full flex items-center justify-center">
         {/* Left Scroll Navigation Arrow */}
-        {needsOverlap && !isGroupedMode && (
+        {shouldShowScrollButtons && (
           <button
             onClick={() => handleScroll(-180)}
             aria-label="Scroll hand left"
-            className="absolute left-1 z-30 w-8 h-8 rounded-full bg-slate-900/90 border border-slate-700 text-white flex items-center justify-center hover:bg-slate-800 active:scale-90 shadow-md"
+            className="absolute left-0.5 sm:left-1 z-30 w-8 h-8 rounded-full bg-slate-900/95 border border-amber-400/50 text-amber-300 hover:text-white flex items-center justify-center hover:bg-slate-800 active:scale-90 shadow-xl"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -228,12 +232,12 @@ export const UnoHand: React.FC<UnoHandProps> = ({
         <div
           ref={scrollRef}
           id="uno-hand-area"
-          className="w-full overflow-x-auto overflow-y-visible py-4 px-8 scrollbar-none flex justify-center items-center"
-          style={{ minHeight: '120px' }}
+          className="w-full overflow-x-auto overflow-y-visible py-3 px-8 scrollbar-none touch-pan-x flex items-center justify-start sm:justify-center"
+          style={{ minHeight: '125px', WebkitOverflowScrolling: 'touch' }}
         >
           {isGroupedMode ? (
-            /* GROUPED VIEW */
-            <div className="flex items-center gap-2 justify-center flex-wrap">
+            /* GROUPED VIEW: Clean single-row horizontal scrollable track */
+            <div className="flex items-center gap-2.5 justify-start sm:justify-center flex-nowrap min-w-max px-3">
               {groupedCards.map(({ card, count: groupCount }) => {
                 const isValid =
                   activeCard && activeColor
@@ -266,7 +270,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
             </div>
           ) : !needsOverlap ? (
             /* NATURAL SIDE-BY-SIDE VIEW */
-            <div className="flex items-center gap-2.5 justify-center">
+            <div className="flex items-center gap-2.5 justify-center flex-nowrap min-w-max px-3">
               {sortedHand.map(card => {
                 const isValid =
                   activeCard && activeColor
@@ -295,7 +299,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
           ) : (
             /* DYNAMIC OVERLAPPING FAN VIEW */
             <div
-              className="relative h-32"
+              className="relative h-32 flex-shrink-0"
               style={{
                 width: `${(count - 1) * step + cardWidth}px`,
                 maxWidth: '100%'
@@ -334,11 +338,11 @@ export const UnoHand: React.FC<UnoHandProps> = ({
         </div>
 
         {/* Right Scroll Navigation Arrow */}
-        {needsOverlap && !isGroupedMode && (
+        {shouldShowScrollButtons && (
           <button
             onClick={() => handleScroll(180)}
             aria-label="Scroll hand right"
-            className="absolute right-1 z-30 w-8 h-8 rounded-full bg-slate-900/90 border border-slate-700 text-white flex items-center justify-center hover:bg-slate-800 active:scale-90 shadow-md"
+            className="absolute right-0.5 sm:right-1 z-30 w-8 h-8 rounded-full bg-slate-900/95 border border-amber-400/50 text-amber-300 hover:text-white flex items-center justify-center hover:bg-slate-800 active:scale-90 shadow-xl"
           >
             <ChevronRight className="w-5 h-5" />
           </button>

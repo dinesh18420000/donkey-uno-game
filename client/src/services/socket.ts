@@ -1,15 +1,42 @@
 import { io, Socket } from 'socket.io-client';
+import { Capacitor } from '@capacitor/core';
 import { ClientGameState, GameType, UnoColor } from '../types';
+
+export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+
+export const CLOUD_PROD_URL = 'https://donkey-uno-server.onrender.com';
+export const DEFAULT_AVATAR = 'https://api.dicebear.com/7.x/bottts/svg?seed=Thala';
 
 class SocketService {
   public socket: Socket | null = null;
   public playerId: string = '';
   public playerName: string = '';
-  public avatar: string = 'avatar_thala';
-  private serverUrl: string = '';
+  public avatar: string = DEFAULT_AVATAR;
+  private serverUrl: string = CLOUD_PROD_URL;
+  private connectionListeners: ((status: ConnectionStatus, url: string) => void)[] = [];
+  public connectionStatus: ConnectionStatus = 'disconnected';
 
   constructor() {
     this.initStorage();
+  }
+
+  public onConnectionChange(cb: (status: ConnectionStatus, url: string) => void): () => void {
+    this.connectionListeners.push(cb);
+    cb(this.socket?.connected ? 'connected' : this.connectionStatus, this.serverUrl);
+    return () => {
+      this.connectionListeners = this.connectionListeners.filter(l => l !== cb);
+    };
+  }
+
+  private notifyConnection(status: ConnectionStatus) {
+    this.connectionStatus = status;
+    this.connectionListeners.forEach(cb => {
+      try {
+        cb(status, this.serverUrl);
+      } catch (e) {
+        console.error('Error in connection listener:', e);
+      }
+    });
   }
 
   private initStorage() {
@@ -31,42 +58,58 @@ class SocketService {
     }
 
     const savedAvatar = localStorage.getItem('donkey_uno_avatar');
-    if (savedAvatar) this.avatar = savedAvatar;
+    if (savedAvatar && (savedAvatar.startsWith('http://') || savedAvatar.startsWith('https://') || savedAvatar.startsWith('data:'))) {
+      this.avatar = savedAvatar;
+    } else {
+      this.avatar = DEFAULT_AVATAR;
+      localStorage.setItem('donkey_uno_avatar', DEFAULT_AVATAR);
+    }
+
+    // Determine if running inside a native mobile app (Capacitor Android / iOS)
+    const isNativePlatform =
+      Capacitor.isNativePlatform() ||
+      window.location.protocol === 'capacitor:' ||
+      (window.location.hostname === 'localhost' && window.location.port !== '3001' && window.location.port !== '5173');
 
     let savedServer = localStorage.getItem('donkey_uno_server_url');
 
-    // Auto-clean stale localhost or dead LAN URLs from previous local dev testing
-    if (savedServer && (savedServer.includes('localhost') || savedServer.includes('127.0.0.1') || savedServer.includes('192.168.'))) {
-      const isLocalHostBrowser = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      if (!isLocalHostBrowser) {
-        localStorage.removeItem('donkey_uno_server_url');
-        savedServer = null;
-      }
+    // On native mobile app, purge any stale/erroneous localhost or 127.0.0.1 URLs
+    if (isNativePlatform && savedServer && (savedServer.includes('localhost') || savedServer.includes('127.0.0.1'))) {
+      console.warn('📱 Native mobile app detected with localhost server URL. Purging stale value and resetting to:', CLOUD_PROD_URL);
+      localStorage.removeItem('donkey_uno_server_url');
+      savedServer = null;
     }
 
-    // If running in browser, connect to current origin (e.g. http://localhost:3001 or online host)
-    // If running in Vite dev server (port 5173), target port 3001 locally
-    const isBrowser = typeof window !== 'undefined' && window.location.protocol.startsWith('http');
-    let defaultUrl = 'https://donkey-uno-server.onrender.com';
-    if (isBrowser) {
+    let defaultUrl = CLOUD_PROD_URL;
+    if (!isNativePlatform) {
+      // In web browser
       if (window.location.port === '5173') {
         defaultUrl = 'http://localhost:3001';
-      } else {
+      } else if (window.location.port === '3001') {
+        defaultUrl = 'http://localhost:3001';
+      } else if (window.location.protocol.startsWith('http') && window.location.hostname !== 'localhost') {
         defaultUrl = window.location.origin;
       }
     }
 
     const envServer = (import.meta as any).env?.VITE_SERVER_URL;
-    this.serverUrl = savedServer || (isBrowser ? defaultUrl : (envServer || 'https://donkey-uno-server.onrender.com'));
+    this.serverUrl = savedServer || (isNativePlatform ? CLOUD_PROD_URL : (envServer || defaultUrl));
+    console.log(`📡 SocketService initialized: target server URL = ${this.serverUrl} (native: ${isNativePlatform})`);
   }
 
   public setServerUrl(url: string) {
-    this.serverUrl = url;
-    localStorage.setItem('donkey_uno_server_url', url);
+    const cleaned = url.trim().replace(/\/+$/, '');
+    this.serverUrl = cleaned;
+    localStorage.setItem('donkey_uno_server_url', cleaned);
     if (this.socket) {
       this.socket.disconnect();
-      this.connect();
+      this.socket = null;
     }
+    this.connect();
+  }
+
+  public resetToCloudServer() {
+    this.setServerUrl(CLOUD_PROD_URL);
   }
 
   public getServerUrl(): string {
@@ -84,25 +127,30 @@ class SocketService {
     if (this.socket && this.socket.connected) return this.socket;
 
     if (!this.socket) {
+      this.notifyConnection('connecting');
       this.socket = io(this.serverUrl, {
-        transports: ['websocket', 'polling'],
-        reconnectionAttempts: 20,
+        transports: ['polling', 'websocket'],
+        reconnectionAttempts: 30,
         reconnectionDelay: 1000,
-        timeout: 10000
+        timeout: 15000
       });
 
       this.socket.on('connect', () => {
-        console.log('✅ Connected to game server:', this.socket?.id);
+        console.log('✅ Connected to game server:', this.socket?.id, 'at', this.serverUrl);
+        this.notifyConnection('connected');
       });
 
       this.socket.on('disconnect', (reason) => {
         console.warn('⚠️ Disconnected from server:', reason);
+        this.notifyConnection('disconnected');
       });
 
       this.socket.on('connect_error', (error) => {
-        console.warn('❌ Server connection error:', error.message);
+        console.warn('❌ Server connection error to ' + this.serverUrl + ':', error.message);
+        this.notifyConnection('disconnected');
       });
     } else if (!this.socket.connected) {
+      this.notifyConnection('connecting');
       this.socket.connect();
     }
 
