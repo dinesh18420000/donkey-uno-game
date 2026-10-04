@@ -168,10 +168,10 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       case 'wild_draw10':
         return (
           <div className="flex flex-col items-center justify-center leading-none">
-            <span className="font-black text-lg sm:text-2xl md:text-3xl text-red-500 drop-shadow-[0_0_8px_#ef4444] tracking-tighter select-none">
+            <span className="font-black text-xl sm:text-2xl md:text-3xl text-red-500 drop-shadow-[0_0_8px_#ef4444] tracking-tighter select-none">
               +10
             </span>
-            <span className="text-[5.5px] sm:text-[6.5px] font-black text-red-200 uppercase tracking-tight mt-0.5 bg-red-950 px-1 py-0.2 rounded border border-red-500/80 whitespace-nowrap">
+            <span className="text-[6.5px] sm:text-[7.5px] font-black text-red-200 uppercase tracking-tight mt-0.5 bg-red-950 px-1 py-0.2 rounded border border-red-500/80 whitespace-nowrap">
               NO MERCY
             </span>
           </div>
@@ -306,7 +306,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
 
   const isTable = isTableCard;
   const cardSizeClass = isTable
-    ? 'w-12 h-17 sm:w-13 sm:h-19 min-w-[46px] min-h-[64px] rounded-xl border-2'
+    ? 'w-16 h-24 sm:w-20 sm:h-28 md:w-22 md:h-32 min-w-[64px] min-h-[96px] sm:min-w-[80px] sm:min-h-[112px] rounded-2xl border-[2.5px]'
     : 'w-16 h-24 sm:w-20 sm:h-28 md:w-22 md:h-32 min-w-[56px] min-h-[80px] rounded-2xl border-[2.5px]';
 
   return (
@@ -325,7 +325,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
           ? 'opacity-100 brightness-100 shadow-[0_8px_20px_rgba(0,0,0,0.7)]'
           : isValid
           ? 'opacity-100 brightness-100 cursor-pointer hover:-translate-y-1.5 active:scale-95 hover:shadow-2xl'
-          : 'opacity-70 brightness-95 saturate-[0.85] border-slate-500/50 cursor-not-allowed shadow-none pointer-events-none'
+          : 'opacity-55 cursor-not-allowed pointer-events-none'
       }`}
     >
       {/* Gloss Reflection Sheen Overlay */}
@@ -335,7 +335,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       <div className="absolute inset-1 rounded-lg border border-white/25 pointer-events-none z-10" />
 
       {/* Top Left Corner Pip Only (Right-bottom numbers removed) */}
-      <div className={`absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 ${isTable ? 'text-[9px] sm:text-[10px]' : 'text-[11px] sm:text-xs'} font-black leading-none tracking-tight ${theme.cornerText}`}>
+      <div className={`absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 text-[11px] sm:text-xs font-black leading-none tracking-tight ${theme.cornerText}`}>
         {cornerSym}
       </div>
 
@@ -348,7 +348,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
               : 'bg-white/98 border-white/80'
           }`}
         >
-          <div className={`transform rotate-16 flex flex-col items-center justify-center w-full px-0.5 text-center overflow-visible ${isTable ? 'scale-75 sm:scale-80' : ''}`}>
+          <div className="transform rotate-16 flex flex-col items-center justify-center w-full px-0.5 text-center overflow-visible">
             {renderCenterContent()}
           </div>
         </div>
@@ -356,11 +356,11 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
 
       {/* Wild 4-color Accent Quadrant Dots */}
       {isWild && (
-        <div className="absolute top-1.5 right-1.5 flex gap-1 z-20">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#ff1744] shadow-sm border border-white/60" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#0091ea] shadow-sm border border-white/60" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#ffd600] shadow-sm border border-white/60" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#00c853] shadow-sm border border-white/60" />
+        <div className="absolute top-1.5 right-1.5 grid grid-cols-2 gap-0.5 z-20">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#ff1744] shadow-xs border border-white/60" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#0091ea] shadow-xs border border-white/60" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#ffd600] shadow-xs border border-white/60" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#00c853] shadow-xs border border-white/60" />
         </div>
       )}
     </div>
@@ -379,7 +379,7 @@ export const UnoCardBackView: React.FC<{
   const isTable = size === 'table';
   const sizeClasses =
     isTable
-      ? 'w-12 h-17 sm:w-13 sm:h-19 min-w-[46px] min-h-[64px] rounded-xl border-2'
+      ? 'w-16 h-24 sm:w-20 sm:h-28 md:w-22 md:h-32 min-w-[64px] min-h-[96px] sm:min-w-[80px] sm:min-h-[112px] rounded-2xl border-[2.5px]'
       : size === 'sm'
       ? 'w-13 h-19 sm:w-15 sm:h-22 min-w-[48px] min-h-[64px] rounded-xl border-2'
       : size === 'lg'
@@ -396,17 +396,14 @@ export const UnoCardBackView: React.FC<{
       {/* Inner Double Rim */}
       <div className="absolute inset-1 rounded-lg border border-red-500/40 pointer-events-none z-10" />
 
-      {/* Mini Corner UNO pips */}
-      <div className="absolute top-1 left-1 text-[6px] sm:text-[7px] font-black text-amber-400 tracking-tighter z-10">
-        UNO
-      </div>
-      <div className="absolute bottom-1 right-1 text-[6px] sm:text-[7px] font-black text-amber-400 tracking-tighter rotate-180 z-10">
+      {/* Mini Top-Left UNO pip */}
+      <div className="absolute top-1 left-1.5 text-[7px] sm:text-[8px] font-black text-amber-400 tracking-tighter z-10">
         UNO
       </div>
 
       {/* Center Tilted UNO Oval Badge */}
       <div className="w-[84%] h-[74%] rounded-[50%] bg-gradient-to-br from-[#ff1744] via-[#d50000] to-[#b71c1c] border border-amber-300 transform -rotate-16 flex items-center justify-center shadow-[0_4px_10px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.4)] z-10">
-        <span className={`font-black italic ${isTable ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl md:text-3xl'} text-yellow-300 tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] transform rotate-16`}>
+        <span className="font-black italic text-xl sm:text-2xl md:text-3xl text-yellow-300 tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] transform rotate-16">
           UNO
         </span>
       </div>

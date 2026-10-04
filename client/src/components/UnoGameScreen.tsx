@@ -940,7 +940,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
             {/* CIRCULAR DIRECTIONAL ARROW RING ORBITING AROUND CENTRAL DECK */}
             <div className="absolute -inset-6 sm:-inset-10 pointer-events-none flex items-center justify-center">
               <div
-                className={`relative w-48 h-48 sm:w-56 sm:h-56 rounded-full transition-all duration-500 flex items-center justify-center ${
+                className={`relative w-56 h-56 sm:w-68 sm:h-68 md:w-72 md:h-72 rounded-full transition-all duration-500 flex items-center justify-center ${
                   isReverseSurging
                     ? gameState.direction === -1
                       ? 'animate-orbit-fast-ccw'
@@ -1043,8 +1043,8 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
               {/* DRAW PILE (High-Def Uno Card Back) */}
               <div id="uno-draw-pile" className="relative flex flex-col items-center">
                 {/* Visual card deck stack effect underneath matching exact card size */}
-                <div className="absolute inset-0 translate-x-1 translate-y-1 w-12 h-17 sm:w-13 sm:h-19 rounded-xl bg-black/60 border border-slate-700/60 pointer-events-none" />
-                <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 w-12 h-17 sm:w-13 sm:h-19 rounded-xl bg-red-950/80 border border-amber-500/40 pointer-events-none" />
+                <div className="absolute inset-0 translate-x-1 translate-y-1 w-full h-full rounded-2xl bg-black/60 border border-slate-700/60 pointer-events-none" />
+                <div className="absolute inset-0 translate-x-0.5 translate-y-0.5 w-full h-full rounded-2xl bg-red-950/80 border border-amber-500/40 pointer-events-none" />
 
                 <div
                   role="button"
