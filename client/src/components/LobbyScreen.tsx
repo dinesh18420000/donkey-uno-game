@@ -486,6 +486,37 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
             </button>
           </div>
 
+          {/* Quick Preset Buttons for Localhost / Mobile Wi-Fi */}
+          <div className="grid grid-cols-3 gap-1.5 mt-2">
+            <button
+              onClick={() => {
+                socketService.setServerUrl('http://localhost:3001');
+                setServerUrlInput('http://localhost:3001');
+              }}
+              className="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-[10px] border border-cyan-500/30 active:scale-95 transition text-center cursor-pointer"
+            >
+              💻 Localhost:3001
+            </button>
+            <button
+              onClick={() => {
+                socketService.setServerUrl('http://192.168.1.9:3001');
+                setServerUrlInput('http://192.168.1.9:3001');
+              }}
+              className="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-[10px] border border-emerald-500/30 active:scale-95 transition text-center cursor-pointer"
+            >
+              📱 Mobile Wi-Fi
+            </button>
+            <button
+              onClick={() => {
+                socketService.setServerUrl('http://10.0.2.2:3001');
+                setServerUrlInput('http://10.0.2.2:3001');
+              }}
+              className="py-1.5 px-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-purple-300 font-bold text-[10px] border border-purple-500/30 active:scale-95 transition text-center cursor-pointer"
+            >
+              🤖 Emulator
+            </button>
+          </div>
+
           {/* 1-Tap Reset to Cloud Server */}
           <button
             onClick={() => {

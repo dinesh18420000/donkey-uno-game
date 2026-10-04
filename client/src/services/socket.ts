@@ -73,9 +73,10 @@ class SocketService {
 
     let savedServer = localStorage.getItem('donkey_uno_server_url');
 
-    // On native mobile app, purge any stale/erroneous localhost or 127.0.0.1 URLs
-    if (isNativePlatform && savedServer && (savedServer.includes('localhost') || savedServer.includes('127.0.0.1'))) {
-      console.warn('📱 Native mobile app detected with localhost server URL. Purging stale value and resetting to:', CLOUD_PROD_URL);
+    // On native mobile app, purge any stale/erroneous localhost unless explicitly configured by the user
+    const isExplicit = localStorage.getItem('donkey_uno_server_url_explicit') === 'true';
+    if (isNativePlatform && !isExplicit && savedServer && (savedServer.includes('localhost') || savedServer.includes('127.0.0.1'))) {
+      console.warn('📱 Native mobile app detected with default localhost server URL. Resetting to cloud:', CLOUD_PROD_URL);
       localStorage.removeItem('donkey_uno_server_url');
       savedServer = null;
     }
@@ -101,6 +102,7 @@ class SocketService {
     const cleaned = url.trim().replace(/\/+$/, '');
     this.serverUrl = cleaned;
     localStorage.setItem('donkey_uno_server_url', cleaned);
+    localStorage.setItem('donkey_uno_server_url_explicit', 'true');
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
@@ -109,6 +111,7 @@ class SocketService {
   }
 
   public resetToCloudServer() {
+    localStorage.removeItem('donkey_uno_server_url_explicit');
     this.setServerUrl(CLOUD_PROD_URL);
   }
 
