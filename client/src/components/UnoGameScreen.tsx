@@ -28,7 +28,9 @@ import {
   Megaphone,
   Siren,
   Play,
-  Crown
+  Crown,
+  RotateCcw,
+  Flag
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { SkipProhibitionIcon } from './SkipProhibitionIcon';
@@ -107,7 +109,6 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
   const [swapHighlightPlayerIds, setSwapHighlightPlayerIds] = useState<string[]>([]);
   const [isCardSlamming, setIsCardSlamming] = useState<boolean>(false);
   const [isDrawingAnimation, setIsDrawingAnimation] = useState<boolean>(false);
-  const [skipBannerText, setSkipBannerText] = useState<string | null>(null);
   const [localSkippedPlayerId, setLocalSkippedPlayerId] = useState<string | null>(null);
 
   // Strict Turn Sequencing: Visual turn waits for card flights and effects to finish
@@ -160,25 +161,41 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     gameState.direction || 1
   );
 
-  // Play skip sound & trigger dramatic highlighted banner when a player is skipped
-  // Use a ref so server clearing lastSkippedPlayerId doesn't cancel the client visibility timer
+  // Play skip sound & trigger dramatic highlighted prohibition icon when a player is skipped
+  // Use a persistent ref timer so server state broadcasts do not prematurely abort the 3s display
+  const skipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSeenSkippedRef = useRef<string | null>(null);
+
   useEffect(() => {
     const skippedId = gameState.lastSkippedPlayerId;
-    // Only trigger when a new non-null skipped ID arrives (ignore server clearing to undefined)
-    if (!skippedId || skippedId === lastSeenSkippedRef.current) return;
-    lastSeenSkippedRef.current = skippedId;
 
-    sounds.playSkipSound();
-    setLocalSkippedPlayerId(skippedId);
+    if (skippedId && skippedId !== lastSeenSkippedRef.current) {
+      lastSeenSkippedRef.current = skippedId;
+      sounds.playSkipSound();
+      setLocalSkippedPlayerId(skippedId);
 
-    const timer = setTimeout(() => {
+      if (skipTimerRef.current) {
+        clearTimeout(skipTimerRef.current);
+      }
+      skipTimerRef.current = setTimeout(() => {
+        setLocalSkippedPlayerId(null);
+        lastSeenSkippedRef.current = null;
+        skipTimerRef.current = null;
+      }, 3000);
+    } else if (!skippedId && !skipTimerRef.current && localSkippedPlayerId) {
       setLocalSkippedPlayerId(null);
-      lastSeenSkippedRef.current = null; // allow same player to be skipped again next round
-    }, 2000);
+      lastSeenSkippedRef.current = null;
+    }
+  }, [gameState.lastSkippedPlayerId, localSkippedPlayerId]);
 
-    return () => clearTimeout(timer);
-  }, [gameState.lastSkippedPlayerId]);
+  // Clean up skip timer on unmount
+  useEffect(() => {
+    return () => {
+      if (skipTimerRef.current) {
+        clearTimeout(skipTimerRef.current);
+      }
+    };
+  }, []);
 
   // Trigger elimination popup and sound when player exceeds 25 cards
   useEffect(() => {
@@ -906,15 +923,6 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
             } bg-gradient-to-b from-[#25041a]/90 via-[#360525]/80 to-[#14010e]/95`}
           />
 
-          {/* REVERSE SURGE DRAMATIC FLASH OVERLAY */}
-          {isReverseSurging && (
-            <div className="absolute top-2 z-40 px-5 py-2 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-amber-500 border-2 border-white shadow-[0_0_35px_rgba(245,158,11,0.95)] flex items-center gap-2 animate-bounce text-slate-950 font-black text-xs sm:text-sm tracking-wide">
-              <span className="text-base sm:text-lg">⇄</span>
-              <span>REVERSED! NOW PLAYING {gameState.direction === -1 ? 'COUNTER-CLOCKWISE (↺)' : 'CLOCKWISE (↻)'}!</span>
-              <span className="text-base sm:text-lg">⇄</span>
-            </div>
-          )}
-
           {/* 0 PASS ALL HANDS DRAMATIC BANNER */}
           {is0PassAnimating && (
             <div className="absolute top-2 z-40 px-5 py-2 rounded-full bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-600 border-2 border-white shadow-[0_0_35px_rgba(6,182,212,0.95)] flex items-center gap-2 animate-bounce text-white font-black text-xs sm:text-sm tracking-wide">
@@ -1113,22 +1121,6 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                 )}
               </div>
             </div>
-
-            {/* ACTION / EVENT FLOATING NOTICE (Clean & Short-lived) */}
-            {actionNotice && actionNotice.type !== 'play' && !isSwapAnimating && (
-              <div
-                className={`mt-2 px-3 py-1 rounded-full border text-xs font-black shadow-2xl flex items-center gap-1.5 animate-bounce z-20 ${
-                  actionNotice.type === 'draw'
-                    ? 'bg-gradient-to-r from-blue-700 via-blue-600 to-cyan-500 text-white border-cyan-300 shadow-cyan-500/50'
-                    : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 border-white shadow-yellow-400/60'
-                }`}
-              >
-                <span>{actionNotice.type === 'draw' ? '📥' : '🎯'}</span>
-                <span className="truncate max-w-[200px]">
-                  <strong>{actionNotice.playerName}</strong> {actionNotice.text}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* DYNAMIC OPPONENT SEATS (Dynamically rearranged per remaining player capacity!) */}
@@ -1153,8 +1145,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                     highlightLabel="SWAPPING"
                     isSkipped={
                       localSkippedPlayerId === player.id ||
-                      gameState.lastSkippedPlayerId === player.id ||
-                      (gameState.lastSkippedPlayerId === 'everyone' && player.id !== visualTurnPlayerId)
+                      (localSkippedPlayerId === 'everyone' && player.id !== visualTurnPlayerId)
                     }
                     isSelf={false}
                     hideName={hideOpponentNames}
@@ -1174,7 +1165,11 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
       </div>
 
       {/* BOTTOM CONTROLS & LOCAL HAND AREA (Viewer Always Centered Perspective) */}
-      <div className="relative z-20 w-full flex flex-col items-center bg-gradient-to-t from-black via-black/95 to-transparent pt-1 border-t border-purple-900/40">
+      <div className={`relative z-20 w-full flex flex-col items-center pt-1 transition-all duration-300 ${
+        isMyTurn
+          ? 'bg-gradient-to-t from-[#022c15] via-[#043d1f]/95 to-emerald-950/20 border-t-2 border-emerald-400/80 shadow-[0_-10px_35px_rgba(16,185,129,0.35)]'
+          : 'bg-gradient-to-t from-black via-black/95 to-transparent border-t border-purple-900/40'
+      }`}>
         {/* UNIFIED LOCAL PLAYER HUD & MERCY DANGER METER */}
         {!me?.isMercyEliminated && (
           <div className="w-full max-w-xl px-3 py-1 flex items-center justify-between text-[11px] font-black text-slate-300 gap-2">
@@ -1200,10 +1195,9 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                 {me?.name || 'You'}
               </span>
 
-              {/* Local Player Skip Prohibition Icon Overlay (2-second visual matching user specification) */}
+              {/* Local Player Skip Prohibition Icon Overlay (3-second visual matching user specification) */}
               {(localSkippedPlayerId === myId ||
-                gameState.lastSkippedPlayerId === myId ||
-                (gameState.lastSkippedPlayerId === 'everyone' && myId !== visualTurnPlayerId)) && (
+                (localSkippedPlayerId === 'everyone' && myId !== visualTurnPlayerId)) && (
                 <div className="absolute inset-0 -top-1.5 z-50 flex items-center justify-center pointer-events-none animate-in zoom-in-75 duration-200">
                   <SkipProhibitionIcon size={38} />
                 </div>
@@ -1493,7 +1487,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
             <p className="text-xs text-slate-300 mb-3">Choose a player to swap your entire hand with:</p>
             <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
               {opponents
-                .filter(p => !p.rank && !p.isMercyEliminated)
+                .filter(p => !p.rank && !p.isMercyEliminated && !p.isSpectator && (p.cardsCount ?? 0) > 0)
                 .map(opp => (
                   <button
                     key={opp.id}
@@ -1542,8 +1536,13 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
               </div>
 
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-900/40 border border-purple-400/20 text-xs">
-                <span className="font-bold">Turn Timer</span>
-                <span className="font-mono font-bold text-amber-300">30 Seconds</span>
+                <span className="font-bold">Player Turn Timer</span>
+                <span className="font-mono font-bold text-amber-300">20 Seconds</span>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-900/40 border border-purple-400/20 text-xs">
+                <span className="font-bold">Match Max Time</span>
+                <span className="font-mono font-bold text-emerald-300">10 Minutes</span>
               </div>
 
               {/* Host Controls: Transfer Host Rights */}
@@ -1575,6 +1574,40 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                       <span className="text-[10px] text-slate-400 italic">No other human players in room.</span>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Host Controls: Return all to lobby or End game */}
+              {gameState.hostId === myId && (
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-400/40 text-xs flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5 font-black text-amber-300">
+                    <Crown className="w-4 h-4 fill-current text-amber-400" />
+                    <span>👑 Host Match Controls</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Return all players back to the room lobby? Current match will stop.')) {
+                        socketService.returnToLobby(gameState.roomCode);
+                        setShowSettingsModal(false);
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>RETURN ALL PLAYERS TO LOBBY</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Complete and end the match now? Scores and rankings will be calculated.')) {
+                        socketService.forceEndGame(gameState.roomCode);
+                        setShowSettingsModal(false);
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                    <span>COMPLETE & END MATCH</span>
+                  </button>
                 </div>
               )}
 

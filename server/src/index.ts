@@ -15,7 +15,10 @@ const io = new Server(httpServer, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
-  }
+  },
+  pingTimeout: 45000,
+  pingInterval: 10000,
+  connectTimeout: 45000
 });
 
 const roomManager = new RoomManager(io);
@@ -162,6 +165,11 @@ io.on('connection', socket => {
   // Return room to lobby
   socket.on('returnToLobby', ({ roomCode, hostPlayerId }) => {
     roomManager.returnToLobby(roomCode, hostPlayerId);
+  });
+
+  // Host forces game completion / end game
+  socket.on('forceEndGame', ({ roomCode, hostPlayerId }) => {
+    roomManager.forceEndGame(roomCode, hostPlayerId);
   });
 
   // Transfer host privileges

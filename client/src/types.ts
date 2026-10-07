@@ -128,6 +128,7 @@ export interface ClientGameState {
   drawStackCount: number;
   deckRemainingCount: number;
   lastSkippedPlayerId?: string;
+  winReason?: string;
 }
 
 // Helper to determine who plays before and after a specific player

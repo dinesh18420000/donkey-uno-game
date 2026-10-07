@@ -27,9 +27,9 @@ import {
   getNextUnoTurnIndex
 } from './unoEngine.js';
 
-const HUMAN_TURN_TIME_MS = 30000; // 30 seconds max play time for Donkey Master
+const HUMAN_TURN_TIME_MS = 20000; // 20 seconds max play time for Donkey Master
 const UNO_HUMAN_TURN_TIME_MS = 20000; // 20 seconds max to play a card in Uno No Mercy
-const UNO_GAME_MAX_TIME_MS = 10 * 60 * 1000; // 10 minutes max for entire Uno match
+const GAME_MAX_TIME_MS = 10 * 60 * 1000; // 10 minutes max for entire match
 const BOT_TURN_TIME_MS = 750;      // 0.75s for Donkey Master
 const UNO_BOT_TURN_TIME_MS = 1800; // 1.8s for Uno No Mercy so card movement and effects are smooth and clearly understandable
 
@@ -232,6 +232,7 @@ export class RoomManager {
     room.roundNumber = 1;
     room.currentTrick = [];
     room.drawStackCount = 0;
+    room.winReason = undefined;
 
     // Reset player ranks & statuses
     room.players.forEach(p => {
@@ -269,7 +270,7 @@ export class RoomManager {
 
   // Return everyone in room back to the Lobby
   public returnToLobby(roomCode: string, hostPlayerId: string): boolean {
-    const room = this.rooms.get(roomCode);
+    const room = this.rooms.get(roomCode.toUpperCase()) || this.rooms.get(roomCode);
     if (!room || room.hostId !== hostPlayerId) return false;
 
     // Cancel active turn timers and game timers
@@ -291,6 +292,7 @@ export class RoomManager {
     room.lastSkippedPlayerId = undefined;
     room.leadSuit = undefined;
     room.turnExpiresAt = 0;
+    room.winReason = undefined;
     room.lastAction = '🏠 Host returned everyone back to the room lobby!';
 
     // Reset player ranks, hands, and game flags
@@ -303,6 +305,57 @@ export class RoomManager {
     });
 
     console.log(`[Room ${room.code}] Returned to lobby by host ${hostPlayerId}`);
+    this.broadcastState(room);
+    return true;
+  }
+
+  // Host forces game completion / end match
+  public forceEndGame(roomCode: string, hostPlayerId: string): boolean {
+    const room = this.rooms.get(roomCode.toUpperCase()) || this.rooms.get(roomCode);
+    if (!room || room.hostId !== hostPlayerId || room.status !== 'playing') return false;
+
+    // Clear active timers
+    if (this.turnTimers.has(room.code)) {
+      clearTimeout(this.turnTimers.get(room.code)!);
+      this.turnTimers.delete(room.code);
+    }
+    if (this.gameTimers.has(room.code)) {
+      clearTimeout(this.gameTimers.get(room.code)!);
+      this.gameTimers.delete(room.code);
+    }
+
+    room.status = 'game_over';
+
+    if (room.gameType === 'uno_no_mercy') {
+      const nonEliminated = room.players.filter(p => !p.isMercyEliminated && !p.isSpectator);
+      nonEliminated.sort((a, b) => a.cardsCount - b.cardsCount);
+      if (nonEliminated.length > 0) {
+        nonEliminated[0].rank = 1;
+      }
+      this.finalizeUnoRanks(room);
+      const winner = nonEliminated[0];
+      const winnerMsg = winner ? `🏆 ${winner.name} finished #1 with fewest cards (${winner.cardsCount} cards)!` : '';
+      room.winReason = `🏁 Host completed the match! ${winnerMsg}`;
+      room.lastAction = `🏁 Host completed the match! ${winnerMsg}`;
+    } else {
+      // Donkey: Player with highest cards is Donkey
+      const remaining = room.players.filter(p => !p.rank && !p.isSpectator);
+      remaining.sort((a, b) => b.cardsCount - a.cardsCount);
+      if (remaining.length > 0) {
+        remaining[0].isDonkey = true;
+      }
+      // Rank other remaining players by fewest cards
+      let nextRank = (Math.max(0, ...room.players.map(p => p.rank || 0))) + 1;
+      const unranked = room.players.filter(p => !p.rank && !p.isDonkey && !p.isSpectator);
+      unranked.sort((a, b) => a.cardsCount - b.cardsCount);
+      unranked.forEach(p => {
+        p.rank = nextRank++;
+      });
+      room.winReason = `🏁 Host completed the game! ${remaining.length > 0 ? `${remaining[0].name} had the most cards (${remaining[0].cardsCount} cards) and is the Donkey.` : ''}`;
+      room.lastAction = `🏁 Host completed the game! ${remaining.length > 0 ? `${remaining[0].name} had the most cards.` : ''}`;
+    }
+
+    console.log(`[Room ${room.code}] Host ${hostPlayerId} completed the match.`);
     this.broadcastState(room);
     return true;
   }
@@ -529,7 +582,7 @@ export class RoomManager {
     }
 
     if (room.status === 'playing') {
-      room.lastAction = `🔴 ${player.name} lost connection! Waiting 15s to reconnect...`;
+      room.lastAction = `🔴 ${player.name} lost connection! Waiting 45s to reconnect...`;
       this.broadcastState(room);
 
       const timerKey = `${room.code}:${player.id}`;
@@ -537,7 +590,7 @@ export class RoomManager {
         clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
       }
 
-      // 15-second grace period: Wait 15s before turning the disconnected player into a bot
+      // 45-second grace period: Wait 45s before turning the disconnected player into a bot
       const graceTimer = setTimeout(() => {
         this.disconnectGraceTimers.delete(timerKey);
         if (room.status !== 'playing') return;
@@ -545,8 +598,8 @@ export class RoomManager {
         const p = room.players.find(pl => pl.id === player.id);
         if (p && p.isDisconnected && !p.isBot) {
           p.isBot = true;
-          room.lastAction = `🤖 15s expired! AI Bot took over for ${p.name}.`;
-          console.log(`[Room ${room.code}] 15s grace expired for ${p.name}. Bot taking over.`);
+          room.lastAction = `🤖 45s expired! AI Bot took over for ${p.name}.`;
+          console.log(`[Room ${room.code}] 45s grace expired for ${p.name}. Bot taking over.`);
           this.broadcastState(room);
 
           const currentActive = room.players[room.currentTurnIndex];
@@ -554,14 +607,14 @@ export class RoomManager {
             this.startTurnTimer(room, room.gameType === 'uno_no_mercy' ? UNO_BOT_TURN_TIME_MS : BOT_TURN_TIME_MS);
           }
         }
-      }, 15000);
+      }, 45000);
 
       this.disconnectGraceTimers.set(timerKey, graceTimer);
 
-      // If it is currently this player's turn, give 15s grace for them to return
+      // If it is currently this player's turn, give 45s grace for them to return
       const currentActive = room.players[room.currentTurnIndex];
       if (currentActive && currentActive.id === player.id) {
-        this.startTurnTimer(room, 15000);
+        this.startTurnTimer(room, 45000);
       }
     } else {
       room.lastAction = `⚠️ ${player.name} disconnected.`;
@@ -676,17 +729,24 @@ export class RoomManager {
     playerId: string,
     socketId: string
   ): { success: boolean; room?: GameRoom } {
-    const room = this.rooms.get(roomCode);
+    const room = this.rooms.get(roomCode.toUpperCase()) || this.rooms.get(roomCode);
     if (!room) return { success: false };
 
     const player = room.players.find(p => p.id === playerId);
     if (!player) return { success: false };
 
+    // Clear any pending disconnect grace timer!
+    const timerKey = `${room.code}:${player.id}`;
+    if (this.disconnectGraceTimers.has(timerKey)) {
+      clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
+      this.disconnectGraceTimers.delete(timerKey);
+    }
+
     player.socketId = socketId;
     player.isDisconnected = false;
     player.isBot = false;
     player.name = player.name.replace(' (Bot)', '');
-    this.socketToPlayerMap.set(socketId, { roomCode, playerId });
+    this.socketToPlayerMap.set(socketId, { roomCode: room.code, playerId });
 
     room.lastAction = `🎉 ${player.name} reconnected! Resumed control of cards from Bot.`;
     this.broadcastState(room);
@@ -705,6 +765,7 @@ export class RoomManager {
     if (zeroCardWinner) {
       zeroCardWinner.rank = 1;
       room.status = 'game_over';
+      room.winReason = `🏆 ${zeroCardWinner.name} played their last card (0 cards left)!`;
       room.lastAction = `🏆 ${zeroCardWinner.name} PLAYED THEIR LAST CARD AND WON!${reasonSuffix ? ' ' + reasonSuffix : ''}`;
       if (this.turnTimers.has(room.code)) {
         clearTimeout(this.turnTimers.get(room.code)!);
@@ -727,6 +788,7 @@ export class RoomManager {
       room.status = 'game_over';
       if (active.length === 1) {
         active[0].rank = 1;
+        room.winReason = `🏆 ${active[0].name} is the last survivor (all other players eliminated by 25+ card Mercy Rule)!`;
         room.lastAction = `🏆 ${active[0].name} SURVIVED AND WINS!${reasonSuffix ? ' ' + reasonSuffix : ''}`;
       }
       if (this.turnTimers.has(room.code)) {
@@ -799,8 +861,7 @@ export class RoomManager {
 
     const wasHuman = !currentPlayer.isBot && !currentPlayer.isDisconnected;
     if (wasHuman) {
-      const timeLimitSec = room.gameType === 'uno_no_mercy' ? 20 : 30;
-      room.lastAction = `⏰ ${timeLimitSec}s timer expired! Computer auto-selected a card for ${currentPlayer.name}.`;
+      room.lastAction = `⏰ 20s timer expired! Computer auto-selected a card for ${currentPlayer.name}.`;
     }
 
     this.executeBotTurn(roomCode, currentPlayer.id);
@@ -826,28 +887,28 @@ export class RoomManager {
     }
   }
 
-  // --- 10-MINUTE TOTAL UNO MATCH TIMER ---
+  // --- 10-MINUTE TOTAL MATCH TIMER ---
   private startGameTimer(room: GameRoom): void {
     if (this.gameTimers.has(room.code)) {
       clearTimeout(this.gameTimers.get(room.code)!);
       this.gameTimers.delete(room.code);
     }
 
-    if (room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return;
+    if (room.status !== 'playing') return;
 
-    room.gameDuration = Math.round(UNO_GAME_MAX_TIME_MS / 1000);
-    room.gameExpiresAt = Date.now() + UNO_GAME_MAX_TIME_MS;
+    room.gameDuration = Math.round(GAME_MAX_TIME_MS / 1000);
+    room.gameExpiresAt = Date.now() + GAME_MAX_TIME_MS;
 
     const timer = setTimeout(() => {
       this.handleGameTimeout(room.code);
-    }, UNO_GAME_MAX_TIME_MS);
+    }, GAME_MAX_TIME_MS);
 
     this.gameTimers.set(room.code, timer);
   }
 
   private handleGameTimeout(roomCode: string): void {
     const room = this.rooms.get(roomCode);
-    if (!room || room.status !== 'playing' || room.gameType !== 'uno_no_mercy') return;
+    if (!room || room.status !== 'playing') return;
 
     // Clear active turn timers and game timer
     if (this.turnTimers.has(room.code)) {
@@ -860,18 +921,37 @@ export class RoomManager {
 
     room.status = 'game_over';
 
-    // Rank all remaining active players by fewest cards
-    const nonEliminated = room.players.filter(p => !p.isMercyEliminated && !p.isSpectator);
-    nonEliminated.sort((a, b) => a.cardsCount - b.cardsCount);
+    if (room.gameType === 'uno_no_mercy') {
+      // Rank all remaining active players by fewest cards
+      const nonEliminated = room.players.filter(p => !p.isMercyEliminated && !p.isSpectator);
+      nonEliminated.sort((a, b) => a.cardsCount - b.cardsCount);
 
-    if (nonEliminated.length > 0) {
-      nonEliminated[0].rank = 1;
+      if (nonEliminated.length > 0) {
+        nonEliminated[0].rank = 1;
+      }
+      this.finalizeUnoRanks(room);
+
+      const winner = nonEliminated[0];
+      const winnerText = winner ? `${winner.name} wins with fewest cards (${winner.cardsCount} cards)!` : '';
+      room.winReason = `⏰ 10-Minute match timer expired! ${winnerText}`;
+      room.lastAction = `⏰ 10-Minute Game Timer Expired! Match finished. ${winnerText}`;
+    } else {
+      // Donkey: Player with highest cards is Donkey
+      const remaining = room.players.filter(p => !p.rank && !p.isSpectator);
+      remaining.sort((a, b) => b.cardsCount - a.cardsCount);
+      if (remaining.length > 0) {
+        remaining[0].isDonkey = true;
+      }
+      let nextRank = (Math.max(0, ...room.players.map(p => p.rank || 0))) + 1;
+      const unranked = room.players.filter(p => !p.rank && !p.isDonkey && !p.isSpectator);
+      unranked.sort((a, b) => a.cardsCount - b.cardsCount);
+      unranked.forEach(p => {
+        p.rank = nextRank++;
+      });
+      room.winReason = `⏰ 10-Minute match timer expired! ${remaining.length > 0 ? `${remaining[0].name} had the most cards (${remaining[0].cardsCount} cards) and is the Donkey.` : ''}`;
+      room.lastAction = `⏰ 10-Minute Game Timer Expired! Match finished.`;
     }
-    this.finalizeUnoRanks(room);
 
-    const winner = nonEliminated[0];
-    const winnerText = winner ? `${winner.name} wins with fewest cards (${winner.cardsCount} cards)!` : '';
-    room.lastAction = `⏰ 10-Minute Game Timer Expired! Match finished. ${winnerText}`;
     this.broadcastState(room);
   }
 
@@ -998,6 +1078,7 @@ export class RoomManager {
           room.status = 'game_over';
           if (remaining.length === 1) {
             remaining[0].isDonkey = true;
+            room.winReason = `🫏 Game Over! ${remaining[0].name} holds the last remaining cards (${remaining[0].cardsCount} cards) and is the Donkey!`;
             room.lastAction = `🫏 GAME OVER! ${remaining[0].name} IS THE DONKEY!`;
           }
         }
@@ -1078,8 +1159,15 @@ export class RoomManager {
         }
       }
     } else if (card.type === 'swap_7') {
-      const target = room.players.find(p => p.id === swapTargetPlayerId) ||
-        room.players.find(p => p.id !== currentPlayer.id && !p.rank && !p.isMercyEliminated && !p.isSpectator);
+      const isValidSwapTarget = (p: any) =>
+        p.id !== currentPlayer.id &&
+        !p.rank &&
+        !p.isMercyEliminated &&
+        !p.isSpectator &&
+        p.hand.length > 0;
+
+      const target = (swapTargetPlayerId ? room.players.find(p => p.id === swapTargetPlayerId && isValidSwapTarget(p)) : undefined) ||
+        room.players.find(isValidSwapTarget);
       if (target) {
         execute7SwapHands(currentPlayer, target);
         actionMsg += ` 🔁 SWAPPED HANDS with ${target.name}!`;
@@ -1141,7 +1229,7 @@ export class RoomManager {
         : card.type === 'swap_7'
         ? 1800
         : card.type === 'skip' || card.type === 'skip_everyone'
-        ? 2000
+        ? 3000
         : card.type === 'reverse' || card.type === 'reverse_draw2' || card.type === 'wild_reverse_draw4'
         ? 1400
         : 850;
@@ -1348,7 +1436,8 @@ export class RoomManager {
         activeUnoColor: room.activeUnoColor,
         drawStackCount: room.drawStackCount,
         deckRemainingCount: room.deckRemainingCount,
-        lastSkippedPlayerId: room.lastSkippedPlayerId
+        lastSkippedPlayerId: room.lastSkippedPlayerId,
+        winReason: room.winReason
       };
 
       this.io.to(player.socketId).emit('gameState', clientState);

@@ -101,6 +101,7 @@ export interface GameRoom {
   discardPile: UnoCard[];
   unoDeck: UnoCard[];
   lastSkippedPlayerId?: string;
+  winReason?: string;
 }
 
 export interface ClientGameState {
@@ -145,4 +146,5 @@ export interface ClientGameState {
   drawStackCount: number;
   deckRemainingCount: number;
   lastSkippedPlayerId?: string;
+  winReason?: string;
 }

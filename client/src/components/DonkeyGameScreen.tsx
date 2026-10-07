@@ -19,7 +19,10 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Crown
+  Crown,
+  RotateCcw,
+  Flag,
+  Timer
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CardSuitIcon } from './CardSuitIcon';
@@ -561,6 +564,28 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     return () => clearTimeout(timer);
   }, [gameState.currentTurnPlayerId, gameState.turnExpiresAt, isMyTurn]);
 
+  // 10-Minute Total Match Countdown Timer
+  const [gameSecondsRemaining, setGameSecondsRemaining] = useState<number | null>(null);
+  useEffect(() => {
+    if (!gameState.gameExpiresAt) {
+      setGameSecondsRemaining(null);
+      return;
+    }
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.ceil((gameState.gameExpiresAt! - Date.now()) / 1000));
+      setGameSecondsRemaining(remaining);
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 500);
+    return () => clearInterval(interval);
+  }, [gameState.gameExpiresAt]);
+
+  const formatGameTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Remote Emote listener
   useEffect(() => {
     const socket = socketService.connect();
@@ -689,8 +714,23 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           </div>
         </div>
 
-        {/* Center: Trick Status & Lead Suit */}
+        {/* Center: Trick Status & Lead Suit & Match Timer */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {gameSecondsRemaining !== null && (
+            <div
+              title="10-Minute Game Timer (Match ends when time reaches 00:00)"
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border shadow-lg transition-colors flex-shrink-0 ${
+                gameSecondsRemaining <= 60
+                  ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse shadow-red-500/50'
+                  : gameSecondsRemaining <= 180
+                  ? 'bg-amber-950/90 border-amber-400 text-amber-300 shadow-amber-500/30'
+                  : 'bg-slate-900/90 border-cyan-500/50 text-cyan-200'
+              }`}
+            >
+              <Timer className={`w-3 h-3 ${gameSecondsRemaining <= 60 ? 'text-red-400 animate-spin' : 'text-cyan-300'}`} />
+              <span className="font-mono font-black">{formatGameTime(gameSecondsRemaining)}</span>
+            </div>
+          )}
           {gameState.leadSuit && (
             <div className="flex items-center gap-1 bg-amber-400/20 border border-amber-400/60 px-2 py-0.5 rounded-full text-[10px] font-black text-amber-200 flex-shrink-0">
               <span>Lead:</span>
@@ -1052,7 +1092,9 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       )}
 
       {/* 6. BOTTOM USER HAND (4-Suit Cascade: Spades, Hearts, Clubs, Diamonds - Matches Screenshot) */}
-      <div id="my-hand-area" className="relative z-10 w-full">
+      <div id="my-hand-area" className={`relative z-10 w-full transition-all duration-300 ${
+        isMyTurn ? 'bg-gradient-to-t from-emerald-950/60 to-transparent' : ''
+      }`}>
         {me && !me.isSpectator && me.cardsCount > 0 && (
           <DonkeyHand
             hand={(gameState.myHand as DonkeyCard[]) || []}
@@ -1075,7 +1117,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       </div>
 
       {/* 7. BOTTOM CONTROL BAR: Back, Emoji, Chat, Profile (with green/red turn ring), DEAL Button */}
-      <div className="relative z-20 w-full px-3 py-2 safe-bottom bg-gradient-to-t from-[#020b1c] via-[#051739] to-[#0a2760] flex items-center justify-between border-t-2 border-cyan-500/50 shadow-[0_-8px_25px_rgba(0,0,0,0.7)]">
+      <div className={`relative z-20 w-full px-3 py-2 safe-bottom flex items-center justify-between transition-all duration-300 ${
+        isMyTurn
+          ? 'bg-gradient-to-t from-[#022c15] via-[#043d1f] to-[#065f2c] border-t-2 border-emerald-400 shadow-[0_-8px_30px_rgba(16,185,129,0.5)]'
+          : 'bg-gradient-to-t from-[#020b1c] via-[#051739] to-[#0a2760] border-t-2 border-cyan-500/50 shadow-[0_-8px_25px_rgba(0,0,0,0.7)]'
+      }`}>
         
         {/* Left Side Buttons: Exit '<<' + Yellow Emoji + Yellow Chat */}
         <div className="relative flex items-center gap-1.5 sm:gap-2">
@@ -1339,8 +1385,13 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               </div>
 
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-blue-900/40 border border-cyan-400/20 text-xs">
-                <span className="font-bold">Turn Timer</span>
-                <span className="font-mono font-bold text-amber-300">30 Seconds</span>
+                <span className="font-bold">Player Turn Timer</span>
+                <span className="font-mono font-bold text-amber-300">20 Seconds</span>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-blue-900/40 border border-cyan-400/20 text-xs">
+                <span className="font-bold">Match Max Time</span>
+                <span className="font-mono font-bold text-emerald-300">10 Minutes</span>
               </div>
 
               {/* Host Controls: Transfer Host Rights */}
@@ -1372,6 +1423,40 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                       <span className="text-[10px] text-slate-400 italic">No other human players in room.</span>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Host Controls: Return all to lobby or End game */}
+              {gameState.hostId === myId && (
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-400/40 text-xs flex flex-col gap-2">
+                  <div className="flex items-center gap-1.5 font-black text-amber-300">
+                    <Crown className="w-4 h-4 fill-current text-amber-400" />
+                    <span>👑 Host Match Controls</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Return all players back to the room lobby? Current match will stop.')) {
+                        socketService.returnToLobby(gameState.roomCode);
+                        setShowSettingsModal(false);
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>RETURN ALL PLAYERS TO LOBBY</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Complete and end the match now? Donkey and rankings will be declared.')) {
+                        socketService.forceEndGame(gameState.roomCode);
+                        setShowSettingsModal(false);
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                    <span>COMPLETE & END MATCH</span>
+                  </button>
                 </div>
               )}
 

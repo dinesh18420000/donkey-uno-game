@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { UnoCard, UnoColor } from '../types';
 import { canPlayUnoCard } from '../types';
 import { UnoCardView } from './UnoCardView';
 import { sounds } from '../utils/audio';
-import { Layers, ArrowUpDown, ChevronLeft, ChevronRight, CheckCircle2, Play } from 'lucide-react';
+import { Layers, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface UnoHandProps {
   hand: UnoCard[];
@@ -34,7 +34,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
   const [isGroupedMode, setIsGroupedMode] = useState<boolean>(false);
   const [sortByColor, setSortByColor] = useState<boolean>(true);
 
-  // Measure container width
+  // Measure container width responsively with ResizeObserver
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
@@ -42,58 +42,60 @@ export const UnoHand: React.FC<UnoHandProps> = ({
       }
     };
     updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
     window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
   }, []);
 
-  // Sorted hand
-  const sortedHand = useMemo(() => {
-    const list = [...hand];
-    const colorOrder: Record<UnoColor, number> = { red: 1, blue: 2, green: 3, yellow: 4, wild: 5 };
+  // Check if a card is currently playable respecting +4/+2 stack rules
+  const checkCardPlayable = useCallback(
+    (card: UnoCard): boolean => {
+      if (!activeCard || !activeColor) return false;
+      return canPlayUnoCard(card, activeCard, activeColor, drawStackCount);
+    },
+    [activeCard, activeColor, drawStackCount]
+  );
 
-    if (sortByColor) {
-      list.sort((a, b) => {
-        if (colorOrder[a.color] !== colorOrder[b.color]) {
+  // Helper to sort an array of cards based on player's chosen sort preference (Color vs Value)
+  const sortCardList = useCallback(
+    (cards: UnoCard[]) => {
+      const list = [...cards];
+      const colorOrder: Record<UnoColor, number> = { red: 1, blue: 2, green: 3, yellow: 4, wild: 5 };
+
+      if (sortByColor) {
+        list.sort((a, b) => {
+          if (colorOrder[a.color] !== colorOrder[b.color]) {
+            return colorOrder[a.color] - colorOrder[b.color];
+          }
+          return (a.value ?? 99) - (b.value ?? 99);
+        });
+      } else {
+        list.sort((a, b) => {
+          const valA = a.type === 'number' ? (a.value ?? 0) : 100;
+          const valB = b.type === 'number' ? (b.value ?? 0) : 100;
+          if (valA !== valB) return valA - valB;
           return colorOrder[a.color] - colorOrder[b.color];
-        }
-        return (a.value ?? 99) - (b.value ?? 99);
-      });
-    } else {
-      list.sort((a, b) => {
-        const valA = a.type === 'number' ? (a.value ?? 0) : 100;
-        const valB = b.type === 'number' ? (b.value ?? 0) : 100;
-        if (valA !== valB) return valA - valB;
-        return colorOrder[a.color] - colorOrder[b.color];
-      });
-    }
-    return list;
-  }, [hand, sortByColor]);
+        });
+      }
+      return list;
+    },
+    [sortByColor]
+  );
 
-  // Card Dimensions in px
-  const cardWidth = 64; // w-16
-  const minStep = 18; // min visible strip
-  const naturalGap = 6;
-  const count = sortedHand.length;
+  // Natural sorting based on player's chosen sort preference (Color vs Value)
+  const sortedHand = useMemo(() => {
+    return sortCardList(hand);
+  }, [hand, sortCardList]);
 
-  // Overlap calculation formula:
-  // step = max(minStep, (handWidth - cardWidth) / (count - 1))
-  const availableWidth = Math.max(100, containerWidth - 24);
-  const naturalWidth = count * (cardWidth + naturalGap);
-  const needsOverlap = naturalWidth > availableWidth;
-
-  const step = useMemo(() => {
-    if (count <= 1) return cardWidth;
-    if (!needsOverlap) return cardWidth + naturalGap;
-    const computed = (availableWidth - cardWidth) / (count - 1);
-    return Math.max(minStep, computed);
-  }, [count, needsOverlap, availableWidth]);
-
-  // Auto-switch recommendation when cards exceed fit
-  const canFitAll = step >= minStep || isGroupedMode;
-
-  // Grouped cards calculation
+  // Grouped cards: playable groups first, then unplayable groups, preserving internal sort
   const groupedCards = useMemo(() => {
-    const groups: { card: UnoCard; count: number }[] = [];
+    const groups: { card: UnoCard; count: number; isValid: boolean }[] = [];
     sortedHand.forEach(card => {
       const existing = groups.find(
         g => g.card.color === card.color && g.card.type === card.type && g.card.value === card.value
@@ -101,15 +103,52 @@ export const UnoHand: React.FC<UnoHandProps> = ({
       if (existing) {
         existing.count++;
       } else {
-        groups.push({ card, count: 1 });
+        groups.push({
+          card,
+          count: 1,
+          isValid: isMyTurn && checkCardPlayable(card)
+        });
       }
     });
     return groups;
-  }, [sortedHand]);
+  }, [sortedHand, checkCardPlayable, isMyTurn]);
 
+  // Card Dimensions & Spacing Formula (clamped between minSpacing and maxSpacing)
+  const cardWidth = 64; // w-16 = 64px
+  const minSpacing = 24; // enough to show the corner icon clearly
+  const maxSpacing = Math.round(cardWidth * 0.6); // 38px (~60% of card width)
+  const naturalGap = 8;
+  const count = sortedHand.length;
+
+  // Horizontal padding and outside navigation button dimensions
+  const horizontalPadding = 16;
+  const arrowButtonReserved = 40; // 32px button + margins
+
+  // Determine if scrolling will be needed
+  const baseAvailableWidth = Math.max(120, containerWidth - horizontalPadding * 2);
+  const scrollAvailableWidth = Math.max(100, containerWidth - horizontalPadding * 2 - arrowButtonReserved * 2);
+
+  const wouldOverflowAtMin = count > 1 && (count - 1) * minSpacing + cardWidth > baseAvailableWidth;
+  const availableWidth = wouldOverflowAtMin ? scrollAvailableWidth : baseAvailableWidth;
+
+  // spacing = (availableWidth - cardWidth) / (cardCount - 1), clamped between minSpacing and maxSpacing
+  const spacing = useMemo(() => {
+    if (count <= 1) return cardWidth;
+    const rawSpacing = (availableWidth - cardWidth) / (count - 1);
+    return Math.min(maxSpacing, Math.max(minSpacing, rawSpacing));
+  }, [count, availableWidth, cardWidth, minSpacing, maxSpacing]);
+
+  const totalHandWidth = useMemo(() => {
+    if (count <= 1) return cardWidth;
+    return (count - 1) * spacing + cardWidth;
+  }, [count, spacing, cardWidth]);
+
+  const needsScroll = totalHandWidth > availableWidth;
+
+  // Grouped view width and scroll check
   const groupedNaturalWidth = groupedCards.length * (cardWidth + naturalGap);
   const needsGroupedScroll = groupedNaturalWidth > availableWidth;
-  const shouldShowScrollButtons = isGroupedMode ? needsGroupedScroll : needsOverlap;
+  const shouldShowScrollButtons = isGroupedMode ? needsGroupedScroll : needsScroll;
 
   // Lock ref to prevent double-click or rapid multi-card submission
   const isPlayDebouncedRef = useRef<boolean>(false);
@@ -121,31 +160,29 @@ export const UnoHand: React.FC<UnoHandProps> = ({
     }
   }, [isMyTurn]);
 
-  // Two-tap Play Handler with double-click guard
+  // Two-tap Play Handler with double-click guard and tap blocking on unplayable cards
   const handleCardClick = (card: UnoCard) => {
     if (isPlayDebouncedRef.current) return;
 
-    if (!isMyTurn || !activeCard || !activeColor) {
-      onSelectCard(card);
-      return;
-    }
+    // Block taps on unplayable cards
+    const isValid = checkCardPlayable(card);
+    if (!isValid) return;
 
-    const isValid = canPlayUnoCard(card, activeCard, activeColor, drawStackCount);
-    if (!isValid) {
-      sounds.playCardPlay();
+    if (!isMyTurn) {
+      onSelectCard(card);
       return;
     }
 
     if (selectedCard?.id === card.id) {
       // Second tap on already selected card -> PLAY CARD!
       isPlayDebouncedRef.current = true;
-      onSelectCard(null); // Clear selection immediately so second click cannot play
+      onSelectCard(null); // Clear selection immediately
       onPlayCard(card);
       setTimeout(() => {
         isPlayDebouncedRef.current = false;
       }, 1200);
     } else {
-      // First tap -> SELECT CARD
+      // First tap -> SELECT CARD (raises by 20px, brings to front)
       onSelectCard(card);
       sounds.playCardDeal();
     }
@@ -156,12 +193,6 @@ export const UnoHand: React.FC<UnoHandProps> = ({
       scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
     }
   };
-
-  const selectedIsValid =
-    selectedCard &&
-    activeCard &&
-    activeColor &&
-    canPlayUnoCard(selectedCard, activeCard, activeColor, drawStackCount);
 
   return (
     <div ref={containerRef} className="relative w-full flex flex-col items-center select-none pb-1">
@@ -193,7 +224,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
           <button
             onClick={() => setSortByColor(!sortByColor)}
             aria-label={`Sort cards by ${sortByColor ? 'value' : 'color'}`}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-slate-300 text-[11px] font-bold transition shadow"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 active:scale-95 border border-slate-600 text-slate-300 text-[11px] font-bold transition shadow cursor-pointer"
           >
             <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
             <span>{sortByColor ? 'Color' : 'Value'}</span>
@@ -203,7 +234,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
           <button
             onClick={() => setIsGroupedMode(!isGroupedMode)}
             aria-label="Toggle grouped card mode"
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition active:scale-95 shadow ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition active:scale-95 shadow cursor-pointer ${
               isGroupedMode
                 ? 'bg-amber-500 text-slate-950 border-amber-300 font-black'
                 : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300 border-slate-600'
@@ -215,48 +246,53 @@ export const UnoHand: React.FC<UnoHandProps> = ({
         </div>
       </div>
 
-      {/* Main Hand Display */}
-      <div className="relative w-full flex items-center justify-center">
-        {/* Left Scroll Navigation Arrow */}
+      {/* Main Hand Display: Arrow buttons OUTSIDE the card track with left/right padding */}
+      <div className="relative w-full flex items-center justify-center px-1 sm:px-2">
+        {/* Left Scroll Navigation Arrow - OUTSIDE card area */}
         {shouldShowScrollButtons && (
           <button
             onClick={() => handleScroll(-180)}
             aria-label="Scroll hand left"
-            className="absolute left-0.5 sm:left-1 z-30 w-8 h-8 rounded-full bg-slate-900/95 border border-amber-400/50 text-amber-300 hover:text-white flex items-center justify-center hover:bg-slate-800 active:scale-90 shadow-xl"
+            className="flex-shrink-0 z-30 w-8 h-8 rounded-full bg-slate-900/95 border border-amber-400/50 text-amber-300 hover:text-white flex items-center justify-center hover:bg-slate-800 active:scale-90 shadow-xl mr-1 cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
         )}
 
-        {/* Scrolling or Overlapping Container */}
+        {/* Scrolling or Overlapping Container with safe padding */}
         <div
           ref={scrollRef}
           id="uno-hand-area"
-          className="w-full overflow-x-auto overflow-y-visible py-3 px-8 scrollbar-none touch-pan-x flex items-center justify-start sm:justify-center"
-          style={{ minHeight: '125px', WebkitOverflowScrolling: 'touch' }}
+          className={`flex-1 overflow-x-auto overflow-y-visible py-4 px-4 scrollbar-none touch-pan-x flex items-center ${
+            (isGroupedMode ? needsGroupedScroll : needsScroll) ? 'justify-start snap-x snap-mandatory' : 'justify-center'
+          }`}
+          style={{ minHeight: '135px', WebkitOverflowScrolling: 'touch' }}
         >
           {isGroupedMode ? (
             /* GROUPED VIEW: Clean single-row horizontal scrollable track */
-            <div className="flex items-center gap-2.5 justify-start sm:justify-center flex-nowrap min-w-max px-3">
-              {groupedCards.map(({ card, count: groupCount }) => {
-                const isValid =
-                  activeCard && activeColor
-                    ? canPlayUnoCard(card, activeCard, activeColor, drawStackCount)
-                    : false;
+            <div className="flex items-center gap-2.5 justify-start sm:justify-center flex-nowrap min-w-max px-2">
+              {groupedCards.map(({ card, count: groupCount, isValid }) => {
                 const isSelected = selectedCard?.id === card.id;
 
                 return (
                   <div
                     key={card.id}
                     id={`uno-hand-card-${card.id}`}
-                    className={`relative flex-shrink-0 transition-opacity duration-150 ${
+                    className={`relative flex-shrink-0 snap-start transition-all duration-200 ${
                       hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : 'opacity-100'
                     }`}
+                    style={{
+                      transform: isSelected ? 'translateY(-20px)' : 'translateY(0)',
+                      zIndex: isSelected ? 100 : 10
+                    }}
                   >
                     <UnoCardView
                       card={card}
                       isSelected={isSelected}
-                      isValid={isValid && isMyTurn}
+                      isValid={isValid}
+                      isMyTurn={isMyTurn}
+                      isOverlapped={false}
+                      hasLeftSeparator={false}
                       onClick={() => handleCardClick(card)}
                     />
                     {groupCount > 1 && (
@@ -268,66 +304,44 @@ export const UnoHand: React.FC<UnoHandProps> = ({
                 );
               })}
             </div>
-          ) : !needsOverlap ? (
-            /* NATURAL SIDE-BY-SIDE VIEW */
-            <div className="flex items-center gap-2.5 justify-center flex-nowrap min-w-max px-3">
-              {sortedHand.map(card => {
-                const isValid =
-                  activeCard && activeColor
-                    ? canPlayUnoCard(card, activeCard, activeColor, drawStackCount)
-                    : false;
-                const isSelected = selectedCard?.id === card.id;
-
-                return (
-                  <div
-                    key={card.id}
-                    id={`uno-hand-card-${card.id}`}
-                    className={`flex-shrink-0 transition-opacity duration-150 ${
-                      hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : 'opacity-100'
-                    }`}
-                  >
-                    <UnoCardView
-                      card={card}
-                      isSelected={isSelected}
-                      isValid={isValid && isMyTurn}
-                      onClick={() => handleCardClick(card)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
           ) : (
-            /* DYNAMIC OVERLAPPING FAN VIEW */
+            /* DYNAMIC OVERLAPPING FAN VIEW: Clean Z-Order, fully opaque, left strip only, slide transitions */
             <div
-              className="relative h-32 flex-shrink-0"
+              className="relative h-32 flex-shrink-0 transition-all duration-200"
               style={{
-                width: `${(count - 1) * step + cardWidth}px`,
-                maxWidth: '100%'
+                width: `${totalHandWidth}px`,
+                minWidth: `${totalHandWidth}px`
               }}
             >
               {sortedHand.map((card, idx) => {
-                const isValid =
-                  activeCard && activeColor
-                    ? canPlayUnoCard(card, activeCard, activeColor, drawStackCount)
-                    : false;
+                const isPlayable = isMyTurn && checkCardPlayable(card);
                 const isSelected = selectedCard?.id === card.id;
+                const isLastCard = idx === count - 1;
+                // Overlapped cards hide border, glow, shadow; last card & selected card show full outline
+                const isOverlapped = !isLastCard && !isSelected;
+                const hasLeftSeparator = idx > 0;
 
                 return (
                   <div
                     key={card.id}
                     id={`uno-hand-card-${card.id}`}
-                    className={`absolute top-0 transition-transform duration-150 ${
+                    className={`absolute top-2 snap-start transition-all duration-250 ease-out ${
                       hiddenCardId === card.id ? 'opacity-0 pointer-events-none' : 'opacity-100'
                     }`}
                     style={{
-                      left: `${idx * step}px`,
-                      zIndex: isSelected ? 50 : idx + 10
+                      left: `${idx * spacing}px`,
+                      zIndex: isSelected ? 100 : idx + 10,
+                      transform: isSelected ? 'translateY(-20px)' : 'translateY(0)',
+                      pointerEvents: isPlayable ? 'auto' : 'none'
                     }}
                   >
                     <UnoCardView
                       card={card}
                       isSelected={isSelected}
-                      isValid={isValid && isMyTurn}
+                      isValid={isPlayable}
+                      isMyTurn={isMyTurn}
+                      isOverlapped={isOverlapped}
+                      hasLeftSeparator={hasLeftSeparator}
                       onClick={() => handleCardClick(card)}
                     />
                   </div>
@@ -337,12 +351,12 @@ export const UnoHand: React.FC<UnoHandProps> = ({
           )}
         </div>
 
-        {/* Right Scroll Navigation Arrow */}
+        {/* Right Scroll Navigation Arrow - OUTSIDE card area */}
         {shouldShowScrollButtons && (
           <button
             onClick={() => handleScroll(180)}
             aria-label="Scroll hand right"
-            className="absolute right-0.5 sm:right-1 z-30 w-8 h-8 rounded-full bg-slate-900/95 border border-amber-400/50 text-amber-300 hover:text-white flex items-center justify-center hover:bg-slate-800 active:scale-90 shadow-xl"
+            className="flex-shrink-0 z-30 w-8 h-8 rounded-full bg-slate-900/95 border border-amber-400/50 text-amber-300 hover:text-white flex items-center justify-center hover:bg-slate-800 active:scale-90 shadow-xl ml-1 cursor-pointer"
           >
             <ChevronRight className="w-5 h-5" />
           </button>

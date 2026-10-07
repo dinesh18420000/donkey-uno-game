@@ -150,16 +150,22 @@ const DonkeyHandComponent: React.FC<DonkeyHandProps> = ({
       return;
     }
 
-    // Lock further clicks until move is executed
-    isClickLockedRef.current = true;
-    setTimeout(() => {
-      isClickLockedRef.current = false;
-    }, 600);
+    if (selectedCardId === card.id) {
+      // Double click / second click on already selected card -> play it directly!
+      isClickLockedRef.current = true;
+      setTimeout(() => {
+        isClickLockedRef.current = false;
+      }, 600);
 
-    const cardEl = document.getElementById(`hand-card-${card.id}`);
-    const rect = cardEl ? cardEl.getBoundingClientRect() : null;
-    sounds.playCardPlay();
-    onPlayCard(card, rect);
+      const cardEl = document.getElementById(`hand-card-${card.id}`);
+      const rect = cardEl ? cardEl.getBoundingClientRect() : null;
+      sounds.playCardPlay();
+      onPlayCard(card, rect);
+    } else {
+      // Single click: Select the card (lifts card up and enables DEAL button)
+      sounds.playCardSelect();
+      onSelectCard(card);
+    }
   };
 
   return (

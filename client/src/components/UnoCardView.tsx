@@ -6,8 +6,11 @@ interface UnoCardViewProps {
   card: UnoCard;
   isSelected?: boolean;
   isValid?: boolean;
+  isMyTurn?: boolean;
   isCompact?: boolean;
   isTableCard?: boolean;
+  isOverlapped?: boolean;
+  hasLeftSeparator?: boolean;
   onClick?: () => void;
 }
 
@@ -20,44 +23,44 @@ const COLOR_CLASSES: Record<UnoColor, {
   border: string;
 }> = {
   red: {
-    bg: 'bg-gradient-to-br from-[#ff1744] via-[#d50000] to-[#880e4f]',
+    bg: 'bg-[#d50000] bg-gradient-to-br from-[#ff1744] via-[#d50000] to-[#880e4f]',
     faceText: 'text-[#dc2626]',
     cornerText: 'text-white font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]',
     badge: 'bg-[#ff1744] text-white',
     glow: 'shadow-[0_0_22px_rgba(255,23,68,0.75)]',
-    border: 'border-white/95'
+    border: 'border-white'
   },
   blue: {
-    bg: 'bg-gradient-to-br from-[#00b0ff] via-[#0091ea] to-[#01579b]',
+    bg: 'bg-[#0091ea] bg-gradient-to-br from-[#00b0ff] via-[#0091ea] to-[#01579b]',
     faceText: 'text-[#0284c7]',
     cornerText: 'text-white font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]',
     badge: 'bg-[#0091ea] text-white',
     glow: 'shadow-[0_0_22px_rgba(0,176,255,0.75)]',
-    border: 'border-white/95'
+    border: 'border-white'
   },
   green: {
-    bg: 'bg-gradient-to-br from-[#00e676] via-[#00c853] to-[#1b5e20]',
+    bg: 'bg-[#00c853] bg-gradient-to-br from-[#00e676] via-[#00c853] to-[#1b5e20]',
     faceText: 'text-[#15803d]',
     cornerText: 'text-white font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]',
     badge: 'bg-[#00c853] text-white',
     glow: 'shadow-[0_0_22px_rgba(0,230,118,0.75)]',
-    border: 'border-white/95'
+    border: 'border-white'
   },
   yellow: {
-    bg: 'bg-gradient-to-br from-[#ffea00] via-[#ffd600] to-[#ff6f00]',
+    bg: 'bg-[#ffd600] bg-gradient-to-br from-[#ffea00] via-[#ffd600] to-[#ff6f00]',
     faceText: 'text-[#b45309]',
     cornerText: 'text-slate-950 font-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)]',
     badge: 'bg-[#ffd600] text-slate-950 font-black',
     glow: 'shadow-[0_0_22px_rgba(255,214,0,0.75)]',
-    border: 'border-white/95'
+    border: 'border-white'
   },
   wild: {
-    bg: 'bg-gradient-to-br from-[#180b2b] via-[#0f172a] to-[#05060f]',
+    bg: 'bg-[#0a0f1d] bg-gradient-to-br from-[#180b2b] via-[#0f172a] to-[#05060f]',
     faceText: 'text-white',
     cornerText: 'text-amber-300 font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.9)]',
     badge: 'bg-purple-700 text-white',
     glow: 'shadow-[0_0_25px_rgba(234,179,8,0.8)]',
-    border: 'border-amber-400/90'
+    border: 'border-amber-400'
   }
 };
 
@@ -65,8 +68,11 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
   card,
   isSelected,
   isValid = true,
+  isMyTurn = false,
   isCompact = false,
   isTableCard = false,
+  isOverlapped = false,
+  hasLeftSeparator = false,
   onClick
 }) => {
   const theme = COLOR_CLASSES[card.color] || COLOR_CLASSES.wild;
@@ -160,7 +166,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
             <span className="font-black text-xl sm:text-2xl md:text-3xl text-amber-300 drop-shadow-[0_0_8px_#f59e0b]">
               +6
             </span>
-            <span className="text-[6.5px] sm:text-[7.5px] font-black text-amber-200 uppercase tracking-wider mt-0.5 bg-amber-950/80 px-1 py-0.2 rounded border border-amber-400/50 whitespace-nowrap">
+            <span className="text-[6.5px] sm:text-[7.5px] font-black text-amber-200 uppercase tracking-wider mt-0.5 bg-amber-950 px-1 py-0.2 rounded border border-amber-400/50 whitespace-nowrap">
               WILD
             </span>
           </div>
@@ -182,7 +188,7 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
             <span className="font-black text-lg sm:text-xl md:text-2xl text-cyan-300 drop-shadow-[0_0_8px_#06b6d4]">
               ⇄+4
             </span>
-            <span className="text-[6px] sm:text-[7px] font-black text-cyan-200 uppercase tracking-tight mt-0.5 bg-cyan-950/80 px-1 py-0.2 rounded border border-cyan-400/50 whitespace-nowrap">
+            <span className="text-[6px] sm:text-[7px] font-black text-cyan-200 uppercase tracking-tight mt-0.5 bg-cyan-950 px-1 py-0.2 rounded border border-cyan-400/50 whitespace-nowrap">
               REV WILD
             </span>
           </div>
@@ -278,6 +284,9 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
     }
   };
 
+  const isPlayable = !isTableCard && isMyTurn && isValid;
+  const isUnplayableTurn = !isTableCard && isMyTurn && !isValid;
+
   if (isCompact) {
     return (
       <div
@@ -286,19 +295,31 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
         aria-label={cardLabel}
         onClick={isValid ? onClick : undefined}
         onKeyDown={handleKeyDown}
-        className={`w-13 h-19 sm:w-15 sm:h-22 min-w-[48px] min-h-[64px] rounded-xl ${theme.bg} border-2 border-white/90 shadow-lg p-1 flex items-center justify-center select-none relative overflow-hidden ${
-          isSelected ? '-translate-y-3 ring-4 ring-amber-400 border-amber-300' : ''
-        } ${
+        className={`w-13 h-19 sm:w-15 sm:h-22 min-w-[48px] min-h-[64px] rounded-xl ${theme.bg} ${
+          isSelected
+            ? '-translate-y-3 ring-4 ring-amber-400 border-amber-300 shadow-xl shadow-amber-400/50'
+            : isPlayable
+            ? 'border-2 border-emerald-400 ring-2 ring-emerald-400/80 shadow-[0_0_12px_rgba(52,211,153,0.85)] brightness-105 saturate-110'
+            : isUnplayableTurn
+            ? 'border-2 border-slate-800 brightness-[0.38] saturate-[0.3] cursor-not-allowed pointer-events-none'
+            : 'border-2 border-white shadow-lg brightness-95'
+        } p-1 flex items-center justify-center select-none relative overflow-hidden opacity-100 ${
           isTableCard || isValid
-            ? 'opacity-100 brightness-100 cursor-pointer active:scale-95'
-            : 'opacity-70 brightness-95 saturate-[0.85] border-slate-600/60 cursor-not-allowed shadow-none pointer-events-none'
+            ? 'cursor-pointer active:scale-95'
+            : 'cursor-not-allowed pointer-events-none'
         }`}
       >
+        {isUnplayableTurn && (
+          <div className="absolute inset-0 bg-slate-950/60 pointer-events-none z-30" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-black/20 pointer-events-none" />
         {/* Top Left Corner Pip only */}
         <span className={`absolute top-1 left-1.5 text-[9px] sm:text-[10px] font-black leading-none ${theme.cornerText} z-10`}>
           {cornerSym}
         </span>
+        {isPlayable && (
+          <div className="absolute bottom-1 left-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] z-30 animate-pulse pointer-events-none" />
+        )}
         <div className="flex items-center justify-center z-10 scale-85">{renderCenterContent()}</div>
       </div>
     );
@@ -306,8 +327,43 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
 
   const isTable = isTableCard;
   const cardSizeClass = isTable
-    ? 'w-16 h-24 sm:w-20 sm:h-28 md:w-22 md:h-32 min-w-[64px] min-h-[96px] sm:min-w-[80px] sm:min-h-[112px] rounded-2xl border-[2.5px]'
-    : 'w-16 h-24 sm:w-20 sm:h-28 md:w-22 md:h-32 min-w-[56px] min-h-[80px] rounded-2xl border-[2.5px]';
+    ? 'w-16 h-24 sm:w-20 sm:h-28 md:w-22 md:h-32 min-w-[64px] min-h-[96px] sm:min-w-[80px] sm:min-h-[112px] rounded-2xl'
+    : 'w-16 h-24 sm:w-20 sm:h-28 md:w-22 md:h-32 min-w-[56px] min-h-[80px] rounded-2xl';
+
+  // Overlap & Playability styling:
+  const borderClass = isSelected
+    ? 'border-[2.5px] border-amber-300 ring-4 ring-amber-400'
+    : isPlayable
+    ? 'border-[2.5px] border-emerald-400 ring-2 ring-emerald-400/80'
+    : isUnplayableTurn
+    ? 'border-[2px] border-slate-800/80'
+    : isOverlapped
+    ? 'border-[2px] border-transparent'
+    : `border-[2.5px] ${theme.border}`;
+
+  const shadowClass = isSelected
+    ? 'shadow-2xl shadow-amber-400/80'
+    : isPlayable
+    ? 'shadow-[0_0_14px_rgba(52,211,153,0.75)]'
+    : isUnplayableTurn
+    ? 'shadow-none'
+    : isOverlapped
+    ? 'shadow-none'
+    : 'shadow-[0_8px_18px_rgba(0,0,0,0.65)]';
+
+  const filterClass = isPlayable
+    ? 'brightness-105 saturate-110'
+    : isUnplayableTurn
+    ? 'brightness-[0.38] saturate-[0.3]'
+    : 'brightness-95';
+
+  const interactionClass = isTableCard
+    ? 'cursor-default'
+    : isPlayable
+    ? 'cursor-pointer hover:-translate-y-1 active:scale-95'
+    : isUnplayableTurn
+    ? 'cursor-not-allowed pointer-events-none'
+    : 'cursor-default';
 
   return (
     <div
@@ -316,36 +372,47 @@ export const UnoCardView: React.FC<UnoCardViewProps> = ({
       aria-label={cardLabel}
       onClick={isValid ? onClick : undefined}
       onKeyDown={handleKeyDown}
-      className={`relative ${cardSizeClass} ${theme.bg} ${theme.border} shadow-[0_8px_18px_rgba(0,0,0,0.65)] p-1 sm:p-1.5 flex flex-col justify-start select-none transition-all duration-150 overflow-hidden ${
-        isSelected
-          ? '-translate-y-4 ring-4 ring-amber-400 shadow-amber-400/80 shadow-2xl z-40 border-amber-300 scale-105'
-          : ''
-      } ${
-        isTableCard
-          ? 'opacity-100 brightness-100 shadow-[0_8px_20px_rgba(0,0,0,0.7)]'
-          : isValid
-          ? 'opacity-100 brightness-100 cursor-pointer hover:-translate-y-1.5 active:scale-95 hover:shadow-2xl'
-          : 'opacity-55 cursor-not-allowed pointer-events-none'
+      className={`relative ${cardSizeClass} ${theme.bg} ${borderClass} ${shadowClass} ${filterClass} p-1 sm:p-1.5 flex flex-col justify-start select-none transition-all duration-150 overflow-hidden opacity-100 ${interactionClass} ${
+        isSelected ? 'scale-105 z-40' : ''
       }`}
     >
-      {/* Gloss Reflection Sheen Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/25 to-transparent pointer-events-none z-20" />
+      {/* Dark tint overlay for unplayable cards during player's turn */}
+      {isUnplayableTurn && (
+        <div className="absolute inset-0 bg-slate-950/60 pointer-events-none z-30" />
+      )}
 
-      {/* Subtle Inner Card Border */}
-      <div className="absolute inset-1 rounded-lg border border-white/25 pointer-events-none z-10" />
+      {/* Glowing emerald left border stripe for playable cards (always visible in overlap) */}
+      {isPlayable && (
+        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-400 shadow-[0_0_8px_#34d399] z-30 pointer-events-none" />
+      )}
+
+      {/* Glowing emerald pulse pip in bottom-left visible strip */}
+      {isPlayable && (
+        <div className="absolute bottom-1.5 left-1.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-emerald-200 shadow-[0_0_8px_#34d399] z-30 animate-pulse pointer-events-none" />
+      )}
+
+      {/* Thin dark separator line on overlapping left edge */}
+      {isOverlapped && hasLeftSeparator && !isPlayable && (
+        <div className="absolute left-0 top-0 bottom-0 w-[1.5px] bg-slate-950/70 z-30 pointer-events-none shadow-[-1px_0_2px_rgba(0,0,0,0.5)]" />
+      )}
+
+      {/* Subtle Inner Card Border - only when not overlapped */}
+      {!isOverlapped && (
+        <div className="absolute inset-1 rounded-lg border border-white/20 pointer-events-none z-10" />
+      )}
 
       {/* Top Left Corner Pip Only (Right-bottom numbers removed) */}
       <div className={`absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 text-[11px] sm:text-xs font-black leading-none tracking-tight ${theme.cornerText}`}>
         {cornerSym}
       </div>
 
-      {/* Authentic Tilted Center Oval Emblem */}
+      {/* Authentic Tilted Center Oval Emblem: 100% fully opaque solid background */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-1 py-1">
         <div
-          className={`w-[84%] h-[74%] rounded-[50%] transform -rotate-16 flex items-center justify-center shadow-[0_3px_8px_rgba(0,0,0,0.4),inset_0_2px_5px_rgba(0,0,0,0.15)] border ${
+          className={`w-[84%] h-[74%] rounded-[50%] transform -rotate-16 flex items-center justify-center border shadow-[0_3px_8px_rgba(0,0,0,0.35)] ${
             isWild
-              ? 'bg-slate-950/95 border-amber-400/40'
-              : 'bg-white/98 border-white/80'
+              ? 'bg-[#0a0f1d] border-amber-400'
+              : 'bg-white border-white'
           }`}
         >
           <div className="transform rotate-16 flex flex-col items-center justify-center w-full px-0.5 text-center overflow-visible">

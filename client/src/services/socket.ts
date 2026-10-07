@@ -15,9 +15,36 @@ class SocketService {
   private serverUrl: string = CLOUD_PROD_URL;
   private connectionListeners: ((status: ConnectionStatus, url: string) => void)[] = [];
   public connectionStatus: ConnectionStatus = 'disconnected';
+  private hasRegisteredVisibilityListener = false;
 
   constructor() {
     this.initStorage();
+    this.setupLifecycleListeners();
+  }
+
+  private setupLifecycleListeners() {
+    if (this.hasRegisteredVisibilityListener || typeof document === 'undefined') return;
+    this.hasRegisteredVisibilityListener = true;
+
+    const handleResume = () => {
+      console.log('📱 App resumed / active. Checking socket connectivity...');
+      if (!this.socket || !this.socket.connected) {
+        this.connect();
+      }
+      const activeRoom = localStorage.getItem('donkey_uno_active_room');
+      if (activeRoom && this.playerId) {
+        console.log('🔄 Reconnecting to active room on app resume:', activeRoom);
+        this.reconnect(activeRoom);
+      }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        handleResume();
+      }
+    });
+
+    window.addEventListener('focus', handleResume);
   }
 
   public onConnectionChange(cb: (status: ConnectionStatus, url: string) => void): () => void {
@@ -132,15 +159,24 @@ class SocketService {
     if (!this.socket) {
       this.notifyConnection('connecting');
       this.socket = io(this.serverUrl, {
-        transports: ['polling', 'websocket'],
-        reconnectionAttempts: 30,
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
-        timeout: 15000
+        reconnectionDelayMax: 5000,
+        timeout: 45000
       });
 
       this.socket.on('connect', () => {
         console.log('✅ Connected to game server:', this.socket?.id, 'at', this.serverUrl);
         this.notifyConnection('connected');
+
+        // Automatically resume active room seat & cards upon reconnect
+        const activeRoom = localStorage.getItem('donkey_uno_active_room');
+        if (activeRoom && this.playerId) {
+          console.log('🔄 Auto-resuming active room on socket connect:', activeRoom);
+          this.reconnect(activeRoom);
+        }
       });
 
       this.socket.on('disconnect', (reason) => {
@@ -271,6 +307,10 @@ class SocketService {
 
   public returnToLobby(roomCode: string) {
     this.connect().emit('returnToLobby', { roomCode, hostPlayerId: this.playerId });
+  }
+
+  public forceEndGame(roomCode: string) {
+    this.connect().emit('forceEndGame', { roomCode, hostPlayerId: this.playerId });
   }
 
   public transferHost(roomCode: string, newHostPlayerId: string) {

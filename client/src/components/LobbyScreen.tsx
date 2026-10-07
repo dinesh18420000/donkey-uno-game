@@ -161,9 +161,9 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
     const isFamilyTable = gameState.roomCode === 'FAMILY';
 
     return (
-      <div className="w-full h-full flex flex-col items-center justify-between px-4 safe-top safe-bottom bg-gradient-to-b from-purple-950 via-[#260a38] to-slate-950 text-white overflow-y-auto">
+      <div className="w-full h-full flex flex-col items-center justify-between px-4 safe-top bg-gradient-to-b from-purple-950 via-[#260a38] to-slate-950 text-white overflow-hidden">
         {/* Top Header */}
-        <div className="w-full max-w-md flex items-center justify-between pt-1">
+        <div className="w-full max-w-md flex items-center justify-between pt-1 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-2xl">
               {gameState.gameType === 'donkey' ? '🫏' : '🔥'}
@@ -182,14 +182,16 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
               if (onExitToLobby) onExitToLobby();
               else socketService.leaveRoom();
             }}
-            className="text-xs bg-red-600/80 hover:bg-red-600 px-3 py-1.5 rounded-xl font-bold"
+            className="text-xs bg-red-600/80 hover:bg-red-600 px-3 py-1.5 rounded-xl font-bold cursor-pointer"
           >
             Leave
           </button>
         </div>
 
-        {/* Room Banner */}
-        <div className="w-full max-w-md my-3 p-4 rounded-3xl bg-white/10 backdrop-blur-md border border-purple-500/30 text-center shadow-2xl">
+        {/* Scrollable Center Body: Banner, Mode Switcher, and Players List */}
+        <div className="w-full max-w-md flex-1 overflow-y-auto min-h-0 py-2 flex flex-col gap-2.5 no-scrollbar">
+          {/* Room Banner */}
+          <div className="w-full p-3.5 rounded-3xl bg-white/10 backdrop-blur-md border border-purple-500/30 text-center shadow-xl">
           {isFamilyTable ? (
             <div>
               <div className="flex items-center justify-center gap-2 text-emerald-300 font-black text-base mb-1">
@@ -293,7 +295,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
         </div>
 
         {/* Connected Players Grid (Supports up to 10 players) */}
-        <div className="w-full max-w-md flex-1">
+        <div className="w-full">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-purple-200 uppercase tracking-wide">
               Players Joined ({gameState.players.length} / 10)
@@ -301,7 +303,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
             {isHost && gameState.players.length < 10 && (
               <button
                 onClick={() => socketService.addBot(gameState.roomCode)}
-                className="flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-xl font-bold shadow-md active:scale-95"
+                className="flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded-xl font-bold shadow-md active:scale-95 cursor-pointer"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
                 Add Computer Bot
@@ -309,7 +311,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
             )}
           </div>
 
-          <div className="flex flex-col gap-2 max-h-[270px] overflow-y-auto pr-1 no-scrollbar">
+          <div className="flex flex-col gap-2 pr-1">
             {gameState.players.map((p) => (
               <div
                 key={p.id}
@@ -351,7 +353,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
                     {!p.isBot && (
                       <button
                         onClick={() => socketService.transferHost(gameState.roomCode, p.id)}
-                        className="px-2.5 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow active:scale-95 transition"
+                        className="px-2.5 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow active:scale-95 transition cursor-pointer"
                         title="Transfer Host to this player"
                       >
                         <Crown className="w-3.5 h-3.5 fill-current" />
@@ -360,7 +362,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
                     )}
                     <button
                       onClick={() => socketService.removePlayer(gameState.roomCode, p.id)}
-                      className="p-1.5 rounded-xl bg-red-950/80 border border-red-500/50 text-red-400 hover:text-white hover:bg-red-600 active:scale-95 transition"
+                      className="p-1.5 rounded-xl bg-red-950/80 border border-red-500/50 text-red-400 hover:text-white hover:bg-red-600 active:scale-95 transition cursor-pointer"
                       title="Kick player"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -371,31 +373,32 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
             ))}
           </div>
         </div>
-
-        {/* Start Game Action Bar */}
-        <div className="w-full max-w-md pt-3">
-          {isHost ? (
-            <button
-              onClick={() => socketService.startGame(gameState.roomCode)}
-              disabled={gameState.players.length < 2}
-              className={`w-full py-4 rounded-2xl font-black text-lg shadow-2xl flex items-center justify-center gap-2 transition-all ${
-                gameState.players.length >= 2
-                  ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 active:scale-95 hover:shadow-yellow-400/60 ring-4 ring-yellow-300/40'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-              }`}
-            >
-              <Play className="w-6 h-6 fill-current" />
-              <span>START GAME {gameState.players.length < 2 ? '(Need 2+ Players)' : ''}</span>
-            </button>
-          ) : (
-            <div className="text-center py-3.5 rounded-2xl bg-white/5 border border-white/10 text-purple-200 text-sm font-bold animate-pulse">
-              Waiting for Host to start game...
-            </div>
-          )}
-        </div>
       </div>
-    );
-  }
+
+      {/* Start Game Action Bar (Pinned safely above Android navigation bar and home gesture bar) */}
+      <div className="w-full max-w-md pt-2 pb-7 sm:pb-5 safe-bottom-action flex-shrink-0 z-20">
+        {isHost ? (
+          <button
+            onClick={() => socketService.startGame(gameState.roomCode)}
+            disabled={gameState.players.length < 2}
+            className={`w-full py-3.5 sm:py-4 rounded-2xl font-black text-base sm:text-lg shadow-2xl flex items-center justify-center gap-2 transition-all ${
+              gameState.players.length >= 2
+                ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 active:scale-95 hover:shadow-yellow-400/60 ring-4 ring-yellow-300/40 cursor-pointer'
+                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+            }`}
+          >
+            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+            <span>START GAME {gameState.players.length < 2 ? '(Need 2+ Players)' : ''}</span>
+          </button>
+        ) : (
+          <div className="text-center py-3 rounded-2xl bg-white/5 border border-white/10 text-purple-200 text-sm font-bold animate-pulse">
+            Waiting for Host to start game...
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
   // Main Menu / Lobby Setup
   return (
@@ -624,7 +627,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
       )}
 
       {/* PRIMARY ACTION: OPEN FAMILY & FRIENDS TABLE (NO ROOM CODE NEEDED!) */}
-      <div className="w-full max-w-md flex flex-col gap-2 pt-2">
+      <div className="w-full max-w-md flex flex-col gap-2 pt-2 pb-7 sm:pb-5 safe-bottom-action">
         <button
           onClick={handleJoinFamilyTable}
           disabled={isJoiningFamily}
