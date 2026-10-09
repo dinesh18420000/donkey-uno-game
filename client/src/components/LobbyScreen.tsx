@@ -376,7 +376,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
       </div>
 
       {/* Start Game Action Bar (Pinned safely above Android navigation bar and home gesture bar) */}
-      <div className="w-full max-w-md pt-2 pb-7 sm:pb-5 safe-bottom-action flex-shrink-0 z-20">
+      <div className="w-full max-w-md pt-2 safe-bottom-action flex-shrink-0 z-20">
         {isHost ? (
           <button
             onClick={() => socketService.startGame(gameState.roomCode)}
@@ -627,7 +627,7 @@ export const LobbyScreen: React.FC<LobbyScreenProps> = ({ gameState, onExitToLob
       )}
 
       {/* PRIMARY ACTION: OPEN FAMILY & FRIENDS TABLE (NO ROOM CODE NEEDED!) */}
-      <div className="w-full max-w-md flex flex-col gap-2 pt-2 pb-7 sm:pb-5 safe-bottom-action">
+      <div className="w-full max-w-md flex flex-col gap-2 pt-2 safe-bottom-action">
         <button
           onClick={handleJoinFamilyTable}
           disabled={isJoiningFamily}

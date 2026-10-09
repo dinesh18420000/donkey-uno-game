@@ -372,8 +372,10 @@ export function unoReducer(state: UnoEngineState, action: UnoEngineAction): UnoE
         execute0PassHands(players, direction);
         actionMsg += ` 🔄 ALL HANDS PASSED!`;
       } else if (card.type === 'swap_7') {
-        const target = players.find(pl => pl.id === action.swapTargetPlayerId) ||
-          players.find(pl => pl.id !== p.id && !pl.rank && !pl.isMercyEliminated && !pl.isSpectator);
+        const isValidTarget = (pl: Player) =>
+          pl.id !== p.id && !pl.rank && !pl.isMercyEliminated && !pl.isSpectator && pl.hand.length > 0;
+        const target = (action.swapTargetPlayerId ? players.find(pl => pl.id === action.swapTargetPlayerId && isValidTarget(pl)) : undefined) ||
+          players.find(isValidTarget);
         if (target) {
           execute7SwapHands(p, target);
           actionMsg += ` 🔁 SWAPPED HANDS with ${target.name}!`;

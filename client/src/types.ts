@@ -71,6 +71,10 @@ export function canPlayUnoCard(
   if (card.type === 'number' && activeCard.type === 'number' && card.value === activeCard.value) return true;
   if (card.type !== 'number' && card.type === activeCard.type) return true;
 
+  // Cross-matching for reverse_draw2
+  if (card.type === 'reverse_draw2' && (activeCard.type === 'reverse' || activeCard.type === 'draw2')) return true;
+  if ((card.type === 'reverse' || card.type === 'draw2') && activeCard.type === 'reverse_draw2') return true;
+
   return false;
 }
 

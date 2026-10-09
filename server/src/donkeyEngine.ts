@@ -190,6 +190,12 @@ export function resolveDonkeyPlay(
 
     const victimIndex = players.findIndex(p => p.id === victim.id);
 
+    // In Donkey rules, the cutter gets the lead for the next trick (or next active clockwise player if cutter ranked out)
+    let nextLeadIdx = currentPlayerIndex;
+    if (player.rank || player.cardsCount === 0) {
+      nextLeadIdx = getNextActivePlayerIndex(players, nextLeadIdx, 1);
+    }
+
     return {
       cardPlayed: card,
       isCut: true,
@@ -200,22 +206,26 @@ export function resolveDonkeyPlay(
       cutterName: player.name,
       victimPlayerId: victim.id,
       victimName: victim.name,
-      nextLeadPlayerIndex: victimIndex,
+      nextLeadPlayerIndex: nextLeadIdx,
       message: `💥 CUT! ${player.name} threw ${card.suit} ${card.value}. ${victim.name} picked up ${cardsToPick.length} cards!`
     };
   }
 
-  // If everyone with cards has played this trick:
-  const activePlayers = players.filter(p => !p.rank && !p.isSpectator);
-  if (currentTrick.length >= activePlayers.length) {
+  // A clean trick is finished only when every active player holding cards has played once in this trick
+  const playersWaitingToPlay = players.filter(
+    p => !p.rank && !p.isSpectator && p.hand.length > 0 && !currentTrick.some(t => t.playerId === p.id)
+  );
+  if (playersWaitingToPlay.length === 0) {
     // Clean trick! No cut. Find highest card winner
     let winnerId = currentTrick[0].playerId;
     let highestRank = currentTrick[0].card.rank;
+    let winningCard = currentTrick[0].card;
 
     for (const p of currentTrick) {
       if (p.card.suit === effectiveLead && p.card.rank > highestRank) {
         highestRank = p.card.rank;
         winnerId = p.playerId;
+        winningCard = p.card;
       }
     }
 
@@ -233,7 +243,7 @@ export function resolveDonkeyPlay(
       trickFinished: true,
       trickWinnerPlayerId: winnerId,
       nextLeadPlayerIndex: nextLeadIdx,
-      message: `✨ Clean trick! ${winner.name} won with ${card.suit} ${highestRank} and cleared the table.`
+      message: `✨ Clean trick! ${winner.name} won with ${winningCard.suit} ${winningCard.value} and cleared the table.`
     };
   }
 

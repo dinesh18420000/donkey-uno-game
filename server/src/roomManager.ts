@@ -24,7 +24,8 @@ import {
   execute0PassHands,
   execute7SwapHands,
   checkMercyRule,
-  getNextUnoTurnIndex
+  getNextUnoTurnIndex,
+  shuffle
 } from './unoEngine.js';
 
 const HUMAN_TURN_TIME_MS = 20000; // 20 seconds max play time for Donkey Master
@@ -39,6 +40,7 @@ export class RoomManager {
   private turnTimers: Map<string, NodeJS.Timeout> = new Map();
   private disconnectGraceTimers: Map<string, NodeJS.Timeout> = new Map();
   private gameTimers: Map<string, NodeJS.Timeout> = new Map();
+  private roomTerminationTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(private io: Server) {}
 
@@ -104,6 +106,11 @@ export class RoomManager {
 
     const existingPlayer = room.players.find(p => p.id === playerId);
     if (existingPlayer) {
+      if (this.roomTerminationTimers.has(room.code)) {
+        clearTimeout(this.roomTerminationTimers.get(room.code)!);
+        this.roomTerminationTimers.delete(room.code);
+        console.log(`[Room ${room.code}] Player reconnected! Cancelled room termination timer.`);
+      }
       const timerKey = `${room.code}:${playerId}`;
       if (this.disconnectGraceTimers.has(timerKey)) {
         clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
@@ -343,9 +350,13 @@ export class RoomManager {
       remaining.sort((a, b) => b.cardsCount - a.cardsCount);
       if (remaining.length > 0) {
         remaining[0].isDonkey = true;
+        remaining[0].rank = 999;
       }
       // Rank other remaining players by fewest cards
-      let nextRank = (Math.max(0, ...room.players.map(p => p.rank || 0))) + 1;
+      const existingRanks = room.players
+        .filter(p => !p.isSpectator && p.rank && p.rank !== 999)
+        .map(p => p.rank || 0);
+      let nextRank = (existingRanks.length > 0 ? Math.max(...existingRanks) : 0) + 1;
       const unranked = room.players.filter(p => !p.rank && !p.isDonkey && !p.isSpectator);
       unranked.sort((a, b) => a.cardsCount - b.cardsCount);
       unranked.forEach(p => {
@@ -444,6 +455,11 @@ export class RoomManager {
     // 3. Check if player already exists in room (reconnection)
     const existingPlayer = room.players.find(p => p.id === playerId);
     if (existingPlayer) {
+      if (this.roomTerminationTimers.has(familyCode)) {
+        clearTimeout(this.roomTerminationTimers.get(familyCode)!);
+        this.roomTerminationTimers.delete(familyCode);
+        console.log(`[Room ${familyCode}] Player reconnected! Cancelled room termination timer.`);
+      }
       const timerKey = `${familyCode}:${playerId}`;
       if (this.disconnectGraceTimers.has(timerKey)) {
         clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
@@ -542,34 +558,45 @@ export class RoomManager {
     player.socketId = null;
     player.isDisconnected = true;
 
-    // Check if any human players (non-bot, non-disconnected, non-spectator) are still playing
-    const activeHumanPlayers = room.players.filter(p => !p.isBot && !p.isDisconnected && !p.isSpectator);
-    if (activeHumanPlayers.length === 0) {
-      // All human players left/disconnected! Immediately stop the game and cancel turn timers
-      if (this.turnTimers.has(room.code)) {
-        clearTimeout(this.turnTimers.get(room.code)!);
-        this.turnTimers.delete(room.code);
-      }
-      if (this.gameTimers.has(room.code)) {
-        clearTimeout(this.gameTimers.get(room.code)!);
-        this.gameTimers.delete(room.code);
-      }
-      const timerKey = `${room.code}:${player.id}`;
-      if (this.disconnectGraceTimers.has(timerKey)) {
-        clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
-        this.disconnectGraceTimers.delete(timerKey);
-      }
-      room.status = 'game_over';
-      room.lastAction = '🛑 Game stopped: All human players have left the game.';
-      console.log(`[Room ${room.code}] Game stopped: All human players have left.`);
+    // Check if any human players (non-bot, non-disconnected, non-spectator) are currently connected
+    const connectedHumanPlayers = room.players.filter(p => !p.isBot && !p.isDisconnected && !p.isSpectator);
+    if (connectedHumanPlayers.length === 0) {
+      // All human players are temporarily disconnected (e.g. app in background, phone call, network blip)
+      // Do NOT delete room instantly! Give 60-second grace period for player to return and reconnect!
+      if (!this.roomTerminationTimers.has(room.code)) {
+        console.log(`[Room ${room.code}] All human players disconnected. Starting 60s grace timer before closing room.`);
+        room.lastAction = `⚠️ Player disconnected! Waiting 60s for reconnection...`;
+        this.broadcastState(room);
 
-      // Notify all users/viewers to return to lobby (no bots-only viewing)
-      this.io.to(room.code).emit('gameTerminated', {
-        reason: 'All players left the game. Returning to lobby...'
-      });
-      this.io.to(room.code).emit('returnToLobby');
-      this.rooms.delete(room.code);
-      return;
+        const roomTimer = setTimeout(() => {
+          this.roomTerminationTimers.delete(room.code);
+          const liveRoom = this.rooms.get(room.code);
+          if (!liveRoom) return;
+
+          const activeHumans = liveRoom.players.filter(p => !p.isBot && !p.isDisconnected && !p.isSpectator);
+          if (activeHumans.length === 0) {
+            if (this.turnTimers.has(liveRoom.code)) {
+              clearTimeout(this.turnTimers.get(liveRoom.code)!);
+              this.turnTimers.delete(liveRoom.code);
+            }
+            if (this.gameTimers.has(liveRoom.code)) {
+              clearTimeout(this.gameTimers.get(liveRoom.code)!);
+              this.gameTimers.delete(liveRoom.code);
+            }
+            liveRoom.status = 'game_over';
+            liveRoom.lastAction = '🛑 Game stopped: No human players returned within 60s.';
+            console.log(`[Room ${liveRoom.code}] 60s grace expired with no reconnecting humans. Closing room.`);
+
+            this.io.to(liveRoom.code).emit('gameTerminated', {
+              reason: 'All players left the game. Returning to lobby...'
+            });
+            this.io.to(liveRoom.code).emit('returnToLobby');
+            this.rooms.delete(liveRoom.code);
+          }
+        }, 60000);
+
+        this.roomTerminationTimers.set(room.code, roomTimer);
+      }
     }
 
     // If disconnected player was host, transfer host to next active human
@@ -735,7 +762,12 @@ export class RoomManager {
     const player = room.players.find(p => p.id === playerId);
     if (!player) return { success: false };
 
-    // Clear any pending disconnect grace timer!
+    // Clear any pending room termination or disconnect grace timer!
+    if (this.roomTerminationTimers.has(room.code)) {
+      clearTimeout(this.roomTerminationTimers.get(room.code)!);
+      this.roomTerminationTimers.delete(room.code);
+      console.log(`[Room ${room.code}] Player reconnected! Cancelled room termination timer.`);
+    }
     const timerKey = `${room.code}:${player.id}`;
     if (this.disconnectGraceTimers.has(timerKey)) {
       clearTimeout(this.disconnectGraceTimers.get(timerKey)!);
@@ -941,8 +973,12 @@ export class RoomManager {
       remaining.sort((a, b) => b.cardsCount - a.cardsCount);
       if (remaining.length > 0) {
         remaining[0].isDonkey = true;
+        remaining[0].rank = 999;
       }
-      let nextRank = (Math.max(0, ...room.players.map(p => p.rank || 0))) + 1;
+      const existingRanks = room.players
+        .filter(p => !p.isSpectator && p.rank && p.rank !== 999)
+        .map(p => p.rank || 0);
+      let nextRank = (existingRanks.length > 0 ? Math.max(...existingRanks) : 0) + 1;
       const unranked = room.players.filter(p => !p.rank && !p.isDonkey && !p.isSpectator);
       unranked.sort((a, b) => a.cardsCount - b.cardsCount);
       unranked.forEach(p => {
@@ -1276,7 +1312,7 @@ export class RoomManager {
       if (room.unoDeck.length === 0) {
         if (room.discardPile.length > 1) {
           const top = room.discardPile.pop()!;
-          room.unoDeck = room.discardPile.sort(() => Math.random() - 0.5);
+          room.unoDeck = shuffle([...room.discardPile]);
           room.discardPile = [top];
         }
       }
@@ -1340,12 +1376,12 @@ export class RoomManager {
 
     const catcher = room.players.find(p => p.id === catcherPlayerId);
     const target = room.players.find(p => p.id === targetPlayerId);
-    if (!target || target.cardsCount !== 1 || target.calledUno) return false;
+    if (!target || target.isSpectator || target.isMercyEliminated || target.cardsCount !== 1 || target.calledUno) return false;
 
     for (let i = 0; i < 2; i++) {
       if (room.unoDeck.length === 0 && room.discardPile.length > 1) {
         const top = room.discardPile.pop()!;
-        room.unoDeck = room.discardPile.sort(() => Math.random() - 0.5);
+        room.unoDeck = shuffle([...room.discardPile]);
         room.discardPile = [top];
       }
       if (room.unoDeck.length > 0) {

@@ -32,7 +32,7 @@
 }
 
 .safe-bottom-action {
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 32px);
+  padding-bottom: max(calc(env(safe-area-inset-bottom, 0px) + 16px), 48px) !important;
 }
 
 /* Hide scrollbar track on mobile & desktop */

@@ -193,6 +193,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
+  const [hostActionConfirm, setHostActionConfirm] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    action: () => void;
+  } | null>(null);
   const [isWatching, setIsWatching] = useState<boolean>(false);
 
   // Low-time alert (updates only when crossing <= 6s threshold, zero 1-second interval re-renders)
@@ -1280,25 +1286,11 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                 const el = document.getElementById(`hand-card-${selectedCard.id}`);
                 handlePlayCard(selectedCard, el ? el.getBoundingClientRect() : null);
               } else {
-                // Auto-pick the lowest valid card in hand
-                const myHand = (gameState.myHand as DonkeyCard[]) || [];
-                const validCard = myHand.find(c => {
-                  if (isFirstTrick) return c.suit === 'SPADES' && c.value === 'A';
-                  if (gameState.leadSuit && myHand.some(h => h.suit === gameState.leadSuit)) {
-                    return c.suit === gameState.leadSuit;
-                  }
-                  return true;
+                setInvalidCardNotice({
+                  message: 'Tap a card to select it first, then click DEAL (or double-click card to play)',
+                  symbol: '👆',
+                  cardId: ''
                 });
-                if (validCard) {
-                  const el = document.getElementById(`hand-card-${validCard.id}`);
-                  handlePlayCard(validCard, el ? el.getBoundingClientRect() : null);
-                } else {
-                  setInvalidCardNotice({
-                    message: 'Please tap a card in your hand to deal!',
-                    symbol: '🃏',
-                    cardId: ''
-                  });
-                }
               }
             }}
             className={`px-6 sm:px-8 py-2 sm:py-2.5 rounded-full font-black text-sm sm:text-base tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 border-t-2 border-t-white/80 border-b-2 border-b-amber-800 shadow-[0_6px_0_#92400e,0_12px_24px_rgba(0,0,0,0.6)] active:translate-y-1.5 active:shadow-[0_1px_0_#92400e] cursor-pointer ${
@@ -1435,24 +1427,30 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                   </div>
                   <button
                     onClick={() => {
-                      if (window.confirm('Return all players back to the room lobby? Current match will stop.')) {
-                        socketService.returnToLobby(gameState.roomCode);
-                        setShowSettingsModal(false);
-                      }
+                      setShowSettingsModal(false);
+                      setHostActionConfirm({
+                        title: 'Return to Lobby?',
+                        message: 'Return all players back to the room lobby? The current match will stop.',
+                        confirmText: 'Return to Lobby',
+                        action: () => socketService.returnToLobby(gameState.roomCode)
+                      });
                     }}
-                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>RETURN ALL PLAYERS TO LOBBY</span>
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm('Complete and end the match now? Donkey and rankings will be declared.')) {
-                        socketService.forceEndGame(gameState.roomCode);
-                        setShowSettingsModal(false);
-                      }
+                      setShowSettingsModal(false);
+                      setHostActionConfirm({
+                        title: 'End Match Now?',
+                        message: 'Complete and end the match now? Donkey and rankings will be declared immediately.',
+                        confirmText: 'Complete Match',
+                        action: () => socketService.forceEndGame(gameState.roomCode)
+                      });
                     }}
-                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Flag className="w-3.5 h-3.5" />
                     <span>COMPLETE & END MATCH</span>
@@ -1466,6 +1464,38 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
               >
                 <LogOut className="w-4 h-4" />
                 <span>EXIT TO LOBBY</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HOST ACTION CONFIRMATION MODAL */}
+      {hostActionConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
+          <div className="w-full max-w-xs p-6 rounded-3xl bg-slate-950 border-2 border-amber-400 text-center shadow-2xl">
+            <div className="text-4xl mb-2">👑</div>
+            <h3 className="text-lg font-black text-white">{hostActionConfirm.title}</h3>
+            <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+              {hostActionConfirm.message}
+            </p>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => setHostActionConfirm(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const act = hostActionConfirm.action;
+                  setHostActionConfirm(null);
+                  act();
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg active:scale-95"
+              >
+                {hostActionConfirm.confirmText}
               </button>
             </div>
           </div>

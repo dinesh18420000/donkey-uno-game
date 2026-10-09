@@ -78,6 +78,12 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
+  const [hostActionConfirm, setHostActionConfirm] = useState<{
+    title: string;
+    message: string;
+    confirmText: string;
+    action: () => void;
+  } | null>(null);
   const [isWatching, setIsWatching] = useState<boolean>(false);
   const [showEliminatedModal, setShowEliminatedModal] = useState<boolean>(false);
   const prevEliminatedRef = useRef<boolean>(false);
@@ -179,14 +185,15 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
       }
       skipTimerRef.current = setTimeout(() => {
         setLocalSkippedPlayerId(null);
-        lastSeenSkippedRef.current = null;
         skipTimerRef.current = null;
       }, 3000);
-    } else if (!skippedId && !skipTimerRef.current && localSkippedPlayerId) {
-      setLocalSkippedPlayerId(null);
-      lastSeenSkippedRef.current = null;
+    } else if (!skippedId) {
+      if (!skipTimerRef.current) {
+        setLocalSkippedPlayerId(null);
+        lastSeenSkippedRef.current = null;
+      }
     }
-  }, [gameState.lastSkippedPlayerId, localSkippedPlayerId]);
+  }, [gameState.lastSkippedPlayerId]);
 
   // Clean up skip timer on unmount
   useEffect(() => {
@@ -1461,10 +1468,20 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
       {/* WILD COLOR PICKER MODAL */}
       {showColorPicker && pendingCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="w-full max-w-xs p-5 rounded-3xl bg-slate-900 border-2 border-amber-400 text-center shadow-2xl">
+          <div className="w-full max-w-xs p-5 rounded-3xl bg-slate-900 border-2 border-amber-400 text-center shadow-2xl relative">
+            <button
+              onClick={() => {
+                setShowColorPicker(false);
+                setPendingCard(null);
+              }}
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition"
+              aria-label="Cancel color selection"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <h3 className="text-lg font-black text-white mb-1">CHOOSE WILD COLOR</h3>
             <p className="text-xs text-slate-300 mb-3">Select the active color for the next player:</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 mb-3">
               {WILD_COLORS.map(({ color, label, bg }) => (
                 <button
                   key={color}
@@ -1475,6 +1492,15 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => {
+                setShowColorPicker(false);
+                setPendingCard(null);
+              }}
+              className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold text-xs transition"
+            >
+              CANCEL
+            </button>
           </div>
         </div>
       )}
@@ -1482,10 +1508,20 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
       {/* 7 SWAP HAND TARGET PICKER MODAL */}
       {showSwapPicker && pendingCard && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="w-full max-w-xs p-5 rounded-3xl bg-slate-900 border-2 border-amber-400 text-center shadow-2xl">
+          <div className="w-full max-w-xs p-5 rounded-3xl bg-slate-900 border-2 border-amber-400 text-center shadow-2xl relative">
+            <button
+              onClick={() => {
+                setShowSwapPicker(false);
+                setPendingCard(null);
+              }}
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition"
+              aria-label="Cancel swap selection"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <h3 className="text-lg font-black text-amber-300 mb-1">🔁 7 SWAP RULE!</h3>
             <p className="text-xs text-slate-300 mb-3">Choose a player to swap your entire hand with:</p>
-            <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+            <div className="flex flex-col gap-2 max-h-48 overflow-y-auto mb-3">
               {opponents
                 .filter(p => !p.rank && !p.isMercyEliminated && !p.isSpectator && (p.cardsCount ?? 0) > 0)
                 .map(opp => (
@@ -1501,6 +1537,15 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                   </button>
                 ))}
             </div>
+            <button
+              onClick={() => {
+                setShowSwapPicker(false);
+                setPendingCard(null);
+              }}
+              className="w-full py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-bold text-xs transition"
+            >
+              CANCEL
+            </button>
           </div>
         </div>
       )}
@@ -1586,24 +1631,30 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                   </div>
                   <button
                     onClick={() => {
-                      if (window.confirm('Return all players back to the room lobby? Current match will stop.')) {
-                        socketService.returnToLobby(gameState.roomCode);
-                        setShowSettingsModal(false);
-                      }
+                      setShowSettingsModal(false);
+                      setHostActionConfirm({
+                        title: 'Return to Lobby?',
+                        message: 'Return all players back to the room lobby? Current match will stop.',
+                        confirmText: 'Return to Lobby',
+                        action: () => socketService.returnToLobby(gameState.roomCode)
+                      });
                     }}
-                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>RETURN ALL PLAYERS TO LOBBY</span>
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm('Complete and end the match now? Scores and rankings will be calculated.')) {
-                        socketService.forceEndGame(gameState.roomCode);
-                        setShowSettingsModal(false);
-                      }
+                      setShowSettingsModal(false);
+                      setHostActionConfirm({
+                        title: 'End Match Now?',
+                        message: 'Complete and end the match now? Scores and rankings will be calculated immediately.',
+                        confirmText: 'Complete Match',
+                        action: () => socketService.forceEndGame(gameState.roomCode)
+                      });
                     }}
-                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Flag className="w-3.5 h-3.5" />
                     <span>COMPLETE & END MATCH</span>
@@ -1617,6 +1668,38 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
               >
                 <LogOut className="w-4 h-4" />
                 <span>EXIT TO LOBBY</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HOST ACTION CONFIRMATION MODAL */}
+      {hostActionConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="w-full max-w-xs p-6 rounded-3xl bg-slate-950 border-2 border-amber-400 text-center shadow-2xl">
+            <div className="text-4xl mb-2">👑</div>
+            <h3 className="text-lg font-black text-white">{hostActionConfirm.title}</h3>
+            <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+              {hostActionConfirm.message}
+            </p>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => setHostActionConfirm(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const act = hostActionConfirm.action;
+                  setHostActionConfirm(null);
+                  act();
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg active:scale-95"
+              >
+                {hostActionConfirm.confirmText}
               </button>
             </div>
           </div>
