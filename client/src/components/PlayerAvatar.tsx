@@ -50,16 +50,17 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
   const initials = player.name.slice(0, 2).toUpperCase();
 
   // Local state for countdown ticking
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(turnDuration);
+  const maxSec = Math.min(20, turnDuration || 20);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(maxSec);
 
   useEffect(() => {
     if (!isCurrentTurn) {
-      setSecondsRemaining(turnDuration);
+      setSecondsRemaining(maxSec);
       return;
     }
 
     if (!turnExpiresAt) {
-      setSecondsRemaining(turnDuration);
+      setSecondsRemaining(maxSec);
       const interval = setInterval(() => {
         setSecondsRemaining(prev => Math.max(0, prev - 1));
       }, 1000);
@@ -67,14 +68,14 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
     }
 
     const updateTimer = () => {
-      const diff = Math.max(0, Math.ceil((turnExpiresAt - Date.now()) / 1000));
+      const diff = Math.max(0, Math.min(maxSec, Math.ceil((turnExpiresAt - Date.now()) / 1000)));
       setSecondsRemaining(diff);
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 200);
     return () => clearInterval(interval);
-  }, [isCurrentTurn, turnExpiresAt, turnDuration]);
+  }, [isCurrentTurn, turnExpiresAt, maxSec]);
 
   // Turn is active and time is very low (<= 4 seconds)
   const isTimeLow = isCurrentTurn && secondsRemaining <= 4;

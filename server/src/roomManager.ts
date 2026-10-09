@@ -77,7 +77,7 @@ export class RoomManager {
       roundNumber: 1,
       lastAction: `Room created by ${host.name}`,
       turnExpiresAt: 0,
-      turnDuration: 30,
+      turnDuration: 20,
       currentTrick: [],
       drawStackCount: 0,
       deckRemainingCount: 0,
@@ -638,10 +638,10 @@ export class RoomManager {
 
       this.disconnectGraceTimers.set(timerKey, graceTimer);
 
-      // If it is currently this player's turn, give 45s grace for them to return
+      // If it is currently this player's turn, give 20s for them to play or return
       const currentActive = room.players[room.currentTurnIndex];
       if (currentActive && currentActive.id === player.id) {
-        this.startTurnTimer(room, 45000);
+        this.startTurnTimer(room, 20000);
       }
     } else {
       room.lastAction = `⚠️ ${player.name} disconnected.`;
@@ -870,7 +870,7 @@ export class RoomManager {
     const isBotOrDisconnected = currentPlayer.isBot || currentPlayer.isDisconnected;
     const defaultBotTime = room.gameType === 'uno_no_mercy' ? UNO_BOT_TURN_TIME_MS : BOT_TURN_TIME_MS;
     const defaultHumanTime = room.gameType === 'uno_no_mercy' ? UNO_HUMAN_TURN_TIME_MS : HUMAN_TURN_TIME_MS;
-    const durationMs = customMs !== undefined ? customMs : (isBotOrDisconnected ? defaultBotTime : defaultHumanTime);
+    const durationMs = customMs !== undefined ? Math.min(20000, customMs) : (isBotOrDisconnected ? defaultBotTime : defaultHumanTime);
 
     room.turnDuration = Math.round(durationMs / 1000);
     room.turnExpiresAt = Date.now() + durationMs;
@@ -1462,6 +1462,7 @@ export class RoomManager {
         roundNumber: room.roundNumber,
         turnExpiresAt: room.turnExpiresAt,
         turnDuration: room.turnDuration,
+        serverTime: Date.now(),
         gameExpiresAt: room.gameExpiresAt,
         gameDuration: room.gameDuration,
         leadSuit: room.leadSuit,

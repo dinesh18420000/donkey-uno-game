@@ -131,6 +131,7 @@ export interface ClientGameState {
   roundNumber: number;
   turnExpiresAt: number;
   turnDuration: number;
+  serverTime?: number;
   gameExpiresAt?: number;
   gameDuration?: number;
 

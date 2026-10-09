@@ -147,38 +147,46 @@ interface SweepCardItem {
   stackRot: number;
 }
 
-// Isolated Countdown Badge Component: ticks every 1000ms internally without re-rendering parent DonkeyGameScreen
-const TurnCountdownBadge: React.FC<{ expiresAt?: number; isTimeLow: boolean }> = React.memo(({ expiresAt, isTimeLow }) => {
-  const [seconds, setSeconds] = useState<number>(() => {
-    if (expiresAt && expiresAt > Date.now()) {
-      return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
-    }
-    return 30;
-  });
+// Isolated Countdown Badge Component: ticks every 250ms internally without re-rendering parent DonkeyGameScreen
+const TurnCountdownBadge: React.FC<{
+  expiresAt?: number;
+  turnDuration?: number;
+  serverTime?: number;
+  isTimeLow: boolean;
+}> = React.memo(({ expiresAt, turnDuration = 20, serverTime, isTimeLow }) => {
+  const maxTurnSec = Math.min(20, turnDuration || 20);
+
+  const calculateRemaining = useCallback(() => {
+    if (!expiresAt || expiresAt <= 0) return maxTurnSec;
+    const now = Date.now();
+    const skewOffset = serverTime ? (serverTime - now) : 0;
+    const effectiveNow = now + skewOffset;
+    const diffMs = expiresAt - effectiveNow;
+    const rawSeconds = Math.ceil(diffMs / 1000);
+    return Math.max(0, Math.min(maxTurnSec, rawSeconds));
+  }, [expiresAt, serverTime, maxTurnSec]);
+
+  const [seconds, setSeconds] = useState<number>(calculateRemaining);
 
   useEffect(() => {
-    const updateTime = () => {
-      if (expiresAt && expiresAt > Date.now()) {
-        const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
-        setSeconds(remaining);
-      } else {
-        setSeconds(prev => (prev > 0 ? prev - 1 : 0));
-      }
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
+    setSeconds(calculateRemaining());
+    const interval = setInterval(() => {
+      setSeconds(calculateRemaining());
+    }, 250);
     return () => clearInterval(interval);
-  }, [expiresAt]);
+  }, [calculateRemaining]);
+
+  const urgent = isTimeLow || seconds <= 4;
 
   return (
     <div
       className={`absolute -top-5 z-30 flex items-center gap-0.5 px-1.5 py-0.2 rounded-full border shadow-md text-[9px] font-black tracking-tight ${
-        isTimeLow
+        urgent
           ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse'
           : 'bg-emerald-950/95 border-emerald-400 text-emerald-300'
       }`}
     >
-      <Clock className={`w-2.5 h-2.5 ${isTimeLow ? 'text-red-400 animate-spin' : 'text-emerald-400'}`} />
+      <Clock className={`w-2.5 h-2.5 ${urgent ? 'text-red-400 animate-spin' : 'text-emerald-400'}`} />
       <span>{seconds}s</span>
     </div>
   );
@@ -551,11 +559,14 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
   // Low-time alert: triggers audio warning and sets isTimeLow when <= 6s (zero interval re-renders)
   useEffect(() => {
-    if (!gameState.turnExpiresAt || gameState.turnExpiresAt <= Date.now()) {
+    if (!gameState.turnExpiresAt || gameState.turnExpiresAt <= 0) {
       setIsTimeLow(false);
       return;
     }
-    const msRemaining = gameState.turnExpiresAt - Date.now();
+    const now = Date.now();
+    const skewOffset = gameState.serverTime ? (gameState.serverTime - now) : 0;
+    const effectiveNow = now + skewOffset;
+    const msRemaining = Math.max(0, Math.min(20000, gameState.turnExpiresAt - effectiveNow));
     const msUntilLow = msRemaining - 6000;
     if (msUntilLow <= 0) {
       setIsTimeLow(true);
@@ -568,7 +579,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       if (isMyTurn) sounds.playUnoWarning();
     }, msUntilLow);
     return () => clearTimeout(timer);
-  }, [gameState.currentTurnPlayerId, gameState.turnExpiresAt, isMyTurn]);
+  }, [gameState.currentTurnPlayerId, gameState.turnExpiresAt, gameState.serverTime, isMyTurn]);
 
   // 10-Minute Total Match Countdown Timer
   const [gameSecondsRemaining, setGameSecondsRemaining] = useState<number | null>(null);
@@ -868,7 +879,12 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
                   {/* Turn Countdown Badge */}
                   {isTurn && !player.rank && (
-                    <TurnCountdownBadge expiresAt={gameState.turnExpiresAt} isTimeLow={isTimeLow} />
+                    <TurnCountdownBadge
+                      expiresAt={gameState.turnExpiresAt}
+                      turnDuration={gameState.turnDuration}
+                      serverTime={gameState.serverTime}
+                      isTimeLow={isTimeLow}
+                    />
                   )}
 
                   {/* Circular Avatar Container with Active Turn Steady Highlight */}

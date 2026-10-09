@@ -587,21 +587,28 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
 
   // Turn Countdown (20s max for Uno)
   useEffect(() => {
+    const maxTurnSec = Math.min(20, gameState.turnDuration || 20);
     if (!gameState.turnExpiresAt) {
-      setSecondsRemaining(gameState.turnDuration || 20);
+      setSecondsRemaining(maxTurnSec);
       return;
     }
 
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((gameState.turnExpiresAt - Date.now()) / 1000));
+    const updateTimer = () => {
+      const now = Date.now();
+      const skewOffset = gameState.serverTime ? (gameState.serverTime - now) : 0;
+      const effectiveNow = now + skewOffset;
+      const remainingMs = gameState.turnExpiresAt - effectiveNow;
+      const remaining = Math.max(0, Math.min(maxTurnSec, Math.ceil(remainingMs / 1000)));
       setSecondsRemaining(remaining);
       if (remaining <= 4 && remaining > 0 && isMyTurn) {
         sounds.playUnoWarning();
       }
-    }, 500);
+    };
 
+    updateTimer();
+    const interval = setInterval(updateTimer, 250);
     return () => clearInterval(interval);
-  }, [gameState.turnExpiresAt, gameState.turnDuration, isMyTurn]);
+  }, [gameState.turnExpiresAt, gameState.turnDuration, gameState.serverTime, isMyTurn]);
 
   // 10-Minute Total Match Countdown Timer
   useEffect(() => {
