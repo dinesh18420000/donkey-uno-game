@@ -147,51 +147,6 @@ interface SweepCardItem {
   stackRot: number;
 }
 
-// Isolated Countdown Badge Component: ticks every 250ms internally without re-rendering parent DonkeyGameScreen
-const TurnCountdownBadge: React.FC<{
-  expiresAt?: number;
-  turnDuration?: number;
-  serverTime?: number;
-  isTimeLow: boolean;
-}> = React.memo(({ expiresAt, turnDuration = 20, serverTime, isTimeLow }) => {
-  const maxTurnSec = Math.min(20, turnDuration || 20);
-
-  const calculateRemaining = useCallback(() => {
-    if (!expiresAt || expiresAt <= 0) return maxTurnSec;
-    const now = Date.now();
-    const skewOffset = serverTime ? (serverTime - now) : 0;
-    const effectiveNow = now + skewOffset;
-    const diffMs = expiresAt - effectiveNow;
-    const rawSeconds = Math.ceil(diffMs / 1000);
-    return Math.max(0, Math.min(maxTurnSec, rawSeconds));
-  }, [expiresAt, serverTime, maxTurnSec]);
-
-  const [seconds, setSeconds] = useState<number>(calculateRemaining);
-
-  useEffect(() => {
-    setSeconds(calculateRemaining());
-    const interval = setInterval(() => {
-      setSeconds(calculateRemaining());
-    }, 250);
-    return () => clearInterval(interval);
-  }, [calculateRemaining]);
-
-  const urgent = isTimeLow || seconds <= 4;
-
-  return (
-    <div
-      className={`absolute -top-5 z-30 flex items-center gap-0.5 px-1.5 py-0.2 rounded-full border shadow-md text-[9px] font-black tracking-tight ${
-        urgent
-          ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse'
-          : 'bg-emerald-950/95 border-emerald-400 text-emerald-300'
-      }`}
-    >
-      <Clock className={`w-2.5 h-2.5 ${urgent ? 'text-red-400 animate-spin' : 'text-emerald-400'}`} />
-      <span>{seconds}s</span>
-    </div>
-  );
-});
-
 export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, onExitToLobby }) => {
   const [selectedCard, setSelectedCard] = useState<DonkeyCard | null>(null);
   const [showEmotePicker, setShowEmotePicker] = useState<boolean>(false);
@@ -208,9 +163,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     action: () => void;
   } | null>(null);
   const [isWatching, setIsWatching] = useState<boolean>(false);
-
-  // Low-time alert (updates only when crossing <= 6s threshold, zero 1-second interval re-renders)
-  const [isTimeLow, setIsTimeLow] = useState<boolean>(false);
 
   // States for Smooth Gameplay Animations
   const [flyingPlayCards, setFlyingPlayCards] = useState<FlyingCardItem[]>([]);
@@ -557,52 +509,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     return () => clearTimeout(timer);
   }, [invalidCardNotice]);
 
-  // Low-time alert: triggers audio warning and sets isTimeLow when <= 6s (zero interval re-renders)
-  useEffect(() => {
-    if (!gameState.turnExpiresAt || gameState.turnExpiresAt <= 0) {
-      setIsTimeLow(false);
-      return;
-    }
-    const now = Date.now();
-    const skewOffset = gameState.serverTime ? (gameState.serverTime - now) : 0;
-    const effectiveNow = now + skewOffset;
-    const msRemaining = Math.max(0, Math.min(20000, gameState.turnExpiresAt - effectiveNow));
-    const msUntilLow = msRemaining - 6000;
-    if (msUntilLow <= 0) {
-      setIsTimeLow(true);
-      if (isMyTurn) sounds.playUnoWarning();
-      return;
-    }
-    setIsTimeLow(false);
-    const timer = setTimeout(() => {
-      setIsTimeLow(true);
-      if (isMyTurn) sounds.playUnoWarning();
-    }, msUntilLow);
-    return () => clearTimeout(timer);
-  }, [gameState.currentTurnPlayerId, gameState.turnExpiresAt, gameState.serverTime, isMyTurn]);
-
-  // 10-Minute Total Match Countdown Timer
-  const [gameSecondsRemaining, setGameSecondsRemaining] = useState<number | null>(null);
-  useEffect(() => {
-    if (!gameState.gameExpiresAt) {
-      setGameSecondsRemaining(null);
-      return;
-    }
-    const updateTimer = () => {
-      const remaining = Math.max(0, Math.ceil((gameState.gameExpiresAt! - Date.now()) / 1000));
-      setGameSecondsRemaining(remaining);
-    };
-    updateTimer();
-    const interval = setInterval(updateTimer, 500);
-    return () => clearInterval(interval);
-  }, [gameState.gameExpiresAt]);
-
-  const formatGameTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   // Remote Emote listener
   useEffect(() => {
     const socket = socketService.connect();
@@ -758,23 +664,8 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           </div>
         </div>
 
-        {/* Center: Trick Status & Lead Suit & Match Timer */}
+        {/* Center: Trick Status & Lead Suit */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {gameSecondsRemaining !== null && (
-            <div
-              title="10-Minute Game Timer (Match ends when time reaches 00:00)"
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border shadow-lg transition-colors flex-shrink-0 ${
-                gameSecondsRemaining <= 60
-                  ? 'bg-red-950/95 border-red-500 text-red-300 animate-pulse shadow-red-500/50'
-                  : gameSecondsRemaining <= 180
-                  ? 'bg-amber-950/90 border-amber-400 text-amber-300 shadow-amber-500/30'
-                  : 'bg-slate-900/90 border-cyan-500/50 text-cyan-200'
-              }`}
-            >
-              <Timer className={`w-3 h-3 ${gameSecondsRemaining <= 60 ? 'text-red-400 animate-spin' : 'text-cyan-300'}`} />
-              <span className="font-mono font-black">{formatGameTime(gameSecondsRemaining)}</span>
-            </div>
-          )}
           {gameState.leadSuit && (
             <div className="flex items-center gap-1 bg-amber-400/20 border border-amber-400/60 px-2 py-0.5 rounded-full text-[10px] font-black text-amber-200 flex-shrink-0">
               <span>Lead:</span>
@@ -904,16 +795,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     </div>
                   )}
 
-                  {/* Turn Countdown Badge */}
-                  {isTurn && !player.rank && (
-                    <TurnCountdownBadge
-                      expiresAt={gameState.turnExpiresAt}
-                      turnDuration={gameState.turnDuration}
-                      serverTime={gameState.serverTime}
-                      isTimeLow={isTimeLow}
-                    />
-                  )}
-
                   {/* Circular Avatar Container with Active Turn Steady Highlight */}
                   <div
                     onClick={() => handleCheerPlayer(player.id)}
@@ -925,9 +806,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                         isVictim
                           ? 'animate-busted-shudder animate-busted-aura'
                           : isTurn
-                          ? isTimeLow
-                            ? 'animate-gentle-turn-red ring-2 ring-red-500'
-                            : 'animate-gentle-turn-green ring-2 ring-emerald-400'
+                          ? 'animate-gentle-turn-green ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]'
                           : isSelf
                           ? 'ring-2 ring-amber-400 shadow-[0_2px_8px_rgba(250,204,21,0.5)]'
                           : 'ring-2 ring-white/60 shadow-[0_2px_6px_rgba(0,0,0,0.4)]'
@@ -1043,9 +922,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                         player.theme.deckBorder
                       } ${
                         isSlotTurn
-                          ? isTimeLow
-                            ? 'ring-4 ring-red-500 shadow-[0_0_24px_#ef4444] scale-105 animate-pulse'
-                            : 'ring-4 ring-emerald-400 shadow-[0_0_24px_#22c55e] scale-105'
+                          ? 'ring-4 ring-emerald-400 shadow-[0_0_24px_#22c55e] scale-105'
                           : ''
                       }`}
                     >
@@ -1282,9 +1159,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
                     isMeVictim
                       ? 'animate-busted-shudder animate-busted-aura'
                       : isMyTurn
-                      ? isTimeLow
-                        ? 'animate-gentle-turn-red ring-2 ring-red-500'
-                        : 'animate-gentle-turn-green ring-2 ring-emerald-400'
+                      ? 'animate-gentle-turn-green ring-2 ring-emerald-400'
                       : 'ring-2 ring-amber-400 shadow-[0_3px_8px_rgba(250,204,21,0.4)]'
                   }`}
                 >

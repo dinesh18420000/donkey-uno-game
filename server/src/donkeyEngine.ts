@@ -155,9 +155,6 @@ export function resolveDonkeyPlay(
   };
   currentTrick.push(play);
 
-  // Check if player emptied their hand
-  checkAndAssignRanks(players);
-
   // If a CUT happened:
   if (isCut) {
     // Find the player who played the HIGHEST card of the leadSuit so far
@@ -185,8 +182,12 @@ export function resolveDonkeyPlay(
       return b.rank - a.rank;
     });
     victim.cardsCount = victim.hand.length;
-    // If victim had ranked out, they are back in the game!
+    // If victim had ranked out or was marked as donkey, restore to active play!
     if (victim.rank) victim.rank = undefined;
+    victim.isDonkey = false;
+
+    // Evaluate ranks now that cut resolution is fully finalized
+    checkAndAssignRanks(players);
 
     const victimIndex = players.findIndex(p => p.id === victim.id);
 
@@ -216,7 +217,10 @@ export function resolveDonkeyPlay(
     p => !p.rank && !p.isSpectator && p.hand.length > 0 && !currentTrick.some(t => t.playerId === p.id)
   );
   if (playersWaitingToPlay.length === 0) {
-    // Clean trick! No cut. Find highest card winner
+    // Clean trick! No cut. Evaluate ranks now that trick is complete
+    checkAndAssignRanks(players);
+
+    // Find highest card winner
     let winnerId = currentTrick[0].playerId;
     let highestRank = currentTrick[0].card.rank;
     let winningCard = currentTrick[0].card;
@@ -282,6 +286,7 @@ export function checkAndAssignRanks(players: Player[]): void {
 
   for (const p of activeWithoutRank) {
     p.rank = nextRank++;
+    p.isDonkey = false;
   }
 
   // Check if only 1 player remains holding cards -> They are DONKEY!

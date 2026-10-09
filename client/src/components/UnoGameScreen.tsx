@@ -174,6 +174,18 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     !is0PassAnimating &&
     !isSwapAnimating &&
     !isPlayingAction;
+
+  // Haptic feedback alert on mobile devices when it becomes the player's turn
+  const prevIsMyTurnRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (isMyTurn && !prevIsMyTurnRef.current) {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate([40, 60, 40]); } catch {}
+      }
+    }
+    prevIsMyTurnRef.current = isMyTurn;
+  }, [isMyTurn]);
+
   const currentTurnPlayer = gameState.players.find(p => p.id === visualTurnPlayerId) || gameState.players.find(p => p.id === gameState.currentTurnPlayerId);
   const myHand = (gameState.myHand as UnoCard[]) || [];
 
@@ -705,8 +717,8 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
       setIsPlayingAction(false);
     }, 1600);
 
-    const willHaveOneCard = myHand.length === 2;
-    const callUno = willHaveOneCard || me?.calledUno;
+    // Player must explicitly call UNO; do not auto-call on play so Catch UNO mechanic works authentically
+    const callUno = !!me?.calledUno;
 
     // Instantly hide card from hand and launch smooth GPU card flight from hand to center discard pile!
     setHiddenHandCardId(card.id);
@@ -830,22 +842,14 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     }
   };
 
-  // Win condition:
-  // 1. Status is 'game_over'
-  // 2. Legitimate card winner: emptied hand down to 0 cards AND is NOT mercy-eliminated!
-  // 3. Only 1 active player remains standing (all opponents eliminated by Mercy Rule)
+  // Win condition: Strictly rely on authoritative server status and winner assignment
   const legitCardWinner = gameState.players.find(
     p => !p.isSpectator && !p.isMercyEliminated && (p.cardsCount === 0 || (p.id === myId && myHand.length === 0))
   );
-  const isOnlyOneSurvivor =
-    gameState.status === 'playing' &&
-    activeRemainingPlayers.length === 1 &&
-    gameState.players.filter(p => !p.isSpectator).length > 1;
-  const isGameOver = gameState.status === 'game_over' || !!legitCardWinner || isOnlyOneSurvivor;
+  const isGameOver = gameState.status === 'game_over' || !!legitCardWinner;
   const winner =
     gameState.players.find(p => p.rank === 1 && !p.isMercyEliminated) ||
-    legitCardWinner ||
-    (isOnlyOneSurvivor ? activeRemainingPlayers[0] : undefined);
+    legitCardWinner;
 
   const [gameOverDelayed, setGameOverDelayed] = useState<boolean>(false);
 
@@ -1201,6 +1205,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
                     activeEmote={activeEmotes[player.id]}
                     turnExpiresAt={gameState.turnExpiresAt}
                     turnDuration={gameState.turnDuration}
+                    serverTime={gameState.serverTime}
                     isBeforeMe={playerBeforeMe?.id === player.id}
                     isAfterMe={playerAfterMe?.id === player.id}
                   />

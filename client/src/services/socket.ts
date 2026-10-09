@@ -264,6 +264,9 @@ class SocketService {
     }, (res: any) => {
       if (res?.success) {
         console.log('🎉 Successfully resumed game from Bot takeover!');
+      } else {
+        console.log('⚠️ Reconnect failed or room expired. Clearing active room storage.');
+        localStorage.removeItem('donkey_uno_active_room');
       }
       callback?.(!!res?.success);
     });

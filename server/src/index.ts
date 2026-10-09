@@ -29,7 +29,7 @@ app.get('/health', (req, res) => {
 
 // Emergency reset for family room if ever needed
 app.get('/api/reset-family', (req, res) => {
-  roomManager.leaveRoom('FAMILY', 'all', '');
+  roomManager.resetRoom('FAMILY');
   res.json({ status: 'reset_ok' });
 });
 

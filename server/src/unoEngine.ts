@@ -160,8 +160,9 @@ export function chooseUnoBotCard(
   const bestColor = (['red', 'blue', 'green', 'yellow'] as UnoColor[]).reduce((best, cur) =>
     colorCounts[cur] > colorCounts[best] ? cur : best, 'red');
 
-  // Will this play leave bot with 1 card? If so, bot calls Uno!
+  // Will this play leave bot with 1 card? Bot calls Uno with 85% probability (15% chance to be caught by alert players!)
   const willHaveOneCard = player.hand.length === 2;
+  const botCallsUno = willHaveOneCard && Math.random() < 0.85;
 
   // Strategy 1: In stacking battle, play the lowest penalty counter that is >= current penalty to save higher cards
   if (drawStackCount > 0) {
@@ -175,7 +176,7 @@ export function chooseUnoBotCard(
       return {
         card: chosen,
         chosenColor: chosen.color === 'wild' ? bestColor : undefined,
-        callUno: willHaveOneCard
+        callUno: botCallsUno
       };
     }
   }
@@ -183,9 +184,10 @@ export function chooseUnoBotCard(
   // Strategy 2: Play Discard All if we have 2+ of that color
   const discardAll = validCards.find(c => c.type === 'discard_all' && colorCounts[c.color] >= 2);
   if (discardAll) {
+    const leavesOne = (player.hand as UnoCard[]).filter(c => c.color !== discardAll.color).length === 1;
     return {
       card: discardAll,
-      callUno: (player.hand as UnoCard[]).filter(c => c.color !== discardAll.color).length === 1
+      callUno: leavesOne && Math.random() < 0.85
     };
   }
 
@@ -195,7 +197,7 @@ export function chooseUnoBotCard(
     return {
       card: drawCard,
       chosenColor: drawCard.color === 'wild' ? bestColor : undefined,
-      callUno: willHaveOneCard
+      callUno: botCallsUno
     };
   }
 
@@ -204,7 +206,7 @@ export function chooseUnoBotCard(
   return {
     card: cardToPlay,
     chosenColor: cardToPlay.color === 'wild' ? bestColor : undefined,
-    callUno: willHaveOneCard
+    callUno: botCallsUno
   };
 }
 

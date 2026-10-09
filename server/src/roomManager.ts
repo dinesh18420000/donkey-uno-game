@@ -316,6 +316,47 @@ export class RoomManager {
     return true;
   }
 
+  // System emergency reset for a room (e.g. FAMILY table)
+  public resetRoom(roomCode: string): boolean {
+    const room = this.rooms.get(roomCode.toUpperCase()) || this.rooms.get(roomCode);
+    if (!room) return false;
+
+    if (this.turnTimers.has(room.code)) {
+      clearTimeout(this.turnTimers.get(room.code)!);
+      this.turnTimers.delete(room.code);
+    }
+    if (this.gameTimers.has(room.code)) {
+      clearTimeout(this.gameTimers.get(room.code)!);
+      this.gameTimers.delete(room.code);
+    }
+
+    room.status = 'waiting';
+    room.roundNumber = 1;
+    room.currentTrick = [];
+    room.drawStackCount = 0;
+    room.activeUnoCard = undefined;
+    room.activeUnoColor = undefined;
+    room.lastSkippedPlayerId = undefined;
+    room.leadSuit = undefined;
+    room.turnExpiresAt = 0;
+    room.winReason = undefined;
+    room.lastAction = '🏠 Room reset back to the lobby.';
+
+    // Remove all bots from room
+    room.players = room.players.filter(p => !p.isBot);
+    room.players.forEach(p => {
+      p.rank = undefined;
+      p.isDonkey = false;
+      p.isMercyEliminated = false;
+      p.cardsCount = 0;
+      p.hand = [];
+    });
+
+    console.log(`[Room ${room.code}] Reset to lobby by system.`);
+    this.broadcastState(room);
+    return true;
+  }
+
   // Host forces game completion / end match
   public forceEndGame(roomCode: string, hostPlayerId: string): boolean {
     const room = this.rooms.get(roomCode.toUpperCase()) || this.rooms.get(roomCode);
@@ -868,8 +909,23 @@ export class RoomManager {
     }
 
     const isBotOrDisconnected = currentPlayer.isBot || currentPlayer.isDisconnected;
-    const defaultBotTime = room.gameType === 'uno_no_mercy' ? UNO_BOT_TURN_TIME_MS : BOT_TURN_TIME_MS;
-    const defaultHumanTime = room.gameType === 'uno_no_mercy' ? UNO_HUMAN_TURN_TIME_MS : HUMAN_TURN_TIME_MS;
+
+    // Donkey Master: No turn timers for human players (play at leisure without auto-play)
+    if (room.gameType === 'donkey') {
+      room.turnDuration = 0;
+      room.turnExpiresAt = 0;
+      if (isBotOrDisconnected) {
+        // Bots automatically play after BOT_TURN_TIME_MS (0.75s)
+        const timer = setTimeout(() => {
+          this.handleTurnTimeout(room.code, currentPlayer.id);
+        }, BOT_TURN_TIME_MS);
+        this.turnTimers.set(room.code, timer);
+      }
+      return;
+    }
+
+    const defaultBotTime = UNO_BOT_TURN_TIME_MS;
+    const defaultHumanTime = UNO_HUMAN_TURN_TIME_MS;
     const durationMs = customMs !== undefined ? Math.min(20000, customMs) : (isBotOrDisconnected ? defaultBotTime : defaultHumanTime);
 
     room.turnDuration = Math.round(durationMs / 1000);
@@ -1101,6 +1157,7 @@ export class RoomManager {
       const pauseDuration = result.isCut ? 1800 : 1100;
       setTimeout(() => {
         (room as any).isResolvingTrick = false;
+        if (room.status !== 'playing') return;
         room.currentTrick = [];
         room.leadSuit = undefined;
         room.lastCutVictimId = undefined;
@@ -1114,6 +1171,7 @@ export class RoomManager {
           room.status = 'game_over';
           if (remaining.length === 1) {
             remaining[0].isDonkey = true;
+            remaining[0].rank = 999;
             room.winReason = `🫏 Game Over! ${remaining[0].name} holds the last remaining cards (${remaining[0].cardsCount} cards) and is the Donkey!`;
             room.lastAction = `🫏 GAME OVER! ${remaining[0].name} IS THE DONKEY!`;
           }

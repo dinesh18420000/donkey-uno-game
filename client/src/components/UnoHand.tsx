@@ -332,7 +332,7 @@ export const UnoHand: React.FC<UnoHandProps> = ({
                       left: `${idx * spacing}px`,
                       zIndex: isSelected ? 100 : idx + 10,
                       transform: isSelected ? 'translateY(-20px)' : 'translateY(0)',
-                      pointerEvents: isPlayable ? 'auto' : 'none'
+                      pointerEvents: 'auto'
                     }}
                   >
                     <UnoCardView

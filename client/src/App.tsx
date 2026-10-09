@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { ClientGameState } from './types';
 import { socketService } from './services/socket';
 import { LobbyScreen } from './components/LobbyScreen';
@@ -56,12 +58,34 @@ export function App() {
       setIsConnected(true);
     }
 
+    // Handle Android hardware back button
+    let backListenerHandle: any;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('backButton', () => {
+        if (gameState && (gameState.status === 'playing' || gameState.status === 'waiting')) {
+          const confirmLeave = window.confirm('Do you want to leave the game room?');
+          if (confirmLeave) {
+            handleExitToLobby();
+          }
+        } else {
+          CapApp.exitApp();
+        }
+      }).then(handle => {
+        backListenerHandle = handle;
+      }).catch(err => {
+        console.warn('Could not register backButton listener:', err);
+      });
+    }
+
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('gameState', handleGameState);
       socket.off('gameTerminated', handleGameTerminated);
       socket.off('returnToLobby', handleReturnToLobby);
+      if (backListenerHandle?.remove) {
+        backListenerHandle.remove();
+      }
     };
   }, []);
 

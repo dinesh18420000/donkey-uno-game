@@ -15,6 +15,7 @@ interface PlayerAvatarProps {
   activeEmote?: string | null;
   turnExpiresAt?: number;
   turnDuration?: number;
+  serverTime?: number;
   onSelect?: () => void;
   isBeforeMe?: boolean;
   isAfterMe?: boolean;
@@ -35,6 +36,7 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
   activeEmote,
   turnExpiresAt,
   turnDuration = 20,
+  serverTime,
   onSelect,
   isBeforeMe,
   isAfterMe,
@@ -68,14 +70,17 @@ export const PlayerAvatar: React.FC<PlayerAvatarProps> = ({
     }
 
     const updateTimer = () => {
-      const diff = Math.max(0, Math.min(maxSec, Math.ceil((turnExpiresAt - Date.now()) / 1000)));
+      const now = Date.now();
+      const skewOffset = serverTime ? (serverTime - now) : 0;
+      const effectiveNow = now + skewOffset;
+      const diff = Math.max(0, Math.min(maxSec, Math.ceil((turnExpiresAt - effectiveNow) / 1000)));
       setSecondsRemaining(diff);
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 200);
     return () => clearInterval(interval);
-  }, [isCurrentTurn, turnExpiresAt, maxSec]);
+  }, [isCurrentTurn, turnExpiresAt, serverTime, maxSec]);
 
   // Turn is active and time is very low (<= 4 seconds)
   const isTimeLow = isCurrentTurn && secondsRemaining <= 4;
