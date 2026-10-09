@@ -52,7 +52,7 @@ export const RankCardModal: React.FC<RankCardModalProps> = ({
     : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-3 sm:p-4 animate-fadeIn select-none">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-3 sm:p-4 animate-fadeIn select-none">
       <div className="w-full max-w-md max-h-[92vh] flex flex-col rounded-3xl bg-gradient-to-b from-purple-950 via-[#1e072b] to-slate-950 border-2 border-amber-400 text-white shadow-2xl overflow-hidden">
         
         {/* HEADER SECTION */}

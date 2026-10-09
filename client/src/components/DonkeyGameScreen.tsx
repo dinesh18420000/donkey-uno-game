@@ -705,7 +705,34 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
     }
   };
 
-  const showClearedModal = hasPlayerCleared && !isWatching && !isGameOver;
+  const [clearedModalDelayed, setClearedModalDelayed] = useState<boolean>(false);
+  const [gameOverDelayed, setGameOverDelayed] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (hasPlayerCleared && !isWatching && !isGameOver) {
+      const timer = setTimeout(() => {
+        setFlyingPlayCards([]);
+        setClearedModalDelayed(true);
+      }, 750);
+      return () => clearTimeout(timer);
+    } else {
+      setClearedModalDelayed(false);
+    }
+  }, [hasPlayerCleared, isWatching, isGameOver]);
+
+  useEffect(() => {
+    if (isGameOver) {
+      const timer = setTimeout(() => {
+        setFlyingPlayCards([]);
+        setGameOverDelayed(true);
+      }, 750);
+      return () => clearTimeout(timer);
+    } else {
+      setGameOverDelayed(false);
+    }
+  }, [isGameOver]);
+
+  const showClearedModal = clearedModalDelayed && hasPlayerCleared && !isWatching && !isGameOver;
 
   // Carousel scroll helpers for 10 players
   const scrollAvatars = (direction: 'left' | 'right') => {
@@ -1330,9 +1357,97 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
         )}
       </div>
 
+      {/* HARDWARE-ACCELERATED ROOT-LEVEL ANIMATION LAYER (Rendered before modals so cards never overlap modals) */}
+      {(flyingPlayCards.length > 0 || cutSweepAnimation) && (
+        <div className="fixed inset-0 z-40 pointer-events-none overflow-hidden">
+          {flyingPlayCards.map(flight => (
+            <div
+              key={flight.id}
+              className="animate-profile-to-deck"
+              style={{
+                '--f-start-x': `${flight.startX}px`,
+                '--f-start-y': `${flight.startY}px`,
+                '--f-end-x': `${flight.endX}px`,
+                '--f-end-y': `${flight.endY}px`,
+              } as React.CSSProperties}
+            >
+              <div
+                className="animate-flight-inner"
+                style={{
+                  '--f-start-scale': flight.startScale ?? 0.92,
+                  '--f-start-rot': `${flight.startRot ?? -2}deg`,
+                  '--f-mid-rot': `${flight.midRot ?? 1}deg`,
+                  '--f-arc-x': `${flight.arcX ?? 0}px`,
+                } as React.CSSProperties}
+              >
+                <div className="w-[72px] sm:w-[84px] h-[108px] sm:h-[126px] rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.65)] select-none overflow-hidden">
+                  <div className="flex items-center justify-between w-full leading-none px-0.5">
+                    <span className={`text-base sm:text-lg font-black tracking-tight ${
+                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                    }`}>
+                      {flight.card.value}
+                    </span>
+                    <CardSuitIcon suit={flight.card.suit} size={15} />
+                  </div>
+                  <div className="w-full flex-1 flex items-center justify-center my-auto">
+                    <CardSuitIcon suit={flight.card.suit} size={44} glossy={true} />
+                  </div>
+                  <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
+                    <span className={`text-base sm:text-lg font-black tracking-tight ${
+                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                    }`}>
+                      {flight.card.value}
+                    </span>
+                    <CardSuitIcon suit={flight.card.suit} size={15} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {cutSweepAnimation && cutSweepAnimation.map(sweep => (
+            <div
+              key={sweep.id}
+              className="animate-collect-and-sweep"
+              style={{
+                '--c-slot-x': `${sweep.slotX}px`,
+                '--c-slot-y': `${sweep.slotY}px`,
+                '--c-center-x': `${sweep.centerX}px`,
+                '--c-center-y': `${sweep.centerY}px`,
+                '--c-victim-x': `${sweep.victimX}px`,
+                '--c-victim-y': `${sweep.victimY}px`,
+                '--c-rot': `${sweep.stackRot}deg`,
+              } as React.CSSProperties}
+            >
+              <div className="w-[72px] sm:w-[80px] h-[108px] sm:h-[116px] rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_16px_35px_rgba(0,0,0,0.75)] select-none overflow-hidden">
+                <div className="flex items-center justify-between w-full leading-none px-0.5">
+                  <span className={`text-base font-black tracking-tight ${
+                    sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                  }`}>
+                    {sweep.card.value}
+                  </span>
+                  <CardSuitIcon suit={sweep.card.suit} size={14} />
+                </div>
+                <div className="w-full flex-1 flex items-center justify-center my-auto">
+                  <CardSuitIcon suit={sweep.card.suit} size={36} glossy={true} />
+                </div>
+                <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
+                  <span className={`text-base font-black tracking-tight ${
+                    sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
+                  }`}>
+                    {sweep.card.value}
+                  </span>
+                  <CardSuitIcon suit={sweep.card.suit} size={14} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* WATCH OR EXIT MODAL (When player finishes their cards) */}
       {showClearedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
           <div className="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-slate-900 via-blue-950 to-slate-950 border-2 border-amber-400 text-center shadow-2xl">
             <div className="text-5xl mb-2">🎉</div>
             <h2 className="text-xl font-black text-amber-300">YOU CLEARED YOUR CARDS!</h2>
@@ -1364,7 +1479,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* SETTINGS MODAL */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-5 rounded-3xl bg-gradient-to-b from-slate-900 via-blue-950 to-slate-950 border-2 border-cyan-500 text-white shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-cyan-500/30">
               <h3 className="text-base font-black text-amber-300 flex items-center gap-2">
@@ -1488,7 +1603,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* HOST ACTION CONFIRMATION MODAL */}
       {hostActionConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-6 rounded-3xl bg-slate-950 border-2 border-amber-400 text-center shadow-2xl">
             <div className="text-4xl mb-2">👑</div>
             <h3 className="text-lg font-black text-white">{hostActionConfirm.title}</h3>
@@ -1520,7 +1635,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
 
       {/* EXIT CONFIRMATION MODAL */}
       {showExitConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-6 rounded-3xl bg-slate-950 border-2 border-red-500 text-center shadow-2xl">
             <div className="text-4xl mb-2">⚠️</div>
             <h3 className="text-lg font-black text-white">Leave Game?</h3>
@@ -1547,7 +1662,7 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
       )}
 
       {/* GAME OVER & FINAL RANKINGS MODAL */}
-      {isGameOver && (
+      {isGameOver && gameOverDelayed && (
         <RankCardModal
           gameState={gameState}
           onReplay={() => socketService.replayGame(gameState.roomCode)}
@@ -1556,94 +1671,6 @@ export const DonkeyGameScreen: React.FC<DonkeyGameScreenProps> = ({ gameState, o
           isHost={gameState.hostId === myId}
           myId={myId}
         />
-      )}
-
-      {/* 8. HARDWARE-ACCELERATED ROOT-LEVEL ANIMATION LAYER (100% pixel-perfect on any device/aspect ratio) */}
-      {(flyingPlayCards.length > 0 || cutSweepAnimation) && (
-        <div className="absolute inset-0 z-50 pointer-events-none overflow-hidden">
-          {flyingPlayCards.map(flight => (
-            <div
-              key={flight.id}
-              className="animate-profile-to-deck"
-              style={{
-                '--f-start-x': `${flight.startX}px`,
-                '--f-start-y': `${flight.startY}px`,
-                '--f-end-x': `${flight.endX}px`,
-                '--f-end-y': `${flight.endY}px`,
-              } as React.CSSProperties}
-            >
-              <div
-                className="animate-flight-inner"
-                style={{
-                  '--f-start-scale': flight.startScale ?? 0.92,
-                  '--f-start-rot': `${flight.startRot ?? -2}deg`,
-                  '--f-mid-rot': `${flight.midRot ?? 1}deg`,
-                  '--f-arc-x': `${flight.arcX ?? 0}px`,
-                } as React.CSSProperties}
-              >
-                <div className="w-[72px] sm:w-[84px] h-[108px] sm:h-[126px] rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.65)] select-none overflow-hidden">
-                  <div className="flex items-center justify-between w-full leading-none px-0.5">
-                    <span className={`text-base sm:text-lg font-black tracking-tight ${
-                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                    }`}>
-                      {flight.card.value}
-                    </span>
-                    <CardSuitIcon suit={flight.card.suit} size={15} />
-                  </div>
-                  <div className="w-full flex-1 flex items-center justify-center my-auto">
-                    <CardSuitIcon suit={flight.card.suit} size={44} glossy={true} />
-                  </div>
-                  <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
-                    <span className={`text-base sm:text-lg font-black tracking-tight ${
-                      flight.card.suit === 'HEARTS' || flight.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                    }`}>
-                      {flight.card.value}
-                    </span>
-                    <CardSuitIcon suit={flight.card.suit} size={15} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {cutSweepAnimation && cutSweepAnimation.map(sweep => (
-            <div
-              key={sweep.id}
-              className="animate-collect-and-sweep"
-              style={{
-                '--c-slot-x': `${sweep.slotX}px`,
-                '--c-slot-y': `${sweep.slotY}px`,
-                '--c-center-x': `${sweep.centerX}px`,
-                '--c-center-y': `${sweep.centerY}px`,
-                '--c-victim-x': `${sweep.victimX}px`,
-                '--c-victim-y': `${sweep.victimY}px`,
-                '--c-rot': `${sweep.stackRot}deg`,
-              } as React.CSSProperties}
-            >
-              <div className="w-[72px] sm:w-[80px] h-[108px] sm:h-[116px] rounded-xl bg-white border border-slate-200/90 flex flex-col justify-between p-1.5 shadow-[0_16px_35px_rgba(0,0,0,0.75)] select-none overflow-hidden">
-                <div className="flex items-center justify-between w-full leading-none px-0.5">
-                  <span className={`text-base font-black tracking-tight ${
-                    sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                  }`}>
-                    {sweep.card.value}
-                  </span>
-                  <CardSuitIcon suit={sweep.card.suit} size={14} />
-                </div>
-                <div className="w-full flex-1 flex items-center justify-center my-auto">
-                  <CardSuitIcon suit={sweep.card.suit} size={36} glossy={true} />
-                </div>
-                <div className="flex items-center justify-between w-full leading-none rotate-180 px-0.5">
-                  <span className={`text-base font-black tracking-tight ${
-                    sweep.card.suit === 'HEARTS' || sweep.card.suit === 'DIAMONDS' ? 'text-[#ea1d2c]' : 'text-[#0f172a]'
-                  }`}>
-                    {sweep.card.value}
-                  </span>
-                  <CardSuitIcon suit={sweep.card.suit} size={14} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       )}
     </div>
   );

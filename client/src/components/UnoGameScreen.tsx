@@ -120,6 +120,8 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
   // Strict Turn Sequencing: Visual turn waits for card flights and effects to finish
   const [visualTurnPlayerId, setVisualTurnPlayerId] = useState<string>(gameState.currentTurnPlayerId);
   const pendingTurnPlayerIdRef = useRef<string>(gameState.currentTurnPlayerId);
+  const [hasPlayedThisTurn, setHasPlayedThisTurn] = useState<boolean>(false);
+  const prevTurnExpiresAtRef = useRef<number | undefined>(gameState.turnExpiresAt);
 
   const myId = socketService.playerId;
   const me = gameState.players.find(p => p.id === myId);
@@ -149,10 +151,25 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
   const avatarSize = getAvatarSizeForCount(tableCapacity);
   const hideOpponentNames = tableCapacity >= 8;
 
-  // Strict turn gating: Local player can ONLY act once previous card has landed and no pending action
+  // Reset local played flag when turn passes to another player or a fresh full turn starts
+  useEffect(() => {
+    if (gameState.currentTurnPlayerId !== myId) {
+      setHasPlayedThisTurn(false);
+    } else if (
+      gameState.turnExpiresAt &&
+      gameState.turnExpiresAt !== prevTurnExpiresAtRef.current &&
+      (gameState.turnExpiresAt - Date.now() > 8000)
+    ) {
+      setHasPlayedThisTurn(false);
+    }
+    prevTurnExpiresAtRef.current = gameState.turnExpiresAt;
+  }, [gameState.currentTurnPlayerId, gameState.turnExpiresAt, myId]);
+
+  // Strict turn gating: Local player can ONLY act once previous card has landed, no pending action, and hasn't acted yet
   const isMyTurn =
     !me?.isMercyEliminated &&
     visualTurnPlayerId === myId &&
+    !hasPlayedThisTurn &&
     flyingCards.length === 0 &&
     !is0PassAnimating &&
     !isSwapAnimating &&
@@ -679,6 +696,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     if (isActionLockedRef.current) return;
     isActionLockedRef.current = true;
     setIsPlayingAction(true);
+    setHasPlayedThisTurn(true);
     localPlayedCardIdRef.current = card.id;
 
     // Safety timeout in case server doesn't respond
@@ -750,6 +768,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     if (!isMyTurn || isActionLockedRef.current) return;
     isActionLockedRef.current = true;
     setIsPlayingAction(true);
+    setHasPlayedThisTurn(true);
     setTimeout(() => {
       isActionLockedRef.current = false;
       setIsPlayingAction(false);
@@ -828,14 +847,28 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
     legitCardWinner ||
     (isOnlyOneSurvivor ? activeRemainingPlayers[0] : undefined);
 
+  const [gameOverDelayed, setGameOverDelayed] = useState<boolean>(false);
+
   useEffect(() => {
     if (isGameOver) {
+      const timer = setTimeout(() => {
+        setFlyingCards([]);
+        setGameOverDelayed(true);
+      }, 750);
+      return () => clearTimeout(timer);
+    } else {
+      setGameOverDelayed(false);
+    }
+  }, [isGameOver]);
+
+  useEffect(() => {
+    if (isGameOver && gameOverDelayed) {
       if (winner && winner.id === myId) {
         sounds.playVictory();
         confetti({ particleCount: 180, spread: 110, origin: { y: 0.55 } });
       }
     }
-  }, [isGameOver, winner, myId]);
+  }, [isGameOver, gameOverDelayed, winner, myId]);
 
   const mercyRatio = Math.min((myHand.length / 25) * 100, 100);
 
@@ -1437,44 +1470,48 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
       </div>
 
       {/* GPU HARDWARE ACCELERATED FLYING CARDS OVERLAY */}
-      {flyingCards.map(flight => (
-        <div
-          key={flight.id}
-          className="animate-uno-flight-root"
-          style={{
-            '--u-start-x': `${flight.startX}px`,
-            '--u-start-y': `${flight.startY}px`,
-            '--u-end-x': `${flight.endX}px`,
-            '--u-end-y': `${flight.endY}px`,
-            '--u-duration': `${(flight.duration || 680) / 1000}s`,
-          } as React.CSSProperties}
-        >
-          <div
-            className="animate-uno-flight-inner"
-            style={{
-              '--u-start-scale': flight.startScale ?? 0.95,
-              '--u-mid-scale': flight.midScale ?? 1.1,
-              '--u-end-scale': flight.endScale ?? 1.0,
-              '--u-start-rot': `${flight.startRot ?? -2}deg`,
-              '--u-mid-rot': `${flight.midRot ?? 2}deg`,
-              '--u-end-rot': `${flight.endRot ?? 0}deg`,
-              '--u-arc-x': `${flight.arcX ?? 0}px`,
-              '--u-arc-y': `${flight.arcY ?? -26}px`,
-              '--u-duration': `${(flight.duration || 680) / 1000}s`,
-            } as React.CSSProperties}
-          >
-            {flight.card ? (
-              <UnoCardView card={flight.card} isCompact={false} isTableCard={true} />
-            ) : (
-              <UnoCardBackView size="table" />
-            )}
-          </div>
+      {flyingCards.length > 0 && (
+        <div className="fixed inset-0 z-40 pointer-events-none overflow-hidden">
+          {flyingCards.map(flight => (
+            <div
+              key={flight.id}
+              className="animate-uno-flight-root"
+              style={{
+                '--u-start-x': `${flight.startX}px`,
+                '--u-start-y': `${flight.startY}px`,
+                '--u-end-x': `${flight.endX}px`,
+                '--u-end-y': `${flight.endY}px`,
+                '--u-duration': `${(flight.duration || 680) / 1000}s`,
+              } as React.CSSProperties}
+            >
+              <div
+                className="animate-uno-flight-inner"
+                style={{
+                  '--u-start-scale': flight.startScale ?? 0.95,
+                  '--u-mid-scale': flight.midScale ?? 1.1,
+                  '--u-end-scale': flight.endScale ?? 1.0,
+                  '--u-start-rot': `${flight.startRot ?? -2}deg`,
+                  '--u-mid-rot': `${flight.midRot ?? 2}deg`,
+                  '--u-end-rot': `${flight.endRot ?? 0}deg`,
+                  '--u-arc-x': `${flight.arcX ?? 0}px`,
+                  '--u-arc-y': `${flight.arcY ?? -26}px`,
+                  '--u-duration': `${(flight.duration || 680) / 1000}s`,
+                } as React.CSSProperties}
+              >
+                {flight.card ? (
+                  <UnoCardView card={flight.card} isCompact={false} isTableCard={true} />
+                ) : (
+                  <UnoCardBackView size="table" />
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
       {/* WILD COLOR PICKER MODAL */}
       {showColorPicker && pendingCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-5 rounded-3xl bg-slate-900 border-2 border-amber-400 text-center shadow-2xl relative">
             <button
               onClick={() => {
@@ -1514,7 +1551,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
 
       {/* 7 SWAP HAND TARGET PICKER MODAL */}
       {showSwapPicker && pendingCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-5 rounded-3xl bg-slate-900 border-2 border-amber-400 text-center shadow-2xl relative">
             <button
               onClick={() => {
@@ -1559,7 +1596,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
 
       {/* SETTINGS MODAL */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-5 rounded-3xl bg-gradient-to-b from-purple-950 to-slate-950 border-2 border-red-500 text-white shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-red-500/30">
               <h3 className="text-base font-black text-amber-300 flex items-center gap-2">
@@ -1683,7 +1720,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
 
       {/* HOST ACTION CONFIRMATION MODAL */}
       {hostActionConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-6 rounded-3xl bg-slate-950 border-2 border-amber-400 text-center shadow-2xl">
             <div className="text-4xl mb-2">👑</div>
             <h3 className="text-lg font-black text-white">{hostActionConfirm.title}</h3>
@@ -1715,7 +1752,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
 
       {/* EXIT CONFIRMATION MODAL */}
       {showExitConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
           <div className="w-full max-w-xs p-6 rounded-3xl bg-slate-950 border-2 border-red-500 text-center shadow-2xl">
             <div className="text-4xl mb-2">⚠️</div>
             <h3 className="text-lg font-black text-white">Leave Game?</h3>
@@ -1744,7 +1781,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
 
       {/* ELIMINATED BY MERCY RULE INFO POPUP MODAL */}
       {showEliminatedModal && !isGameOver && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
           <div className="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-red-950 via-slate-950 to-black border-2 border-red-500 text-center shadow-2xl">
             <div className="text-5xl mb-2 animate-bounce">☠️</div>
             <h2 className="text-xl font-black text-red-400 tracking-wide">MERCY RULE ELIMINATED!</h2>
@@ -1781,7 +1818,7 @@ export const UnoGameScreen: React.FC<UnoGameScreenProps> = ({ gameState, onExitT
       )}
 
       {/* GAME OVER & FINAL RANKINGS MODAL */}
-      {isGameOver && (
+      {isGameOver && gameOverDelayed && (
         <RankCardModal
           gameState={gameState}
           onReplay={() => socketService.replayGame(gameState.roomCode)}
