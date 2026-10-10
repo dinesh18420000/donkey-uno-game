@@ -9,7 +9,8 @@
     "client": "npm --prefix client run dev",
     "client:build": "npm --prefix client run build",
     "client:sync": "npm --prefix client run build && npx --prefix client cap sync android",
-    "build": "npm run server:build && npm run client:build",
+    "build:web": "npm --prefix client run build && node -e \"const fs=require('fs'); fs.rmSync('server/public/assets', {recursive: true, force: true}); fs.cpSync('client/dist', 'server/public', {recursive: true, force: true}); console.log('Successfully exported web build to server/public');\"",
+    "build": "npm run build:web && npm run server:build",
     "start": "node server/dist/index.js"
   },
   "keywords": ["donkey-master", "uno-no-mercy", "multiplayer", "android-apk", "socketio"],

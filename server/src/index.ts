@@ -42,13 +42,20 @@ const publicDir = fs.existsSync(path.join(clientDist, 'index.html'))
 
 if (fs.existsSync(publicDir)) {
   console.log(`🌐 Serving web client from: ${publicDir}`);
-  app.use(express.static(publicDir));
+  app.use(express.static(publicDir, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/socket.io')) {
       return next();
     }
     const indexPath = path.join(publicDir, 'index.html');
     if (fs.existsSync(indexPath)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(indexPath);
     } else {
       next();
